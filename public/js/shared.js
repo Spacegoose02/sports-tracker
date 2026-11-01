@@ -98,7 +98,7 @@ const CFB = (function () {
       btn.addEventListener('click', () => {
         if (s.key === sportKey) return;
         try { localStorage.setItem(SPORT_STORAGE_KEY, s.key); } catch (e) { /* ignore */ }
-        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html'];
+        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html', '/kids.html'];
         let page = listPages.includes(location.pathname) ? location.pathname : '/';
         if (page === '/rankings.html' && !s.rankings) page = '/';
         if (page === '/standings.html' && s.standings === false) page = '/';
@@ -192,6 +192,17 @@ const CFB = (function () {
     },
   };
 
+  // ---- Kid mode -----------------------------------------------------------
+  // Bigger pictures, simpler words, no betting odds. Saved per browser and
+  // toggled from the header (public/js/kids.js).
+  const KID_MODE_KEY = 'tracker-kid-mode';
+  function kidMode() {
+    try { return localStorage.getItem(KID_MODE_KEY) === '1'; } catch (e) { return false; }
+  }
+  function setKidMode(on) {
+    try { localStorage.setItem(KID_MODE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
+  }
+
   function fmtTime(iso) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -202,6 +213,10 @@ const CFB = (function () {
 
   function statusLabel(game) {
     if (!game || !game.status) return '';
+    if (kidMode()) {
+      if (game.status.state === 'in') return `Playing now! ${game.status.shortDetail || ''}`.trim();
+      if (game.status.state === 'post') return 'Game over';
+    }
     if (game.status.state === 'in') return game.status.shortDetail || `${sport().periodPrefix || 'Q'}${game.status.period} ${game.status.clock}`;
     if (game.status.state === 'post') return 'Final' + (game.status.detail && game.status.detail !== 'Final' ? ` (${game.status.detail})` : '');
     return fmtTime(game.date);
@@ -243,7 +258,7 @@ const CFB = (function () {
   }
 
   function oddsLine(game) {
-    if (!game.odds) return '';
+    if (!game.odds || kidMode()) return '';
     const parts = [];
     if (game.odds.details) parts.push(esc(game.odds.details));
     else if (game.odds.spread !== null) parts.push(`Spread ${game.odds.spread > 0 ? '+' : ''}${game.odds.spread}`);
@@ -334,7 +349,7 @@ const CFB = (function () {
   // drive) as an HTML string. Used by game.html's dedicated page. Kept here
   // so any future page can reuse the same rendering.
   function gameDetailSectionsHtml(detail) {
-    const oddsHtml = detail.odds && (detail.odds.details || detail.odds.overUnder !== null)
+    const oddsHtml = !kidMode() && detail.odds && (detail.odds.details || detail.odds.overUnder !== null)
       ? `<section><h2 class="section-title">Odds</h2><div class="odds-box">
           ${detail.odds.details ? `<div>${esc(detail.odds.details)}</div>` : ''}
           ${detail.odds.overUnder !== null ? `<div>Over/Under: <strong>${esc(detail.odds.overUnder)}</strong></div>` : ''}
@@ -434,6 +449,6 @@ const CFB = (function () {
     el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
-    loadSports, sport, withSport, initSportBar, follows,
+    loadSports, sport, withSport, initSportBar, follows, kidMode, setKidMode,
   };
 })();

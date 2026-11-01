@@ -251,6 +251,8 @@
       renderGames();
       renderNotable();
       scheduleAutoRefresh();
+      // Confetti and a fanfare when a followed team scores (kids.js).
+      if (typeof Kids !== 'undefined') Kids.watchScores(state.games, sport.key);
     } catch (err) {
       el('gameList').innerHTML = '<div class="empty-note">Could not load scoreboard.</div>';
       el('notableGrid').innerHTML = '<div class="empty-note">Could not load notable games.</div>';

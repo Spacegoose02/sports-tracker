@@ -152,6 +152,41 @@
     return parts.join(' · ');
   }
 
+  // Kid mode: "What just happened?" in plain words, for the last play and
+  // the latest scoring play.
+  function renderKidExplainer(detail) {
+    let box = el('kidExplainer');
+    if (!CFB.kidMode() || !window.KidsCore) {
+      if (box) box.remove();
+      return;
+    }
+    const sportKey = CFB.sport().key;
+    const plays = detail.playByPlay || [];
+    const lastText = (detail.situation && detail.situation.lastPlay) || (plays[0] && plays[0].text) || null;
+    const scoring = plays.find((p) => p.scoringPlay);
+    const items = [];
+    const lastExplained = KidsCore.explainPlay(lastText, sportKey);
+    if (lastExplained) items.push({ title: 'What just happened?', text: lastExplained, play: lastText });
+    const scoreExplained = scoring && scoring.text !== lastText ? KidsCore.explainPlay(scoring.text, sportKey) : null;
+    if (scoreExplained) items.push({ title: 'Last time someone scored', text: scoreExplained, play: scoring.text });
+    if (!items.length) {
+      if (box) box.remove();
+      return;
+    }
+    if (!box) {
+      box = document.createElement('section');
+      box.id = 'kidExplainer';
+      box.className = 'kid-explainer';
+      el('gameSituation').insertAdjacentElement('afterend', box);
+    }
+    box.innerHTML = items.map((i) => `
+      <div class="kid-explainer-item">
+        <div class="kid-explainer-title">${CFB.esc(i.title)}</div>
+        <div class="kid-explainer-text">${CFB.esc(i.text)}</div>
+        <div class="kid-explainer-play">${CFB.esc(i.play)}</div>
+      </div>`).join('');
+  }
+
   async function load() {
     try {
       const detail = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}?source=${encodeURIComponent(source)}`));
@@ -193,6 +228,12 @@
       }
 
       el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail);
+      renderKidExplainer(detail);
+
+      if (typeof Kids !== 'undefined') {
+        Kids.watchScores([detail], CFB.sport().key);
+        Kids.awardWatched(detail, CFB.sport().key);
+      }
 
       if (pollTimer) clearInterval(pollTimer);
       if (isLive) pollTimer = setInterval(load, 20000);
