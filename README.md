@@ -7,7 +7,7 @@ always pinned at the top.
 
 - **Data**: ESPN's public college football API by default, with automatic
   fallback to your own [ncaa-api](https://github.com/henrygd/ncaa-api)
-  instance (`https://ncaawidget.sgiu.net`) if ESPN is unreachable.
+  instance (`https://ncaawidget.example.net`) if ESPN is unreachable.
 - **Storage**: a small SQLite file (just the notable-games picks) persisted
   to a mounted volume — everything else is fetched live.
 - **Admin**: a single shared password (set via env var) protects `/admin`,
@@ -87,7 +87,7 @@ always pinned at the top.
 - **News images, properly fixed this time.** The previous fix (checking
   `content:encoded` as well as `description`) was correct but wasn't
   enough on its own — it can only find an image if the RSS feed embeds
-  one somewhere, and apparently your ESPN feed (via the rss.sgiu.net
+  one somewhere, and apparently your ESPN feed (via the rss.example.net
   bridge) just doesn't carry one at all, while Fox Sports' only carries a
   small icon-sized thumbnail that then got stretched into a blurry 16:9
   card. The real fix: for every article, the app now fetches the article
@@ -273,7 +273,7 @@ docker run -d \
   -e SESSION_SECRET="a-long-random-string" \
   -e FAVORITE_TEAM_ID="259" \
   -e FAVORITE_TEAM_NAME="Virginia Tech Hokies" \
-  -e NCAA_API_BASE="https://ncaawidget.sgiu.net" \
+  -e NCAA_API_BASE="https://ncaa-api.example.com" \
   -e NCAA_API_DIVISION="fbs" \
   -v /mnt/user/appdata/cfb-tracker:/app/data \
   cfb-tracker
@@ -321,7 +321,7 @@ If the tracker is down, BingeBandit reads ESPN directly until it's back.
 | `SESSION_SECRET` | *(placeholder)* | Cookie signing secret — **change this** |
 | `FAVORITE_TEAM_ID` | `259` | ESPN team ID pinned at the top (259 = Virginia Tech) |
 | `FAVORITE_TEAM_NAME` | `Virginia Tech Hokies` | Display name for the pinned team |
-| `NCAA_API_BASE` | `https://ncaawidget.sgiu.net` | Your ncaa-api instance, used as fallback |
+| `NCAA_API_BASE` | *(unset: fallback off)* | Your ncaa-api instance, used as a fallback if ESPN is down |
 | `NCAA_API_DIVISION` | `fbs` | Division for ncaa-api fallback scoreboard calls |
 | `CACHE_TTL_SECONDS` | `20` | How long scoreboard responses are cached in memory |
 | `NEWS_FEEDS_JSON` | *(public ESPN / CBS Sports / Yahoo Sports CFB feeds)* | Optional JSON array of `{"name":"...","url":"..."}` to override the News tab's RSS feeds entirely |
