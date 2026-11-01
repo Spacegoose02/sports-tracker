@@ -16,9 +16,11 @@ const CFBGame = (function () {
     const broadcasts = detail.broadcasts && detail.broadcasts.length
       ? detail.broadcasts
       : (detail.broadcast ? [{ network: detail.broadcast, type: 'TV', market: 'National' }] : []);
-    if (!broadcasts.length) {
+    // A note or watch link from the site admin (src/overrides.js).
+    const note = detail.broadcastNote ? `<p class="watch-admin-note">${esc(detail.broadcastNote)}</p>` : '';
+    if (!broadcasts.length && !(detail.streaming || []).length) {
       if (detail.status && detail.status.state === 'post') return '';
-      return `<section><h2 class="section-title">Where to Watch</h2><div class="watch-box"><div class="empty-note">TV channel hasn't been announced yet.</div></div></section>`;
+      return `<section><h2 class="section-title">Where to Watch</h2><div class="watch-box">${note}<div class="empty-note">TV channel hasn't been announced yet.</div></div></section>`;
     }
     const tv = broadcasts.map((b) => `
       <li class="watch-channel">
@@ -36,8 +38,8 @@ const CFBGame = (function () {
       <section>
         <h2 class="section-title">Where to Watch</h2>
         <div class="watch-box">
-          <div class="watch-label">TV and streaming channels</div>
-          <ul class="watch-channels">${tv}</ul>
+          ${note}
+          ${tv ? `<div class="watch-label">TV and streaming channels</div><ul class="watch-channels">${tv}</ul>` : ''}
           ${streams ? `<div class="watch-label">Stream it</div><ul class="watch-streams">${streams}</ul>` : ''}
         </div>
       </section>`;

@@ -591,6 +591,14 @@ and search for the team, or check the URL on ESPN's team page
 - **Admin page (`/admin`)** — log in with `ADMIN_PASSWORD`, pick a week,
   and toggle which games are "notable." Notes/labels are optional (e.g.
   "ACC opener", "Top 10 matchup").
+- **Radio and TV (`/admin`)** — fix the TV channel or radio stations when
+  ESPN is wrong or missing. Save a change for one game (TV channels,
+  national radio, an extra watch link, a note) or for a team in any sport
+  (radio flagship and extra stations, city, free audio link, and a usual
+  TV channel used only when ESPN lists none). Changes are stored in the
+  SQLite file in `DATA_DIR`, show up right away on scoreboards, team
+  schedules and game pages, and win over ESPN's data. Save a blank form or
+  press Remove to go back to ESPN's info.
 - Live games auto-refresh every 20 seconds while any game in the current
   view is in progress.
 - If ESPN's API errors out, the app automatically retries the same request
