@@ -5,6 +5,7 @@ const news = require('../news');
 const videos = require('../videos');
 const radio = require('../radio');
 const scorecard = require('../scorecard');
+const matchup = require('../matchup');
 const lines = require('../lines');
 const recruiting = require('../recruiting');
 const { isSafeId } = require('../security');
@@ -183,6 +184,17 @@ router.get('/game/:id', async (req, res) => {
     res.json(summary);
   } catch (err) {
     res.status(502).json({ error: 'Could not load game detail', detail: err.message });
+  }
+});
+
+// Head-to-head history and kickoff weather for one game. Separate from
+// /game/:id so live polling stays one ESPN call; cached for hours.
+router.get('/game/:id/matchup', async (req, res) => {
+  try {
+    const summary = await ds.getGameSummary(req.params.id, 'espn', req.sport.key);
+    res.json(await matchup.getMatchup(summary, req.sport.key));
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load matchup info', detail: err.message });
   }
 });
 

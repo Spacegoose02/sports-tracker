@@ -14,6 +14,7 @@
 const fetch = require('node-fetch');
 const cache = require('./cache');
 const { resolveSport } = require('./sports');
+const { parseGameExtras } = require('./gamedetail');
 
 const SITE_ROOT = 'https://site.api.espn.com/apis/site/v2/sports';
 const STANDINGS_ROOT = 'https://site.api.espn.com/apis/v2/sports';
@@ -538,6 +539,9 @@ async function getGameSummary(eventId, sport) {
       // Football groups plays into drives; every other sport returns a
       // flat `plays` list instead.
       playByPlay: json.drives ? buildPlayByPlay(json.drives) : buildFlatPlayByPlay(json.plays),
+      // Every TV/streaming broadcast, player box scores, win probability,
+      // injuries, venue/weather, recent form (see src/gamedetail.js).
+      ...parseGameExtras(json, comp),
     };
   }, 10 * 1000); // 10s cache for in-game data
 }
