@@ -1,0 +1,51 @@
+{
+  "_comment": "Team radio networks, keyed by ESPN team id. Flagship stations change hands between seasons (Michigan moved to 94.7 WCSX in 2025, for example), so only entries checked against two sources are listed, each with the season it was checked. Re-check before each season and bump 'checked'. Fields: flagship (main station), city, listen (optional link to the team's official free audio page).",
+  "194": {
+    "team": "Ohio State Buckeyes",
+    "flagship": "97.1 The Fan (WBNS-FM)",
+    "city": "Columbus, OH",
+    "checked": "2025"
+  },
+  "130": {
+    "team": "Michigan Wolverines",
+    "flagship": "94.7 WCSX",
+    "city": "Detroit, MI",
+    "checked": "2025"
+  },
+  "61": {
+    "team": "Georgia Bulldogs",
+    "flagship": "750 AM / 95.5 FM WSB",
+    "city": "Atlanta, GA",
+    "checked": "2025"
+  },
+  "251": {
+    "team": "Texas Longhorns",
+    "flagship": "98.1 FM KVET",
+    "city": "Austin, TX",
+    "checked": "2025"
+  },
+  "57": {
+    "team": "Florida Gators",
+    "flagship": "850 AM / 98.1 FM WRUF",
+    "city": "Gainesville, FL",
+    "checked": "2025"
+  },
+  "201": {
+    "team": "Oklahoma Sooners",
+    "flagship": "107.7 The Franchise",
+    "city": "Oklahoma City, OK",
+    "checked": "2025"
+  },
+  "275": {
+    "team": "Wisconsin Badgers",
+    "flagship": "1310 AM WIBA",
+    "city": "Madison, WI",
+    "checked": "2025"
+  },
+  "228": {
+    "team": "Clemson Tigers",
+    "flagship": "105.5 The Roar (WCCP)",
+    "city": "Clemson, SC",
+    "checked": "2025"
+  }
+}

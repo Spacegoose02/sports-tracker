@@ -3,6 +3,7 @@ const ds = require('../datasource');
 const db = require('../db');
 const news = require('../news');
 const videos = require('../videos');
+const radio = require('../radio');
 const { isSafeId } = require('../security');
 
 const router = express.Router();
@@ -140,6 +141,21 @@ router.get('/game/:id', async (req, res) => {
     res.json(summary);
   } catch (err) {
     res.status(502).json({ error: 'Could not load game detail', detail: err.message });
+  }
+});
+
+// Where to listen: radio stations, SiriusXM, and free audio links for one
+// game. Separate from /game/:id because it changes rarely and is cached
+// longer. ?sport= picks the league (default college-football).
+router.get('/game/:id/radio', async (req, res) => {
+  const sport = req.query.sport || 'college-football';
+  if (!Object.prototype.hasOwnProperty.call(radio.SPORTS, sport)) {
+    return res.status(400).json({ error: 'Unknown sport' });
+  }
+  try {
+    res.json(await radio.getGameRadio(req.params.id, sport));
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load radio info', detail: err.message });
   }
 });
 

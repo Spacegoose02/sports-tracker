@@ -773,3 +773,38 @@ footer.foot {
   font-size: 0.75rem;
   padding: 24px;
 }
+
+/* Where to Listen (game page) */
+.radio-box {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.radio-teams {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.radio-list { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.radio-kind {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-right: 4px;
+}
+.radio-kind-satellite { background: rgba(160, 120, 255, 0.14); color: #b39bff; }
+.radio-dim { color: var(--text-dim); font-size: 0.8rem; }
+.radio-links { font-size: 0.8rem; margin-top: 4px; }
+.radio-links a, .radio-sirius a { color: var(--accent); }
+.radio-sirius { margin: 0; color: var(--text-dim); font-size: 0.82rem; }
