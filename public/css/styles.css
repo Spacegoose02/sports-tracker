@@ -810,3 +810,34 @@ footer.foot {
 }
 .day-controls, .week-controls { display: contents; }
 [hidden] { display: none !important; }
+
+/* Followed teams ("My Teams") */
+.my-teams { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.my-teams .empty-note { grid-column: 1 / -1; }
+.my-teams .favorite-card { position: relative; padding-right: 40px; }
+.my-teams .favorite-card img.logo { width: 48px; height: 48px; }
+.my-teams .favorite-card .team-meta { min-width: 140px; }
+.favorite-card a.next-game { text-decoration: none; color: inherit; min-width: 0; }
+.favorite-card a.next-game:hover { outline: 1px solid var(--accent); }
+.unfollow-btn {
+  position: absolute; top: 8px; right: 8px;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--bg-elev);
+  color: var(--text-dim); font-size: 1rem; line-height: 1; cursor: pointer;
+}
+.unfollow-btn:hover { color: var(--text); border-color: var(--loss); }
+
+.follow-btn {
+  margin-left: auto;
+  background: var(--bg-elev-2); color: var(--text);
+  border: 1px solid var(--favorite); border-radius: 999px;
+  padding: 8px 16px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+}
+.follow-btn.following { background: var(--favorite); color: #1a1400; }
+
+.news-filter { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+.news-filter button {
+  background: var(--bg-elev-2); color: var(--text-dim); border: none;
+  padding: 7px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+}
+.news-filter button.active { background: var(--accent); color: #08111f; }

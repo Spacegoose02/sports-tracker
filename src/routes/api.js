@@ -117,10 +117,13 @@ router.get('/team/:id', async (req, res) => {
   try {
     const teamId = req.params.id;
     const sport = req.sport.key;
+    // ?lite=1 skips season stats: the home page's "My Teams" cards only
+    // need the header and schedule.
+    const lite = req.query.lite === '1';
     const [info, schedule, stats] = await Promise.all([
       ds.getTeamInfo(teamId, sport).catch(() => null),
       ds.getTeamSchedule(teamId, req.query.season, sport).catch(() => null),
-      ds.getTeamStatistics(teamId, req.query.season, sport).catch(() => null),
+      lite ? null : ds.getTeamStatistics(teamId, req.query.season, sport).catch(() => null),
     ]);
     res.json({
       sport,
@@ -252,6 +255,35 @@ router.get('/news', async (req, res) => {
     res.json({ items });
   } catch (err) {
     res.status(502).json({ error: 'Could not load news', detail: err.message });
+  }
+});
+
+// Headlines for the teams a visitor follows, from ESPN's per-team news.
+// ?teams=52,259,... (max 10). Each item is tagged with the team it came
+// from; stories that mention two followed teams appear once.
+const MAX_FOLLOWED_TEAMS = 10;
+router.get('/news/teams', async (req, res) => {
+  const ids = String(req.query.teams || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => /^\d{1,10}$/.test(id));
+  const unique = [...new Set(ids)].slice(0, MAX_FOLLOWED_TEAMS);
+  if (!unique.length) return res.json({ items: [] });
+  try {
+    const perTeam = await Promise.all(unique.map(async (teamId) => {
+      const items = await ds.getNews({ sport: req.sport.key, team: teamId, limit: 10 }).catch(() => []);
+      return items.map((item) => ({ ...item, teamId }));
+    }));
+    const seen = new Set();
+    const items = perTeam.flat().filter((item) => {
+      if (seen.has(item.link)) return false;
+      seen.add(item.link);
+      return true;
+    });
+    items.sort((a, b) => (b.pubDate ? Date.parse(b.pubDate) : 0) - (a.pubDate ? Date.parse(a.pubDate) : 0));
+    res.json({ items: items.slice(0, 40) });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load team news', detail: err.message });
   }
 });
 

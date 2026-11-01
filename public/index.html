@@ -29,8 +29,8 @@
 
 <main>
   <section id="favoriteSection">
-    <h2 class="section-title">My Team</h2>
-    <div class="favorite-card" id="favoriteCard">Loading favorite team&hellip;</div>
+    <h2 class="section-title">My Teams</h2>
+    <div class="my-teams" id="myTeams"></div>
   </section>
 
   <section>
@@ -77,6 +77,10 @@
     </div>
 
     <div class="tab-panel" id="tab-news">
+      <div class="news-filter" id="newsFilter" hidden>
+        <button type="button" data-filter="mine">My teams</button>
+        <button type="button" data-filter="all">All news</button>
+      </div>
       <div class="news-list" id="newsList">
         <div class="empty-note">Loading&hellip;</div>
       </div>
