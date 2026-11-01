@@ -129,10 +129,15 @@ function parseRss(xml, sourceName) {
     const pubDateRaw = extractTag(block, 'pubDate') || extractTag(block, 'dc:date') || extractTag(block, 'published');
     const description = extractTag(block, 'description') || extractTag(block, 'summary');
     const parsedDate = pubDateRaw ? new Date(pubDateRaw) : null;
+    // Aggregator feeds (Google News) name the real outlet in <source> and
+    // append " - Outlet" to every title.
+    const outlet = stripHtml(extractTag(block, 'source') || '');
+    let cleanTitle = stripHtml(title);
+    if (outlet && cleanTitle.endsWith(` - ${outlet}`)) cleanTitle = cleanTitle.slice(0, -(outlet.length + 3));
     items.push({
-      title: stripHtml(title),
+      title: cleanTitle,
       link,
-      source: sourceName,
+      source: outlet || sourceName,
       pubDate: parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : null,
       summary: stripHtml(description).slice(0, 220),
       image: safeHttpUrl(extractImage(block)),

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Betting Lines &middot; CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<script src="/js/theme-boot.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1>Betting Lines</h1>
+      <div class="subtitle" id="sourceNote">Loading&hellip;</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Schedule &amp; Scores</a>
+    <a href="/upcoming.html">Upcoming</a>
+    <a href="/rankings.html">Rankings</a>
+    <a href="/standings.html">Standings</a>
+    <a href="/recruiting.html">Recruiting</a>
+  </nav>
+</header>
+
+<main>
+  <div class="week-bar">
+    <div class="division-toggle" id="divisionToggle"></div>
+    <span class="week-controls" id="weekControls">
+      <label for="seasonSelect">Season</label>
+      <select id="seasonSelect"></select>
+      <label for="weekSelect">Week</label>
+      <select id="weekSelect"></select>
+      <label for="seasonTypeSelect">Type</label>
+      <select id="seasonTypeSelect">
+        <option value="2">Regular Season</option>
+        <option value="3">Postseason / Bowls</option>
+      </select>
+      <button id="goBtn">Go</button>
+    </span>
+    <span class="day-controls" id="dayControls" hidden>
+      <button id="prevDayBtn" aria-label="Previous day">&larr;</button>
+      <input type="date" id="dayInput" aria-label="Date" />
+      <button id="nextDayBtn" aria-label="Next day">&rarr;</button>
+      <button id="todayBtn">Today</button>
+    </span>
+  </div>
+
+  <div class="lines-toolbar">
+    <div class="news-filter" id="linesFilter">
+      <button type="button" data-filter="all" class="active">All games</button>
+      <button type="button" data-filter="ranked">Ranked</button>
+      <button type="button" data-filter="mine">My teams</button>
+    </div>
+    <div class="lines-summary" id="linesSummary"></div>
+  </div>
+
+  <div class="lines-list" id="linesList">
+    <div class="empty-note">Loading&hellip;</div>
+  </div>
+  <p class="lines-note">Lines are shown for information only. They come from ESPN's feed and can lag the books. If you bet, bet responsibly; help is available at 1-800-GAMBLER.</p>
+</main>
+
+<footer class="foot">CFB Tracker</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/lines.js"></script>
+</body>
+</html>
