@@ -431,7 +431,7 @@ The service worker lives in `public/sw.js`. If you change how it caches, bump it
 
 ## Kids Zone
 
-Things for kids watching with the family. All of it is saved in the browser for now, so each device keeps its own players, picks and stickers.
+Things for kids watching with the family. Signed out, players, picks and stickers are saved in the browser. Signed in, they're saved to the account (see [Family leagues](#family-leagues) below), so they follow you to every phone and tablet.
 
 - **Kid mode** (the 🧒 button in the header): bigger logos and scores, simpler status words ("Playing now!", "Game over"), no betting odds, and on a game's page a "What just happened?" box that explains the last play in plain words ("That's a touchdown, worth 6 points!").
 - **Celebrations**: when a team you follow scores, the Scores page and the game page throw confetti in the team's color, show a big banner and play a "Charge!" fanfare (a goal horn for hockey). Basketball only celebrates wins, since it scores every few seconds. Turn confetti or sounds off on the Kids page. To play a real fight song instead, put an mp3 at `public/sounds/<sport>-<team id>.mp3`, for example `public/sounds/cfb-259.mp3`.
@@ -449,7 +449,31 @@ window.addEventListener('tracker:score', (e) => {
 });
 ```
 
-The saved data goes through `Kids.store` (see `public/js/kids.js`). When accounts arrive, a sync layer can call `Kids.store.setBackend({ get(key), set(key, value) })` to keep it on the server, and listen for `tracker:kids-data` to know when something changed.
+The saved data goes through `Kids.store` (see `public/js/kids.js`). Listen for `tracker:kids-data` to know when something changed, and wait for `Kids.ready` before reading saved data on page load.
+
+## Playoffs and brackets
+
+`/brackets.html` (the 🏆 Playoffs link in the header) is the postseason hub:
+
+- **College Football Playoff**: the 12-team bracket by round, with seeds, scores, TV and bowl sites. Before the field is set it shows a projection from the latest CFP rankings (or the AP poll before those come out), seeded straight down. The real field also saves spots for the highest-ranked conference champions, so the page labels it "if the season ended today".
+- **Bowls**: every bowl game, grouped by day.
+- **March Madness**: the men's tournament by region (Round of 64 to Elite Eight), the First Four, and the Final Four. Before Selection Sunday it shows last year's bracket.
+- The arrows switch seasons. Pages use ESPN's postseason scoreboard (`GET /api/brackets?sport=cfb|mcbb&season=`); finished seasons are cached for a day.
+
+**Family bracket challenge**: each Kids Zone player picks the winner of each game before it starts. As matchups are set round by round, picks open for the next round. Bowls are worth 1 point; CFP rounds are 1, 2, 4 and 8; tournament rounds are 1 (First Four and Round of 64), 2, 4, 8, 16 and 32.
+
+## Family leagues
+
+Signing in saves Kids Zone players, pick'em picks, stickers and bracket picks to the account. Whatever a browser saved before signing in is merged into the account once, then cleared from that browser. Settings (confetti, sound) and "who's playing" stay per device. Pages stay public; signing in is only for saving.
+
+A family league is a group of accounts. Start one on the Kids Zone's Pick'em tab, then share the invite code or link (`/kids.html?join=CODE`). Every player on every member's account shows up on:
+
+- the **weekly pick'em leaderboard** on the Kids Zone, for the sport on screen (football by week; daily sports roll up Monday to Sunday), with a menu for past weeks, and
+- the **bracket challenge standings** on the playoff hub.
+
+League standings are worked out on the server from ESPN's final scores, and only count picks saved to the account before kickoff, so nobody can pick after the fact. A pick made while signed out counts in the league once it's saved to the account before the game starts. The league owner can make a new code (the old one stops working) and remove members; when the owner leaves, the longest-standing member takes over.
+
+API (signed in): `GET /api/family/data`, `POST /api/family/data/merge`, `PUT /api/family/data/:key`, `GET|POST /api/family/leagues`, `POST /api/family/leagues/join`, `GET /api/family/leagues/:id/leaderboard?sport=&week=`, `GET /api/family/leagues/:id/bracket?sport=&season=`. See `src/routes/family.js`.
 
 ## TV wall mode
 

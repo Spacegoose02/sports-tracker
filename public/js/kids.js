@@ -5,10 +5,12 @@
 //
 // Needs shared.js (CFB) and kids-core.js (KidsCore) loaded first.
 //
-// Saved data lives in this browser for now. Everything goes through
-// Kids.store, so once user accounts land a sync layer can call
-// Kids.store.setBackend({ get(key), set(key, value) }) to keep it on the
-// server instead, and listen for `tracker:kids-data` to know when to save.
+// Saved data goes through Kids.store. Signed out, it lives in this
+// browser. Signed in, players, picks, stickers and bracket picks live on
+// the account (src/family.js): whatever this browser saved before is
+// merged into the account once, then cleared here, and every change is
+// saved back. Settings and "who's playing" stay per device. Wait for
+// Kids.ready before reading saved data on page load.
 
 const Kids = (function () {
   // ---- Storage ---------------------------------------------------------------
@@ -18,6 +20,9 @@ const Kids = (function () {
     },
     set(key, value) {
       try { localStorage.setItem(`tracker-kids:${key}`, JSON.stringify(value)); } catch (e) { /* ignore */ }
+    },
+    remove(key) {
+      try { localStorage.removeItem(`tracker-kids:${key}`); } catch (e) { /* ignore */ }
     },
   };
   let backend = localBackend;
@@ -65,9 +70,11 @@ const Kids = (function () {
     },
     remove(id) {
       store.set('players', players.list().filter((p) => p.id !== id));
-      const picks = store.get('picks', {});
-      delete picks[id];
-      store.set('picks', picks);
+      ['picks', 'brackets'].forEach((key) => {
+        const all = store.get(key, {});
+        delete all[id];
+        store.set(key, all);
+      });
       if (store.get('current', null) === id) store.set('current', null);
     },
     current() {
@@ -111,6 +118,20 @@ const Kids = (function () {
     },
   };
 
+  // ---- Bracket challenge -------------------------------------------------------
+  // brackets[playerId][`${sport}:${gameId}`] = { sport, season, gameId,
+  // teamId, round, date, away, home }. Scored by brackets-core.js.
+  const brackets = {
+    all() { return store.get('brackets', {}); },
+    forPlayer(playerId) { return brackets.all()[playerId] || {}; },
+    set(playerId, pick) {
+      const all = brackets.all();
+      all[playerId] = all[playerId] || {};
+      all[playerId][`${pick.sport}:${pick.gameId}`] = pick;
+      store.set('brackets', all);
+    },
+  };
+
   // ---- Stickers ----------------------------------------------------------------
   const stickers = {
     all() { return store.get('stickers', {}); },
@@ -147,6 +168,78 @@ const Kids = (function () {
     return earned;
   }
 
+  // ---- Saving to the account ----------------------------------------------------
+  const SYNCED = ['players', 'picks', 'stickers', 'brackets'];
+  let synced = false;
+
+  function isEmpty(v) {
+    return !v || (Array.isArray(v) ? !v.length : !Object.keys(v).length);
+  }
+
+  // Keeps the account's copy in memory and saves each change a moment
+  // later (several quick changes become one request).
+  function accountBackend(data) {
+    const memory = {};
+    SYNCED.forEach((k) => { memory[k] = data[k] === undefined ? null : data[k]; });
+    const timers = {};
+    const versions = {};
+    const save = (key, keepalive) => {
+      clearTimeout(timers[key]);
+      timers[key] = null;
+      const version = versions[key];
+      return fetch(`/api/family/data/${encodeURIComponent(key)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        keepalive: !!keepalive,
+        body: JSON.stringify({ value: memory[key] }),
+      }).then((r) => (r.ok ? r.json() : null)).then((r) => {
+        // The server adds pick times; take its copy unless something
+        // changed again while this save was on its way.
+        if (r && r.value !== undefined && versions[key] === version) memory[key] = r.value;
+      }).catch(() => { /* saved again on the next change */ });
+    };
+    window.addEventListener('pagehide', () => {
+      Object.keys(timers).forEach((key) => { if (timers[key]) save(key, true); });
+    });
+    return {
+      get(key) {
+        if (!SYNCED.includes(key)) return localBackend.get(key);
+        return memory[key] === null || memory[key] === undefined ? null : JSON.parse(JSON.stringify(memory[key]));
+      },
+      set(key, value) {
+        if (!SYNCED.includes(key)) { localBackend.set(key, value); return; }
+        memory[key] = JSON.parse(JSON.stringify(value));
+        versions[key] = (versions[key] || 0) + 1;
+        clearTimeout(timers[key]);
+        timers[key] = setTimeout(() => save(key), 400);
+      },
+    };
+  }
+
+  const ready = (async () => {
+    if (typeof CFB === 'undefined' || !CFB.account) return false;
+    let me;
+    try { me = await CFB.account.load(); } catch (e) { return false; }
+    if (!me || !me.user) return false;
+    const local = {};
+    SYNCED.forEach((k) => { const v = localBackend.get(k); if (!isEmpty(v)) local[k] = v; });
+    try {
+      const res = Object.keys(local).length
+        ? await CFB.account.postJson('/api/family/data/merge', { data: local })
+        : await CFB.getJson('/api/family/data');
+      // The account has it now; don't merge it again (or hand it to the
+      // next person who signs in on this device).
+      Object.keys(local).forEach((k) => localBackend.remove(k));
+      store.setBackend(accountBackend((res && res.data) || {}));
+      synced = true;
+      window.dispatchEvent(new CustomEvent('tracker:kids-synced'));
+      return true;
+    } catch (e) {
+      return false; // keep using this browser's copy
+    }
+  })();
+
   // ---- Header: kid mode toggle and Kids link -----------------------------------
   function initHeader() {
     document.body.classList.toggle('kid-mode', CFB.kidMode());
@@ -154,6 +247,13 @@ const Kids = (function () {
     // No betting page in kid mode.
     if (nav && CFB.kidMode()) nav.querySelectorAll('a[href^="/lines.html"]').forEach((a) => a.remove());
     if (!nav || nav.querySelector('.kids-link')) return;
+    if (location.pathname !== '/brackets.html' && !nav.querySelector('a[href^="/brackets.html"]')) {
+      const link = document.createElement('a');
+      link.href = '/brackets.html';
+      link.className = 'playoffs-link';
+      link.textContent = '🏆 Playoffs';
+      nav.appendChild(link);
+    }
     if (location.pathname !== '/kids.html') {
       const link = document.createElement('a');
       link.href = '/kids.html';
@@ -386,7 +486,8 @@ const Kids = (function () {
   unlockAudioOnTap();
 
   return {
-    store, settings, setSetting, players, picks, stickers,
+    store, settings, setSetting, players, picks, stickers, brackets,
     awardWatched, watchScores, celebrate, toast,
+    ready, isSynced: () => synced,
   };
 })();
