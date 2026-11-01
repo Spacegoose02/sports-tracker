@@ -1,5 +1,5 @@
 // Scrappy, the AI sports chat bubble. Loaded with `defer` on every page.
-// Asks /api/scrappy whether chat is on (ANTHROPIC_API_KEY set) and adds
+// Asks /api/scrappy whether chat is on (Claude or Ollama configured) and adds
 // nothing to the page when it isn't. The conversation lives in
 // sessionStorage, so it follows the visitor from page to page in a tab.
 //

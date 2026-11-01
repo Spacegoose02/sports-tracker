@@ -74,7 +74,7 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {}, 
   // Family leagues and the playoff hub (src/family.js, src/brackets.js).
   app.use('/api/family', createFamilyRouter({ deps: family.deps }));
   app.use('/api', createBracketsRouter({ deps: family.deps }));
-  // Scrappy, the AI chat bubble. Off unless ANTHROPIC_API_KEY is set.
+  // Scrappy, the AI chat bubble. Off unless ANTHROPIC_API_KEY or OLLAMA_URL is set.
   app.use('/api', createScrappyRouter({ env, logger, ...scrappy }));
   // "Watch on BingeBandit" channel links. Off unless BINGEBANDIT_URL is set.
   app.use('/api/bingebandit', createBingeBanditRouter({ env, logger, ...bingebandit }));

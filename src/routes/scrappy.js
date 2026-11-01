@@ -8,9 +8,9 @@ const express = require('express');
 const { rateLimit } = require('../security');
 const { createScrappy, cleanHistory } = require('../scrappy');
 
-function createScrappyRouter({ env = process.env, client, logger = console } = {}) {
+function createScrappyRouter({ env = process.env, client, logger = console, fetch: fetchImpl } = {}) {
   const router = express.Router();
-  const scrappy = createScrappy({ env, client, logger });
+  const scrappy = createScrappy({ env, client, logger, fetchImpl });
   const perMinute = Number(env.SCRAPPY_RATE_PER_MINUTE) || 8;
   const perDay = Number(env.SCRAPPY_RATE_PER_DAY) || 100;
   const minuteLimit = rateLimit({ windowMs: 60 * 1000, max: perMinute });
@@ -21,7 +21,7 @@ function createScrappyRouter({ env = process.env, client, logger = console } = {
   });
 
   router.post('/scrappy/chat', (req, res, next) => {
-    if (!scrappy.enabled) return res.status(503).json({ error: 'Scrappy is off. Set ANTHROPIC_API_KEY to turn him on.' });
+    if (!scrappy.enabled) return res.status(503).json({ error: 'Scrappy is off. Set ANTHROPIC_API_KEY or OLLAMA_URL to turn him on.' });
     return next();
   }, minuteLimit, dayLimit, async (req, res) => {
     const history = cleanHistory(req.body && req.body.messages);

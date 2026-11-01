@@ -503,7 +503,9 @@ A finished game's page shows highlight clips above the box score: ESPN's own cli
 
 Scrappy is the site's raccoon mascot and sports guru, living in a chat bubble in the bottom corner of every page. Ask him things like "When do the Hokies play next and what channel?", "Who's in the AP Top 10?", "What do the ACC standings look like?" or "Who leads the NFL in passing yards?" and he answers from the same live data the site shows: scores, schedules, TV and radio, rankings, standings, team and player stats, stat leaders and news, for every sport on the site.
 
-- **Turn it on** by setting `ANTHROPIC_API_KEY` (create one at [console.anthropic.com](https://console.anthropic.com/)). With no key the bubble doesn't appear at all.
+- **Turn it on** by setting `ANTHROPIC_API_KEY` (create one at [console.anthropic.com](https://console.anthropic.com/)), or point him at an Ollama server with `OLLAMA_URL` (below). With neither set the bubble doesn't appear at all.
+- **Ollama instead of Claude**: set `OLLAMA_URL` to your Ollama server (for example `http://192.168.1.10:11434`) and `OLLAMA_MODEL` to a model that supports tool calling (default `qwen3`; `llama3.1`, `qwen2.5` and `gpt-oss` also work). To use Ollama's cloud models, set `OLLAMA_URL=https://ollama.com` plus `OLLAMA_API_KEY` from [ollama.com/settings/keys](https://ollama.com/settings/keys). If both a Claude key and `OLLAMA_URL` are set, Claude is used unless `SCRAPPY_PROVIDER=ollama`. Local models can be slow on a cold start; `OLLAMA_TIMEOUT_SECONDS` (default 120) sets how long to wait.
+- **Web search** (optional, works with Claude or Ollama): set `OLLAMA_API_KEY` to use Ollama's web search API, or `SEARXNG_URL` to use your own [SearXNG](https://docs.searxng.org/) instance (enable the `json` format in its `settings.yml`). Scrappy then gets a `web_search` tool for sports questions the site's data doesn't cover, like coaching news or history, and still uses the live site data first for scores, schedules and stats.
 - **Cost control**: each visitor (by IP) gets 8 messages a minute and 100 a day by default (`SCRAPPY_RATE_PER_MINUTE`, `SCRAPPY_RATE_PER_DAY`). Behind a reverse proxy, set `TRUST_PROXY` so the limit sees real visitor IPs. You can also set a monthly spend limit on the Anthropic console.
 - **Model**: Claude Opus 5.5 at low effort by default; set `SCRAPPY_MODEL` to use another Claude model (for example `claude-sonnet-5-5` or `claude-haiku-5-5` to spend less).
 - **Kid-safe**: Scrappy keeps it family-friendly, sticks to sports, and won't give betting advice. Replies are shown as plain text, never as HTML.
@@ -699,6 +701,12 @@ BingeBandit's Sports data settings instead.
 | `GAME_ALERTS` | *(on)* | Set to `false` to stop checking scores for game alerts |
 | `ANTHROPIC_API_KEY` | *(unset: Scrappy off)* | Turns on Scrappy, the AI sports chat bubble (see [Ask Scrappy](#ask-scrappy-ai-chat)) |
 | `SCRAPPY_MODEL` | `claude-opus-5-5` | Claude model Scrappy uses |
+| `OLLAMA_URL` | *(unset)* | Runs Scrappy on an Ollama server instead of Claude, e.g. `http://192.168.1.10:11434` or `https://ollama.com` |
+| `OLLAMA_MODEL` | `qwen3` | Ollama model Scrappy uses; it must support tool calling |
+| `OLLAMA_API_KEY` | *(unset)* | Ollama account key: needed for `https://ollama.com`, and turns on Scrappy's web search |
+| `SEARXNG_URL` | *(unset)* | Your SearXNG instance, for Scrappy's web search without an Ollama key |
+| `SCRAPPY_PROVIDER` | *(auto)* | `anthropic` or `ollama`, when both are configured |
+| `OLLAMA_TIMEOUT_SECONDS` | `120` | How long to wait for an Ollama reply |
 | `SCRAPPY_RATE_PER_MINUTE` / `SCRAPPY_RATE_PER_DAY` | `8` / `100` | Scrappy messages allowed per visitor IP |
 | `DAILY_RECAP` | *(on)* | Set to `false` to stop sending Scrappy's morning recaps |
 | `RECAP_NOW_PER_HOUR` | `6` | "Send me one now" recaps allowed per IP per hour |
