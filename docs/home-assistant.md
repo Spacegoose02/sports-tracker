@@ -97,7 +97,12 @@ Two events fire on Home Assistant's event bus:
 - `sports_tracker_game_state` when a game starts or ends. Data:
   `from_state`, `to_state`, plus the teams and scores.
 
-Flash the living room lights in team colors when your team scores:
+The quickest way is the blueprint: import
+`https://github.com/Spacegoose02/sports-tracker/blob/main/blueprints/automation/sports_tracker/score_lights.yaml`
+under **Settings → Automations → Blueprints → Import blueprint**, then pick
+your team, lights and colors.
+
+Or write it by hand. Flash the living room lights in team colors when your team scores:
 
 ```yaml
 alias: Touchdown lights
