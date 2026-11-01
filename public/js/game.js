@@ -190,7 +190,7 @@
   // Remembered across refreshes so a live update doesn't snap the page back:
   // which box-score team tab is open, and how far the play-by-play feed is
   // scrolled.
-  const ui = { boxTab: '0', lastScores: null, matchupLoaded: false, lastLoaded: null };
+  const ui = { boxTab: '0', lastScores: null, matchupLoaded: false, lastLoaded: null, feedFilter: 'all', seenPlays: null };
 
   function captureUi() {
     const feed = document.querySelector('.pbp-feed');
@@ -212,9 +212,29 @@
     document.querySelectorAll('[data-box-panel]').forEach((p) => p.classList.toggle('active', p.dataset.boxPanel === idx));
   }
 
+  // Live play-by-play feed. Plays that weren't there on the last refresh
+  // get a highlight; the first load highlights nothing.
+  function renderFeed(detail, away, home, newIds) {
+    const box = el('gameLiveFeed');
+    if (box) box.innerHTML = CFBLive.feedHtml(detail, away, home, { filter: ui.feedFilter, newIds });
+  }
+
+  function newPlayIds(detail) {
+    const ids = (detail.playByPlay || []).map((p) => p.id).filter(Boolean);
+    const fresh = ui.seenPlays ? new Set(ids.filter((id) => !ui.seenPlays.has(id))) : new Set();
+    ui.seenPlays = new Set(ids);
+    return fresh;
+  }
+
   document.addEventListener('click', (e) => {
     const tab = e.target.closest && e.target.closest('[data-box-tab]');
     if (tab) selectBoxTab(tab.dataset.boxTab);
+    const chip = e.target.closest && e.target.closest('[data-feed-filter]');
+    if (chip && ui.lastLoaded) {
+      ui.feedFilter = chip.dataset.feedFilter;
+      const teams = ui.lastLoaded.teams || [];
+      renderFeed(ui.lastLoaded, teams.find((t) => t.homeAway === 'away'), teams.find((t) => t.homeAway === 'home'), null);
+    }
   });
 
   // Hover/touch readout on the win probability line.
@@ -245,6 +265,42 @@
     svg.addEventListener('mouseleave', hide);
     svg.addEventListener('touchend', hide);
   }
+
+  // Highlights are fetched once the game is final (clips show up over the
+  // following hours, so a page left open re-checks every 10 minutes until
+  // some arrive). A live poll never re-renders them, so a playing clip
+  // isn't interrupted.
+  const HIGHLIGHT_RETRY_MS = 10 * 60 * 1000;
+  let highlightClips = [];
+  let highlightsCheckedAt = 0;
+
+  async function loadHighlights() {
+    const box = el('gameHighlights');
+    if (!box || source !== 'espn') return;
+    if (highlightClips.length || Date.now() - highlightsCheckedAt < HIGHLIGHT_RETRY_MS - 5000) return;
+    highlightsCheckedAt = Date.now();
+    try {
+      const data = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}/highlights`));
+      highlightClips = data.clips || [];
+      box.innerHTML = CFBGame.highlightsHtml(data);
+    } catch (err) {
+      box.innerHTML = '';
+    }
+    if (!highlightClips.length) setTimeout(loadHighlights, HIGHLIGHT_RETRY_MS);
+  }
+
+  document.addEventListener('click', (e) => {
+    const card = e.target.closest && e.target.closest('[data-hl]');
+    if (!card) return;
+    const clip = highlightClips[Number(card.dataset.hl)];
+    const player = el('hlPlayer');
+    if (!clip || !player) return;
+    player.innerHTML = CFBGame.highlightPlayerHtml(clip);
+    player.hidden = false;
+    document.querySelectorAll('.hl-card.active').forEach((c) => c.classList.remove('active'));
+    card.classList.add('active');
+    player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
 
   async function loadMatchup() {
     const box = el('gameMatchup');
@@ -288,6 +344,26 @@
     if (!document.hidden && ui.lastLoaded && refreshDelay(ui.lastLoaded)) load();
     else if (document.hidden && pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   });
+
+  // The BingeBandit Live TV channel for each of the game's networks. Asked
+  // once per set of networks (not on every live poll); the server answers
+  // no links when BingeBandit isn't set up.
+  const bingeBandit = { asked: '', links: [] };
+  async function loadBingeBandit(detail) {
+    if (detail.status && detail.status.state === 'post') return;
+    const networks = (detail.broadcasts && detail.broadcasts.length ? detail.broadcasts.map((b) => b.network) : [detail.broadcast]).filter(Boolean);
+    const key = networks.join('|');
+    if (!key || key === bingeBandit.asked) return;
+    bingeBandit.asked = key;
+    try {
+      const qs = networks.map((n) => `network=${encodeURIComponent(n)}`).join('&');
+      const res = await CFB.getJson(`/api/bingebandit/watch?${qs}`);
+      bingeBandit.links = (res && res.links) || [];
+    } catch (err) {
+      bingeBandit.links = [];
+    }
+    if (ui.lastLoaded) el('gameWatch').innerHTML = CFBGame.watchHtml(ui.lastLoaded, bingeBandit.links);
+  }
 
   async function load() {
     try {
@@ -336,7 +412,8 @@
         Kids.awardWatched(detail, CFB.sport().key);
       }
 
-      el('gameWatch').innerHTML = CFBGame.watchHtml(detail);
+      el('gameWatch').innerHTML = CFBGame.watchHtml(detail, bingeBandit.links);
+      loadBingeBandit(detail);
 
       renderFieldPosition(detail, away, home);
 
@@ -353,10 +430,13 @@
         situationEl.textContent = '';
       }
 
+      renderFeed(detail, away, home, newPlayIds(detail));
       el('gameWinProb').innerHTML = CFBGame.winProbHtml(detail, away, home);
       wireWinProb();
+      el('gameMomentum').innerHTML = CFBLive.momentumHtml(detail, away, home);
+      el('gameDrives').innerHTML = CFBLive.drivesHtml(detail, away, home);
       el('gameBoxScore').innerHTML = CFBGame.boxScoreHtml(detail);
-      el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail);
+      el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail, { playByPlay: false });
       renderKidExplainer(detail);
 
       el('gameInjuries').innerHTML = CFBGame.injuriesHtml(detail);
@@ -364,6 +444,7 @@
       restoreUi(saved);
 
       if (!ui.matchupLoaded) loadMatchup();
+      if (detail.status && detail.status.state === 'post') loadHighlights();
       scheduleNext(detail);
     } catch (err) {
       // Keep showing the last good data during a live game; just retry.

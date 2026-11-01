@@ -102,11 +102,12 @@ const CFB = (function () {
       btn.addEventListener('click', () => {
         if (s.key === sportKey) return;
         try { localStorage.setItem(SPORT_STORAGE_KEY, s.key); } catch (e) { /* ignore */ }
-        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html', '/leaders.html', '/lines.html', '/kids.html'];
+        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html', '/leaders.html', '/lines.html', '/kids.html', '/compare.html'];
         let page = listPages.includes(location.pathname) ? location.pathname : '/';
         if (page === '/rankings.html' && !s.rankings) page = '/';
         if (page === '/standings.html' && s.standings === false) page = '/';
         if (page === '/leaders.html' && !s.leaders) page = '/';
+        if (page === '/compare.html' && s.teams === false) page = '/';
         location.href = `${page}?sport=${encodeURIComponent(s.key)}`;
       });
       bar.appendChild(btn);
@@ -119,6 +120,7 @@ const CFB = (function () {
       if (href === '/rankings.html' && !sport().rankings) { a.remove(); return; }
       if (href === '/standings.html' && sport().standings === false) { a.remove(); return; }
       if (href === '/leaders.html' && !sport().leaders) { a.remove(); return; }
+      if (href === '/compare.html' && sport().teams === false) { a.remove(); return; }
       // Recruiting is college football only; lines need two-team games.
       if (href === '/recruiting.html' && sportKey !== DEFAULT_SPORT) { a.remove(); return; }
       if (href === '/lines.html' && sport().format && sport().format !== 'game') { a.remove(); return; }
@@ -470,7 +472,9 @@ const CFB = (function () {
   // Renders a game's live/final detail (score, leaders, team stats, latest
   // drive) as an HTML string. Used by game.html's dedicated page. Kept here
   // so any future page can reuse the same rendering.
-  function gameDetailSectionsHtml(detail) {
+  // opts.playByPlay === false leaves the feed out (the game page draws its
+  // own, filterable one in game-live.js).
+  function gameDetailSectionsHtml(detail, opts) {
     const oddsHtml = !kidMode() && detail.odds && (detail.odds.details || detail.odds.overUnder !== null)
       ? `<section><h2 class="section-title">Odds</h2><div class="odds-box">
           ${detail.odds.details ? `<div>${esc(detail.odds.details)}</div>` : ''}
@@ -490,7 +494,7 @@ const CFB = (function () {
     // Full play-by-play — only really meaningful once the game has actually
     // started (pregame there's nothing to show), shown newest-first in a
     // scrollable feed so it doesn't dominate the page for a long game.
-    const pbpHtml = detail.playByPlay && detail.playByPlay.length
+    const pbpHtml = !(opts && opts.playByPlay === false) && detail.playByPlay && detail.playByPlay.length
       ? `<section><h2 class="section-title">Play-by-Play</h2><div class="pbp-feed">
           ${detail.playByPlay.map((p) => `
             <div class="pbp-play ${p.scoringPlay ? 'scoring' : ''}">

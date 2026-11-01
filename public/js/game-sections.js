@@ -10,15 +10,30 @@ const CFBGame = (function () {
     return t ? (t.abbreviation || t.shortName || t.name || '') : '';
   }
 
+  // "Watch on BingeBandit" rows: the home server's Live TV channel for each
+  // network (from /api/bingebandit/watch). Not shown once the game is over.
+  function bingeBanditRows(detail, links) {
+    if (!links || !links.length || (detail.status && detail.status.state === 'post')) return '';
+    return links.map((l) => {
+      const url = CFB.safeUrl(l.url);
+      if (!url) return '';
+      const c = l.channel || {};
+      const where = [c.number != null ? `Channel ${esc(c.number)}` : '', c.name ? esc(c.name) : ''].filter(Boolean).join(' &middot; ');
+      return `<li class="bb-watch"><a class="bb-watch-link" href="${url}" target="_blank" rel="noopener"><span class="bb-watch-mark" aria-hidden="true">&#9654;</span>Watch on BingeBandit</a><span class="watch-note">${where ? `${where} &middot; ` : ''}for ${esc(l.network)}</span></li>`;
+    }).join('');
+  }
+
   // TV channels first (the thing most people look for), then the apps that
-  // stream those channels.
-  function watchHtml(detail) {
+  // stream those channels, with the BingeBandit channel (if any) on top.
+  function watchHtml(detail, bingeBandit) {
     const broadcasts = detail.broadcasts && detail.broadcasts.length
       ? detail.broadcasts
       : (detail.broadcast ? [{ network: detail.broadcast, type: 'TV', market: 'National' }] : []);
-    if (!broadcasts.length) {
+    // A note or watch link from the site admin (src/overrides.js).
+    const note = detail.broadcastNote ? `<p class="watch-admin-note">${esc(detail.broadcastNote)}</p>` : '';
+    if (!broadcasts.length && !(detail.streaming || []).length) {
       if (detail.status && detail.status.state === 'post') return '';
-      return `<section><h2 class="section-title">Where to Watch</h2><div class="watch-box"><div class="empty-note">TV channel hasn't been announced yet.</div></div></section>`;
+      return `<section><h2 class="section-title">Where to Watch</h2><div class="watch-box">${note}<div class="empty-note">TV channel hasn't been announced yet.</div></div></section>`;
     }
     const tv = broadcasts.map((b) => `
       <li class="watch-channel">
@@ -26,18 +41,19 @@ const CFBGame = (function () {
         ${b.market && !/national/i.test(b.market) ? `<span class="watch-market">${esc(b.market)} only</span>` : ''}
         ${b.type && !/^tv$/i.test(b.type) ? `<span class="watch-market">${esc(b.type)}</span>` : ''}
       </li>`).join('');
-    const streams = (detail.streaming || []).map((s) => {
+    const services = (detail.streaming || []).map((s) => {
       const name = s.url
         ? `<a href="${CFB.safeUrl(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a>`
         : `<strong>${esc(s.name)}</strong>`;
       return `<li>${name}<span class="watch-note">${esc(s.note || '')}${s.networks && s.networks.length ? ` &middot; for ${s.networks.map(esc).join(', ')}` : ''}</span></li>`;
     }).join('');
+    const streams = bingeBanditRows(detail, bingeBandit) + services;
     return `
       <section>
         <h2 class="section-title">Where to Watch</h2>
         <div class="watch-box">
-          <div class="watch-label">TV and streaming channels</div>
-          <ul class="watch-channels">${tv}</ul>
+          ${note}
+          ${tv ? `<div class="watch-label">TV and streaming channels</div><ul class="watch-channels">${tv}</ul>` : ''}
           ${streams ? `<div class="watch-label">Stream it</div><ul class="watch-streams">${streams}</ul>` : ''}
         </div>
       </section>`;
@@ -89,6 +105,7 @@ const CFBGame = (function () {
           <div class="wp-headline"><strong>${headline}</strong> <span class="wp-dim">${isPre ? 'chance to win, before kickoff' : (detail.status && detail.status.state === 'post' ? 'final' : 'chance to win right now')}</span></div>
           ${bar}
           ${chart}
+          ${typeof CFBLive !== 'undefined' ? CFBLive.swingsHtml(detail, away, home) : ''}
           <div class="wp-dim wp-source">${isPre && wp.pregame ? esc(wp.pregame.source) : 'ESPN win probability, play by play'}</div>
         </div>
       </section>`;
@@ -230,5 +247,58 @@ const CFBGame = (function () {
     return `<section><h2 class="section-title">Matchup</h2><div class="matchup-grid">${parts.join('')}</div></section>`;
   }
 
-  return { watchHtml, winProbHtml, boxScoreHtml, injuriesHtml, recentFormHtml, matchupHtml, weatherHtml, headToHeadHtml };
+  function clipLength(seconds) {
+    if (!seconds) return '';
+    const m = Math.floor(seconds / 60);
+    const sec = String(seconds % 60).padStart(2, '0');
+    return `${m}:${sec}`;
+  }
+
+  // Highlight clips for a finished game, as a row of thumbnails. Clicking
+  // one plays it in the player slot above the row (see game.js); a clip
+  // with nothing playable here opens its page in a new tab instead.
+  function highlightsHtml(data) {
+    const clips = (data && data.clips) || [];
+    if (!clips.length) return '';
+    const cards = clips.map((c, i) => {
+      const playable = !!(c.videoUrl || c.embedUrl);
+      const thumb = c.thumbnail
+        ? `<img src="${CFB.safeUrl(c.thumbnail)}" alt="" loading="lazy" onerror="this.remove()">`
+        : '';
+      const inner = `
+        <span class="hl-thumb">${thumb}<span class="hl-play" aria-hidden="true">&#9654;</span>${c.duration ? `<span class="hl-len">${clipLength(c.duration)}</span>` : ''}</span>
+        <span class="hl-title">${esc(c.title)}</span>
+        <span class="hl-source">${esc(c.source || '')}</span>`;
+      return playable
+        ? `<button type="button" class="hl-card" data-hl="${i}">${inner}</button>`
+        : `<a class="hl-card" href="${CFB.safeUrl(c.url)}" target="_blank" rel="noopener">${inner}</a>`;
+    }).join('');
+    return `
+      <section class="highlights">
+        <h2 class="section-title">Highlights</h2>
+        <div class="hl-player" id="hlPlayer" hidden></div>
+        <div class="hl-row">${cards}</div>
+      </section>`;
+  }
+
+  // The player for one clip: ESPN's MP4 in a <video>, YouTube in its
+  // no-cookie embed.
+  function highlightPlayerHtml(clip) {
+    if (!clip) return '';
+    let media = '';
+    if (clip.videoUrl) {
+      media = `<video controls autoplay playsinline preload="metadata" src="${CFB.safeUrl(clip.videoUrl)}"${clip.thumbnail ? ` poster="${CFB.safeUrl(clip.thumbnail)}"` : ''}></video>`;
+    } else if (clip.embedUrl) {
+      media = `<iframe src="${CFB.safeUrl(clip.embedUrl)}" title="${esc(clip.title)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+    }
+    return `
+      <div class="hl-frame">${media}</div>
+      <div class="hl-caption">
+        <strong>${esc(clip.title)}</strong>
+        ${clip.description ? `<span>${esc(clip.description)}</span>` : ''}
+        ${clip.url ? `<a href="${CFB.safeUrl(clip.url)}" target="_blank" rel="noopener">Open on ${esc(clip.source || 'the web')}</a>` : ''}
+      </div>`;
+  }
+
+  return { highlightsHtml, highlightPlayerHtml, watchHtml, winProbHtml, boxScoreHtml, injuriesHtml, recentFormHtml, matchupHtml, weatherHtml, headToHeadHtml };
 })();

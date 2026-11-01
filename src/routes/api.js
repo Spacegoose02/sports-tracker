@@ -3,11 +3,13 @@ const ds = require('../datasource');
 const db = require('../db');
 const news = require('../news');
 const videos = require('../videos');
+const highlights = require('../highlights');
 const radio = require('../radio');
 const scorecard = require('../scorecard');
 const matchup = require('../matchup');
 const lines = require('../lines');
 const recruiting = require('../recruiting');
+const overrides = require('../overrides');
 const { isSafeId } = require('../security');
 const { getSport, DEFAULT_SPORT, publicSportList } = require('../sports');
 
@@ -95,7 +97,7 @@ router.get('/scoreboard', async (req, res) => {
       favoriteTeamId: isCfb(req) ? favoriteTeamId() : null,
       // Only pin the favorite team to the top when it's actually in this
       // division's games (no-op harmlessly otherwise, e.g. while viewing FCS).
-      games: isCfb(req) ? pinFavorite(result.games) : result.games,
+      games: overrides.applyToGames(isCfb(req) ? pinFavorite(result.games) : result.games, req.sport.key),
     });
   } catch (err) {
     res.status(502).json({ error: 'Could not load scoreboard', detail: err.message });
@@ -109,7 +111,7 @@ router.get('/team/favorite', async (req, res) => {
       ds.getTeamInfo(teamId).catch(() => null),
       ds.getTeamSchedule(teamId, req.query.season).catch(() => null),
     ]);
-    res.json({ team: info, schedule: schedule ? schedule.games : [] });
+    res.json({ team: info, schedule: schedule ? overrides.applyToGames(schedule.games, req.sport.key) : [] });
   } catch (err) {
     res.status(502).json({ error: 'Could not load favorite team', detail: err.message });
   }
@@ -134,7 +136,7 @@ router.get('/team/:id', async (req, res) => {
     res.json({
       sport,
       team: info,
-      schedule: schedule ? schedule.games : [],
+      schedule: schedule ? overrides.applyToGames(schedule.games, sport) : [],
       stats: stats ? stats.categories : [],
       isFavorite: isCfb(req) && String(teamId) === String(favoriteTeamId()),
     });
@@ -181,7 +183,7 @@ router.get('/game/:id', async (req, res) => {
   try {
     const source = req.query.source === 'ncaa-api' ? 'ncaa-api' : 'espn';
     const summary = await ds.getGameSummary(req.params.id, source, req.sport.key);
-    res.json(summary);
+    res.json(overrides.applyToSummary(summary, req.sport.key));
   } catch (err) {
     res.status(502).json({ error: 'Could not load game detail', detail: err.message });
   }
@@ -198,12 +200,31 @@ router.get('/game/:id/matchup', async (req, res) => {
   }
 });
 
+// Highlight clips for a game: ESPN's own clips (already in the summary)
+// plus matching uploads from the Videos tab's YouTube channels. Separate
+// from /game/:id so the YouTube lookup only runs when the page asks.
+router.get('/game/:id/highlights', async (req, res) => {
+  try {
+    const summary = await ds.getGameSummary(req.params.id, 'espn', req.sport.key);
+    const espnClips = summary.highlights || [];
+    const yt = await videos.getVideos().catch(() => []);
+    const ytClips = highlights.matchYouTube(yt, summary.teams, summary.date);
+    res.json({
+      state: (summary.status && summary.status.state) || null,
+      clips: [...espnClips, ...ytClips],
+    });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load highlights', detail: err.message });
+  }
+});
+
 // Where to listen: radio stations, SiriusXM, and free audio links for one
 // game. Separate from /game/:id because it changes rarely and is cached
 // longer. Uses the same ?sport= as every other route.
 router.get('/game/:id/radio', async (req, res) => {
   try {
-    res.json(await radio.getGameRadio(req.params.id, req.sport.key));
+    const info = await radio.getGameRadio(req.params.id, req.sport.key);
+    res.json(overrides.applyToRadio(info, req.sport.key, req.params.id));
   } catch (err) {
     res.status(502).json({ error: 'Could not load radio info', detail: err.message });
   }
@@ -259,7 +280,7 @@ router.get('/notable/feed', async (req, res) => {
             return { ...game, label: pick.label || null };
           })
           .filter(Boolean);
-        return { week, games };
+        return { week, games: overrides.applyToGames(games, DEFAULT_SPORT) };
       })
     );
 

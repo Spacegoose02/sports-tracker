@@ -94,6 +94,10 @@
     try {
       const data = await CFB.getJson(CFB.withSport(`/api/player/${encodeURIComponent(playerId)}`));
       renderHero(data.player || {});
+      // Nav "Compare" starts with this player on the left.
+      const p = data.player || {};
+      const link = document.querySelector('nav.top-nav a[href^="/compare.html"]');
+      if (link && p.id) link.href = CFB.withSport(`/compare.html?mode=players&a=${encodeURIComponent(p.id)}${p.team ? `&ta=${encodeURIComponent(p.team.id)}` : ''}`);
       renderBio(data.player || {});
       renderGameLog(data.gameLog);
       renderCareer(data.careerStats);

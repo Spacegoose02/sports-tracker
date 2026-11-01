@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Compare &middot; Stat Scraps</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/statscraps-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/statscraps-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/scrappy.css" />
+<script src="/js/scrappy.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/brand.css" />
+<link rel="stylesheet" href="/css/stats.css" />
+<link rel="stylesheet" href="/css/compare.css" />
+<link rel="stylesheet" href="/css/kids.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<script src="/js/theme-boot.js"></script>
+<script src="/js/theme-picker.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/scrappy-head.png" alt="Stat Scraps" />
+    </div>
+    <div>
+      <h1 id="pageTitle">Compare</h1>
+      <div class="subtitle" id="sourceNote">Players and teams side by side</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Back to site</a>
+    <a href="/rankings.html">Rankings</a>
+    <a href="/standings.html">Standings</a>
+    <a href="/leaders.html">Leaders</a>
+    <a href="/lines.html">Lines</a>
+  </nav>
+</header>
+
+<main id="compareApp">
+  <div class="cmp-top">
+    <div class="tab-bar" id="cmpModeTabs" role="group" aria-label="Compare">
+      <button class="tab-btn active" type="button" data-mode="players" aria-pressed="true">Players</button>
+      <button class="tab-btn" type="button" data-mode="teams" aria-pressed="false">Teams</button>
+    </div>
+    <button type="button" class="cmp-swap" id="cmpSwap" title="Swap sides">&#8644; Swap</button>
+  </div>
+  <div class="cmp-pickers" id="cmpPickers"><div class="empty-note">Loading&hellip;</div></div>
+  <datalist id="cmpTeams"></datalist>
+  <div id="cmpResult" aria-live="polite"></div>
+</main>
+
+<footer class="foot">Stat Scraps</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/kids-core.js"></script>
+<script src="/js/kids.js"></script>
+<script src="/js/compare.js"></script>
+</body>
+</html>

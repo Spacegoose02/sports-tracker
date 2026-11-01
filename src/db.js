@@ -84,6 +84,25 @@ db.exec(`
     source TEXT NOT NULL DEFAULT 'basic',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- Admin-edited radio and TV info for one team or one game. These win
+  -- over what ESPN reports (see src/overrides.js). tv and radio hold JSON
+  -- arrays of names.
+  CREATE TABLE IF NOT EXISTS broadcast_overrides (
+    sport TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('team', 'game')),
+    target_id TEXT NOT NULL,
+    label TEXT,
+    tv TEXT,
+    radio TEXT,
+    radio_city TEXT,
+    listen_url TEXT,
+    watch_name TEXT,
+    watch_url TEXT,
+    note TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (sport, scope, target_id)
+  );
 `);
 db.pragma('foreign_keys = ON');
 
@@ -328,11 +347,89 @@ function saveRecap(userId, { date, headline, text, teams, source }) {
   return getRecap(userId);
 }
 
+// ---- Radio and TV overrides ---------------------------------------------
+
+function parseList(value) {
+  if (!value) return [];
+  try {
+    const list = JSON.parse(value);
+    return Array.isArray(list) ? list.map(String) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function overrideFromRow(row) {
+  if (!row) return null;
+  return {
+    sport: row.sport,
+    scope: row.scope,
+    targetId: row.target_id,
+    label: row.label,
+    tv: parseList(row.tv),
+    radio: parseList(row.radio),
+    radioCity: row.radio_city,
+    listenUrl: row.listen_url,
+    watchName: row.watch_name,
+    watchUrl: row.watch_url,
+    note: row.note,
+    updatedAt: row.updated_at,
+  };
+}
+
+function listBroadcastOverrides(sport) {
+  const rows = sport
+    ? db.prepare('SELECT * FROM broadcast_overrides WHERE sport = ? ORDER BY updated_at DESC').all(sport)
+    : db.prepare('SELECT * FROM broadcast_overrides ORDER BY updated_at DESC').all();
+  return rows.map(overrideFromRow);
+}
+
+function getBroadcastOverride(sport, scope, targetId) {
+  return overrideFromRow(db
+    .prepare('SELECT * FROM broadcast_overrides WHERE sport = ? AND scope = ? AND target_id = ?')
+    .get(sport, scope, String(targetId)));
+}
+
+function saveBroadcastOverride(o) {
+  db.prepare(`
+    INSERT INTO broadcast_overrides
+      (sport, scope, target_id, label, tv, radio, radio_city, listen_url, watch_name, watch_url, note, updated_at)
+    VALUES (@sport, @scope, @targetId, @label, @tv, @radio, @radioCity, @listenUrl, @watchName, @watchUrl, @note, datetime('now'))
+    ON CONFLICT(sport, scope, target_id) DO UPDATE SET
+      label = excluded.label, tv = excluded.tv, radio = excluded.radio,
+      radio_city = excluded.radio_city, listen_url = excluded.listen_url,
+      watch_name = excluded.watch_name, watch_url = excluded.watch_url,
+      note = excluded.note, updated_at = excluded.updated_at
+  `).run({
+    sport: o.sport,
+    scope: o.scope,
+    targetId: String(o.targetId),
+    label: o.label || null,
+    tv: o.tv && o.tv.length ? JSON.stringify(o.tv) : null,
+    radio: o.radio && o.radio.length ? JSON.stringify(o.radio) : null,
+    radioCity: o.radioCity || null,
+    listenUrl: o.listenUrl || null,
+    watchName: o.watchName || null,
+    watchUrl: o.watchUrl || null,
+    note: o.note || null,
+  });
+  return getBroadcastOverride(o.sport, o.scope, o.targetId);
+}
+
+function removeBroadcastOverride(sport, scope, targetId) {
+  db.prepare('DELETE FROM broadcast_overrides WHERE sport = ? AND scope = ? AND target_id = ?')
+    .run(sport, scope, String(targetId));
+}
+
 module.exports = {
   db,
   recapUsers,
   getRecap,
   saveRecap,
+  listBroadcastOverrides,
+  getBroadcastOverride,
+  saveBroadcastOverride,
+  removeBroadcastOverride,
   MAX_FOLLOWS,
   getUser,
   getUserByEmail,

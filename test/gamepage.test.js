@@ -155,6 +155,21 @@ test('where to watch falls back to the single broadcast and says when TV is unkn
   assert.strictEqual(G.watchHtml({ status: { state: 'post' } }), '');
 });
 
+test('where to watch puts the BingeBandit channel first and drops it after the game', () => {
+  const G = loadGameSections();
+  const detail = { status: { state: 'in' }, broadcasts: [{ network: 'ESPN2', type: 'TV', market: 'National' }], streaming: servicesFor(['ESPN2']) };
+  const links = [{ network: 'ESPN2', channel: { number: 206, name: 'US: ESPN 2 HD' }, url: 'http://192.168.1.10:8484/live/42' }];
+  const html = G.watchHtml(detail, links);
+  assert.match(html, /href="http:\/\/192\.168\.1\.10:8484\/live\/42"[^>]*>.*Watch on BingeBandit/);
+  assert.match(html, /Channel 206 &middot; US: ESPN 2 HD &middot; for ESPN2/);
+  assert.ok(html.indexOf('Watch on BingeBandit') < html.indexOf('ESPN app'));
+  assert.doesNotMatch(G.watchHtml(detail), /BingeBandit/);
+  assert.doesNotMatch(G.watchHtml({ ...detail, status: { state: 'post' } }, links), /BingeBandit/);
+  const bad = '<img src=x onerror=alert(1)>';
+  const evil = G.watchHtml(detail, [{ network: bad, channel: { number: bad, name: bad }, url: 'javascript:alert(1)' }, { network: bad, channel: { name: bad }, url: 'http://x/live/1' }]);
+  assert.doesNotMatch(evil, /<img|javascript:/);
+});
+
 test('matchup route rejects bad ids', async () => {
   const { startApp } = require('./helpers');
   const app = await startApp({});
