@@ -70,19 +70,88 @@ function parseScore(rawScore, linescores) {
 // ESPN gave us (competition.odds on the scoreboard, or pickcenter on the
 // summary endpoint) — both use roughly the same shape, so one parser covers
 // both. Only the first (primary) provider is used.
+//
+// ESPN has shipped two shapes over the years: an older one with
+// homeTeamOdds/awayTeamOdds carrying moneyLine and spreadOdds numbers, and
+// a newer one with pointSpread/total/moneyline blocks holding open and
+// close lines as strings ("-7.5", "o51.5", "+225"). Both are read here.
+// `spread` (and homeSpread) is from the home team's side: -7.5 means the
+// home team is a 7.5-point favorite.
+function oddsNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const str = String(value).trim().replace(/^[ou]/i, '');
+  if (/^pk$|^pick/i.test(str)) return 0;
+  const n = Number(str);
+  return str !== '' && Number.isFinite(n) ? n : null;
+}
+
+// American odds as a display string: "-110", "+225", "EVEN".
+function americanOdds(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (/^even$/i.test(String(value).trim())) return 'EVEN';
+  const n = oddsNumber(value);
+  if (n === null || n === 0) return null;
+  return n > 0 ? `+${n}` : String(n);
+}
+
+function pick(obj, ...path) {
+  return path.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
+}
+
 function parseOdds(oddsArr) {
   if (!Array.isArray(oddsArr) || !oddsArr.length) return null;
-  const o = oddsArr[0];
-  const rawOverUnder = o.overUnder !== undefined ? o.overUnder : o.total;
-  const overUnder = rawOverUnder !== undefined && rawOverUnder !== null ? Number(rawOverUnder) : null;
-  const rawSpread = o.spread;
-  const spread = rawSpread !== undefined && rawSpread !== null ? Number(rawSpread) : null;
-  if (overUnder === null && spread === null && !o.details) return null;
+  const o = oddsArr[0] || {};
+  const rawOverUnder = o.overUnder !== undefined ? o.overUnder : (typeof o.total === 'object' ? undefined : o.total);
+  let overUnder = oddsNumber(rawOverUnder);
+  if (overUnder === null) overUnder = oddsNumber(pick(o, 'total', 'over', 'close', 'line'));
+  let homeSpread = oddsNumber(pick(o, 'pointSpread', 'home', 'close', 'line'));
+  if (homeSpread === null) homeSpread = oddsNumber(o.spread);
+  if (homeSpread === null) homeSpread = oddsNumber(pick(o, 'homeTeamOdds', 'spread'));
+
+  const homeFav = pick(o, 'homeTeamOdds', 'favorite');
+  const awayFav = pick(o, 'awayTeamOdds', 'favorite');
+  let favorite = null;
+  if (homeFav === true || awayFav === false) favorite = 'home';
+  else if (awayFav === true || homeFav === false) favorite = 'away';
+  // The flags win if the spread's sign disagrees with them.
+  if (homeSpread !== null && homeSpread !== 0 && favorite) {
+    if ((favorite === 'home') !== (homeSpread < 0)) homeSpread = -homeSpread;
+  }
+  if (!favorite && homeSpread) favorite = homeSpread < 0 ? 'home' : 'away';
+
+  const moneyline = {
+    home: americanOdds(pick(o, 'moneyline', 'home', 'close', 'odds')) || americanOdds(pick(o, 'homeTeamOdds', 'moneyLine')),
+    away: americanOdds(pick(o, 'moneyline', 'away', 'close', 'odds')) || americanOdds(pick(o, 'awayTeamOdds', 'moneyLine')),
+  };
+  const spreadOdds = {
+    home: americanOdds(pick(o, 'pointSpread', 'home', 'close', 'odds')) || americanOdds(pick(o, 'homeTeamOdds', 'spreadOdds')),
+    away: americanOdds(pick(o, 'pointSpread', 'away', 'close', 'odds')) || americanOdds(pick(o, 'awayTeamOdds', 'spreadOdds')),
+  };
+  const totalOdds = {
+    over: americanOdds(pick(o, 'total', 'over', 'close', 'odds')) || americanOdds(o.overOdds),
+    under: americanOdds(pick(o, 'total', 'under', 'close', 'odds')) || americanOdds(o.underOdds),
+  };
+  const open = {
+    homeSpread: oddsNumber(pick(o, 'pointSpread', 'home', 'open', 'line')),
+    overUnder: oddsNumber(pick(o, 'total', 'over', 'open', 'line')),
+    moneylineHome: americanOdds(pick(o, 'moneyline', 'home', 'open', 'odds')),
+    moneylineAway: americanOdds(pick(o, 'moneyline', 'away', 'open', 'odds')),
+  };
+  const hasOpen = Object.values(open).some((v) => v !== null);
+
+  if (overUnder === null && homeSpread === null && !o.details && !moneyline.home && !moneyline.away) return null;
   return {
     provider: (o.provider && o.provider.name) || null,
-    details: o.details || null,
-    spread: Number.isNaN(spread) ? null : spread,
-    overUnder: Number.isNaN(overUnder) ? null : overUnder,
+    details: typeof o.details === 'string' ? o.details : null,
+    spread: homeSpread,
+    homeSpread,
+    favorite,
+    overUnder,
+    moneyline,
+    spreadOdds,
+    totalOdds,
+    open: hasOpen ? open : null,
   };
 }
 
@@ -725,6 +794,7 @@ module.exports = {
   getStandings,
   getTeamStatistics,
   // Exported for tests.
+  parseOdds,
   normalizeGame,
   normalizeCard,
   normalizeRace,
