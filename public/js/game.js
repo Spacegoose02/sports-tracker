@@ -190,7 +190,7 @@
   // Remembered across refreshes so a live update doesn't snap the page back:
   // which box-score team tab is open, and how far the play-by-play feed is
   // scrolled.
-  const ui = { boxTab: '0', lastScores: null, matchupLoaded: false, lastLoaded: null };
+  const ui = { boxTab: '0', lastScores: null, matchupLoaded: false, lastLoaded: null, feedFilter: 'all', seenPlays: null };
 
   function captureUi() {
     const feed = document.querySelector('.pbp-feed');
@@ -212,9 +212,29 @@
     document.querySelectorAll('[data-box-panel]').forEach((p) => p.classList.toggle('active', p.dataset.boxPanel === idx));
   }
 
+  // Live play-by-play feed. Plays that weren't there on the last refresh
+  // get a highlight; the first load highlights nothing.
+  function renderFeed(detail, away, home, newIds) {
+    const box = el('gameLiveFeed');
+    if (box) box.innerHTML = CFBLive.feedHtml(detail, away, home, { filter: ui.feedFilter, newIds });
+  }
+
+  function newPlayIds(detail) {
+    const ids = (detail.playByPlay || []).map((p) => p.id).filter(Boolean);
+    const fresh = ui.seenPlays ? new Set(ids.filter((id) => !ui.seenPlays.has(id))) : new Set();
+    ui.seenPlays = new Set(ids);
+    return fresh;
+  }
+
   document.addEventListener('click', (e) => {
     const tab = e.target.closest && e.target.closest('[data-box-tab]');
     if (tab) selectBoxTab(tab.dataset.boxTab);
+    const chip = e.target.closest && e.target.closest('[data-feed-filter]');
+    if (chip && ui.lastLoaded) {
+      ui.feedFilter = chip.dataset.feedFilter;
+      const teams = ui.lastLoaded.teams || [];
+      renderFeed(ui.lastLoaded, teams.find((t) => t.homeAway === 'away'), teams.find((t) => t.homeAway === 'home'), null);
+    }
   });
 
   // Hover/touch readout on the win probability line.
@@ -353,10 +373,13 @@
         situationEl.textContent = '';
       }
 
+      renderFeed(detail, away, home, newPlayIds(detail));
       el('gameWinProb').innerHTML = CFBGame.winProbHtml(detail, away, home);
       wireWinProb();
+      el('gameMomentum').innerHTML = CFBLive.momentumHtml(detail, away, home);
+      el('gameDrives').innerHTML = CFBLive.drivesHtml(detail, away, home);
       el('gameBoxScore').innerHTML = CFBGame.boxScoreHtml(detail);
-      el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail);
+      el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail, { playByPlay: false });
       renderKidExplainer(detail);
 
       el('gameInjuries').innerHTML = CFBGame.injuriesHtml(detail);
