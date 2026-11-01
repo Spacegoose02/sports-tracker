@@ -12,7 +12,7 @@
  *
  * Bump VERSION to throw away every old cache on the next visit.
  */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const STATIC_CACHE = `cfb-static-${VERSION}`;
 const PAGE_CACHE = `cfb-pages-${VERSION}`;
 const API_CACHE = `cfb-api-${VERSION}`;
@@ -27,6 +27,7 @@ const PRECACHE = [
   '/js/pwa.js',
   '/js/theme-boot.js',
   '/css/themes.css',
+  '/js/theme-picker.js',
   '/img/favicon.svg',
   '/img/cfbtracker-icon.png',
   '/img/cfbtracker-icon-192.png',

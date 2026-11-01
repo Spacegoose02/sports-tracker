@@ -461,6 +461,7 @@ async function getTeamInfo(teamId, sport) {
       abbreviation: team.abbreviation,
       logo: team.logos && team.logos[0] && team.logos[0].href,
       color: team.color ? `#${team.color}` : null,
+      alternateColor: team.alternateColor ? `#${team.alternateColor}` : null,
       record: team.record && team.record.items && team.record.items[0] && team.record.items[0].summary,
       rank: team.rank || null,
       standingSummary: team.standingSummary,
