@@ -216,6 +216,9 @@
 
   CFB.loadSports().then(() => {
     CFB.initSportBar();
+    // Nav "Compare" starts with this team on the left.
+    const link = document.querySelector('nav.top-nav a[href^="/compare.html"]');
+    if (link) link.href = CFB.withSport(`/compare.html?mode=teams&ta=${encodeURIComponent(teamId)}`);
     load();
     const fromHash = location.hash.replace('#', '');
     if (['roster', 'stats', 'news'].includes(fromHash)) showTab(fromHash);

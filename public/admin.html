@@ -27,7 +27,7 @@
     </div>
     <div>
       <h1>Stat Scraps &middot; Admin</h1>
-      <div class="subtitle">Pick this week's notable games</div>
+      <div class="subtitle">Notable games, radio and TV</div>
     </div>
   </div>
   <nav class="top-nav">
@@ -68,6 +68,37 @@
     <section>
       <h2 class="section-title">All Games This Week</h2>
       <div id="allGamesList"></div>
+    </section>
+
+    <section id="bcSection">
+      <h2 class="section-title">Radio and TV</h2>
+      <form id="bcForm" class="bc-form" autocomplete="off">
+        <p class="bc-hint">What you save here replaces what ESPN lists, right away. Pick a game with its Radio/TV button above, or type any game's ESPN id. Save with every field blank to go back to ESPN's info.</p>
+        <label>Sport <select id="bcSport"></select></label>
+        <label>Applies to
+          <select id="bcScope">
+            <option value="game">One game</option>
+            <option value="team">A team (all its games)</option>
+          </select>
+        </label>
+        <label data-scope="game">Game id <input id="bcGameId" placeholder="e.g. 401752710" inputmode="numeric" /></label>
+        <label data-scope="team">Team <select id="bcTeam"><option value="">Loading teams&hellip;</option></select></label>
+        <label class="bc-wide" data-scope="game">Game name (for this list) <input id="bcLabel" maxlength="120" placeholder="e.g. Virginia Tech @ Clemson" /></label>
+        <label><span id="bcTvLabel">TV channels</span> <input id="bcTv" placeholder="Comma separated, e.g. ESPN, ESPN+" /></label>
+        <label><span id="bcRadioLabel">Radio stations</span> <input id="bcRadio" placeholder="Comma separated, e.g. WFNR 710 AM" /></label>
+        <label data-scope="team">Radio city <input id="bcRadioCity" maxlength="80" placeholder="e.g. Blacksburg, VA" /></label>
+        <label data-scope="team">Free audio link <input id="bcListen" type="url" placeholder="https://" /></label>
+        <label data-scope="game">Watch link name <input id="bcWatchName" maxlength="60" placeholder="e.g. ACC Network Extra" /></label>
+        <label data-scope="game">Watch link <input id="bcWatchUrl" type="url" placeholder="https://" /></label>
+        <label class="bc-wide" data-scope="game">Note <input id="bcNote" maxlength="200" placeholder="e.g. Joined in progress on ESPN2 after the early game" /></label>
+        <div class="bc-actions">
+          <button type="submit" class="primary-btn">Save</button>
+          <button type="button" id="bcReset">Clear form</button>
+          <span class="error-text" id="bcStatus"></span>
+        </div>
+      </form>
+      <h3 class="section-title">Saved radio and TV changes</h3>
+      <div id="bcList"></div>
     </section>
   </div>
 </main>

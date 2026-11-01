@@ -45,6 +45,7 @@
         <section>
           <h2 class="section-title">Where to Listen</h2>
           <div class="radio-box">
+            ${info.note ? `<p class="watch-admin-note">${esc(info.note)}</p>` : ''}
             ${national}
             <div class="radio-teams">${(info.teams || []).map(teamHtml).join('')}</div>
             ${sirius}

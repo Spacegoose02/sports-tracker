@@ -1,0 +1,157 @@
+/* Game page live sections: play-by-play feed, momentum chart, drive
+   tracker and biggest swings (public/js/game-live.js). Uses the theme
+   tokens from styles.css / themes.css, so every theme picks it up. */
+
+#gameLiveFeed section, #gameMomentum section, #gameDrives section { margin-bottom: 24px; }
+.section-title .live-dot { color: var(--live); }
+
+/* ---- Play-by-play feed ---------------------------------------------- */
+.live-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.live-chip {
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.live-chip:hover { color: var(--text); }
+.live-chip.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 700; }
+.live-feed { padding: 0; }
+.live-period {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.live-play {
+  padding: 9px 14px 9px 11px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--side-color, transparent);
+  font-size: 0.86rem;
+}
+.live-play:last-child { border-bottom: none; }
+.live-play.scoring { background: color-mix(in srgb, var(--win) 8%, transparent); }
+.live-play-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+.live-team { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--text); }
+.live-team img { width: 16px; height: 16px; object-fit: contain; }
+.live-type { text-transform: uppercase; letter-spacing: 0.04em; }
+.live-tag {
+  border-radius: var(--radius-pill);
+  padding: 0 7px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.live-tag-score { background: var(--win-soft); color: var(--win); }
+.live-play-text { color: var(--text); line-height: 1.35; }
+.live-score { display: inline-block; margin-top: 4px; font-weight: 800; font-size: 0.8rem; }
+.live-count { margin-top: 4px; text-align: right; }
+.live-new { animation: live-new-fade 4s ease-out; }
+@keyframes live-new-fade {
+  from { background: var(--accent-soft); }
+  to { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .live-new { animation: none; background: var(--accent-soft); } }
+body.kid-mode .live-type { display: none; }
+
+/* ---- Momentum ------------------------------------------------------- */
+.momentum-chart svg { width: 100%; height: 140px; display: block; background: var(--bg-elev-2); border-radius: 6px; }
+.momentum-x { display: flex; justify-content: space-between; margin-top: 2px; }
+
+/* ---- Biggest swings (inside the Win Probability box) ---------------- */
+.wp-swings { margin-top: 12px; }
+.wp-swings ol { list-style: none; margin: 0; padding: 0; }
+.wp-swings li { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.wp-swings li:last-child { border-bottom: none; }
+.swing-badge {
+  flex: none;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--side-color);
+  color: var(--text);
+  background: color-mix(in srgb, var(--side-color) 22%, transparent);
+}
+
+/* ---- Drive tracker -------------------------------------------------- */
+.drive-summary { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.85rem; margin-bottom: 10px; }
+.drive-legend { display: flex; justify-content: space-between; font-size: 0.68rem; margin-left: auto; }
+.drive-list { list-style: none; margin: 0; padding: 0; }
+.drive-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(120px, 2fr) minmax(130px, 1.3fr);
+  grid-template-areas: "team field result" "team stats stats";
+  gap: 2px 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.drive-team { grid-area: team; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.drive-team img { width: 20px; height: 20px; object-fit: contain; }
+.drive-field {
+  grid-area: field;
+  position: relative;
+  height: 12px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--win) 14%, var(--bg-elev-2));
+  overflow: visible;
+}
+.drive-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.drive-span { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; opacity: 0.9; }
+.drive-ball {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 1px solid var(--bg);
+  transform: translate(-50%, -50%);
+  display: none;
+}
+.drive-live .drive-ball { display: block; }
+.drive-live { background: var(--live-soft); border-radius: var(--radius-sm); padding-left: 6px; padding-right: 6px; }
+.drive-result { grid-area: result; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.drive-stats { grid-area: stats; }
+.drive-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.drive-td { background: var(--win-soft); color: var(--win); border-color: transparent; }
+.drive-fg { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.drive-turnover { background: var(--loss-soft); color: var(--loss); border-color: transparent; }
+.drive-badge.drive-live { background: var(--live); color: var(--on-live); border-color: transparent; }
+.drive-more summary { cursor: pointer; color: var(--accent); font-size: 0.85rem; padding: 8px 0 2px; }
+
+@media (max-width: 560px) {
+  .drive-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "team result" "field field" "stats stats";
+  }
+}

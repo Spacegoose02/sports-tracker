@@ -1,0 +1,86 @@
+/* Highlight clips on a finished game's page (public/js/game-sections.js
+   highlightsHtml). Uses the theme tokens from styles.css / themes.css. */
+
+.highlights { margin: 0 0 20px; }
+
+.hl-player {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 0 0 12px;
+}
+.hl-player[hidden] { display: none; }
+
+.hl-frame { position: relative; aspect-ratio: 16 / 9; background: #000; }
+.hl-frame video,
+.hl-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+.hl-caption { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px 12px; }
+.hl-caption span { color: var(--text-dim); font-size: 0.88rem; }
+.hl-caption a { font-size: 0.85rem; color: var(--accent); }
+
+/* A scrolling row on phones, a wrapping grid on wider screens. */
+.hl-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 72%);
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+}
+@media (min-width: 720px) {
+  .hl-row { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); overflow: visible; }
+}
+
+.hl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0 0 10px;
+  overflow: hidden;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.hl-card:hover,
+.hl-card:focus-visible { border-color: var(--accent); }
+.hl-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.hl-thumb { position: relative; display: block; aspect-ratio: 16 / 9; background: var(--bg-elev-2); }
+.hl-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hl-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding-left: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 1.1rem;
+}
+.hl-len {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.hl-title { padding: 0 10px; font-weight: 600; font-size: 0.92rem; line-height: 1.3; }
+.hl-source { padding: 0 10px; color: var(--text-dim); font-size: 0.78rem; }

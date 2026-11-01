@@ -414,6 +414,18 @@ window.addEventListener('tracker:score', (e) => {
 
 The saved data goes through `Kids.store` (see `public/js/kids.js`). When accounts arrive, a sync layer can call `Kids.store.setBackend({ get(key), set(key, value) })` to keep it on the server, and listen for `tracker:kids-data` to know when something changed.
 
+## TV wall mode
+
+`/wall.html` (the **TV Wall** link on the home page) is a full-screen scoreboard for a TV or a tablet on the wall. It rotates through live games first, then games about to start and fresh finals, with your followed teams always ahead of the rest. Football games show the live field with the ball, first-down line and red zone (the same drawing as the Home Assistant card), baseball shows the diamond and count, and everything else shows the score by period. When a live game's score changes, the wall jumps to it with a "Score!" banner.
+
+- Options in the URL: `?sports=cfb,nfl` (default: every sport you follow a team in), `?every=15` (seconds per game, 5 to 120, default 12) and `?mine=1` (only your teams' games).
+- Keys: Left and Right step through games, Space pauses, F goes full screen. The controls and cursor hide after a few seconds.
+- The page asks the browser to keep the screen awake while it's open.
+
+## Highlights
+
+A finished game's page shows highlight clips above the box score: ESPN's own clips (they play right on the page) plus uploads from the Videos tab's YouTube channels whose title names both teams. Clips often show up an hour or two after the final, so an open page checks again every 10 minutes until some arrive.
+
 ## Ask Scrappy (AI chat)
 
 Scrappy is the site's raccoon mascot and sports guru, living in a chat bubble in the bottom corner of every page. Ask him things like "When do the Hokies play next and what channel?", "Who's in the AP Top 10?", "What do the ACC standings look like?" or "Who leads the NFL in passing yards?" and he answers from the same live data the site shows: scores, schedules, TV and radio, rankings, standings, team and player stats, stat leaders and news, for every sport on the site.
@@ -560,6 +572,30 @@ start, 5 to 10 minutes otherwise, and 12 hours for team lists. If ESPN
 fails, the last copy (up to a day old) is served with `X-Cache: STALE`.
 If the tracker is down, BingeBandit reads ESPN directly until it's back.
 
+### Watch on BingeBandit
+
+The game page's **Where to watch** box can link straight to the BingeBandit
+Live TV channel that shows the game ("Watch on BingeBandit · Channel 206 ·
+for ESPN2"). It uses the same pairing as the relay, in the other direction:
+
+1. Pair the apps as above (`RELAY_API_KEY` here, the same key in
+   BingeBandit's **Sports data** settings).
+2. Set `BINGEBANDIT_URL` to BingeBandit's address (e.g.
+   `http://192.168.1.10:8484`) and restart.
+
+For each of a game's TV networks, BingeBandit picks the channel an admin tied
+to it under **Admin → Live TV → Networks**, or else a channel named for it
+("US: ESPN 2 HD" for ESPN2). Networks with no channel get no link, and the
+link isn't shown once the game is over. The tracker only learns channel
+names and numbers; opening the link still needs a BingeBandit sign-in.
+Answers are cached for 5 minutes, and if BingeBandit is down the links just
+don't appear.
+
+If browsers should open BingeBandit at a different address than this server
+uses to reach it (say, its public URL), set `BINGEBANDIT_LINK_URL`. To use a
+different key than the relay's, set `BINGEBANDIT_API_KEY` and put that key in
+BingeBandit's Sports data settings instead.
+
 ## Configuration (environment variables)
 
 | Variable | Default | Purpose |
@@ -576,6 +612,9 @@ If the tracker is down, BingeBandit reads ESPN directly until it's back.
 | `NEWS_FETCH_OG_IMAGES` | `1` (on) | Set to `0` to stop fetching each article's `og:image` for the News tab — faster/fewer outbound requests, but back to whatever (if anything) the RSS feed itself embedded |
 | `YOUTUBE_CHANNELS_JSON` | *(your 7 Dynacat channels)* | Optional JSON array of `{"id":"UC...","name":"..."}` to override the Videos tab's channel list entirely |
 | `RELAY_API_KEY` | *(unset: relay off)* | Turns on the ESPN relay at `/espn/...` for BingeBandit and other apps; they send it as `X-Api-Key` |
+| `BINGEBANDIT_URL` | *(unset: off)* | BingeBandit's address, e.g. `http://192.168.1.10:8484`. Adds **Watch on BingeBandit** channel links to game pages (see [Watch on BingeBandit](#watch-on-bingebandit)) |
+| `BINGEBANDIT_LINK_URL` | *(`BINGEBANDIT_URL`)* | Address browsers open the links at, when it differs (e.g. BingeBandit's public URL) |
+| `BINGEBANDIT_API_KEY` | *(`RELAY_API_KEY`)* | Key sent to BingeBandit; must match its **Sports data** key |
 | `TRUST_PROXY` | *(unset)* | Set to `1` when the app sits behind a reverse proxy so the admin login rate limit sees each visitor's real IP |
 | `PUBLIC_URL` | *(from the request)* | The site's public address, e.g. `https://sports.example.com`. Used for the SSO callback and calendar links; set it when behind a reverse proxy |
 | `ALLOW_SIGNUP` | `true` | Set to `false` to stop new email/password sign-ups |
@@ -603,6 +642,14 @@ and search for the team, or check the URL on ESPN's team page
 - **Admin page (`/admin`)** — log in with `ADMIN_PASSWORD`, pick a week,
   and toggle which games are "notable." Notes/labels are optional (e.g.
   "ACC opener", "Top 10 matchup").
+- **Radio and TV (`/admin`)** — fix the TV channel or radio stations when
+  ESPN is wrong or missing. Save a change for one game (TV channels,
+  national radio, an extra watch link, a note) or for a team in any sport
+  (radio flagship and extra stations, city, free audio link, and a usual
+  TV channel used only when ESPN lists none). Changes are stored in the
+  SQLite file in `DATA_DIR`, show up right away on scoreboards, team
+  schedules and game pages, and win over ESPN's data. Save a blank form or
+  press Remove to go back to ESPN's info.
 - Live games auto-refresh every 20 seconds while any game in the current
   view is in progress.
 - If ESPN's API errors out, the app automatically retries the same request
