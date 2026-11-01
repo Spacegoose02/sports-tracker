@@ -16,7 +16,7 @@ async function getScoreboard(opts = {}) {
     const result = await espn.getScoreboard(opts);
     return { ...result, source: 'espn' };
   } catch (err) {
-    if (!isCfb(opts.sport)) throw err;
+    if (!isCfb(opts.sport) || !ncaa.isConfigured()) throw err;
     console.error('[datasource] ESPN scoreboard failed, falling back to ncaa-api:', err.message);
     return ncaa.getScoreboard(opts);
   }

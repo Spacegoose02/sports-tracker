@@ -13,7 +13,7 @@ services:
       SESSION_SECRET: "change-this-too"   # change this, use a long random string
       FAVORITE_TEAM_ID: "259"             # Virginia Tech Hokies
       FAVORITE_TEAM_NAME: "Virginia Tech Hokies"
-      NCAA_API_BASE: "https://ncaawidget.sgiu.net"
+      # NCAA_API_BASE: "https://ncaa-api.example.com"  # optional: your ncaa-api instance, used if ESPN is down
       NCAA_API_DIVISION: "fbs"
       CACHE_TTL_SECONDS: "20"
       # RELAY_API_KEY: ""              # set to share ESPN data with BingeBandit

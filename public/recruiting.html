@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Recruiting &middot; CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<script src="/js/theme-boot.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1>Recruiting &amp; Transfer Portal</h1>
+      <div class="subtitle" id="sourceNote">Loading&hellip;</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Schedule &amp; Scores</a>
+    <a href="/upcoming.html">Upcoming</a>
+    <a href="/rankings.html">Rankings</a>
+    <a href="/standings.html">Standings</a>
+    <a href="/lines.html">Lines</a>
+  </nav>
+</header>
+
+<main>
+  <div class="tab-bar" id="recruitTabs">
+    <button class="tab-btn active" data-tab="news">News</button>
+    <button class="tab-btn" data-tab="portal">Transfer Portal</button>
+    <button class="tab-btn" data-tab="players">Top Recruits</button>
+    <button class="tab-btn" data-tab="teams">Class Rankings</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-news">
+    <div class="news-filter" id="recruitNewsFilter">
+      <button type="button" data-topic="all" class="active">All</button>
+      <button type="button" data-topic="portal">Portal</button>
+      <button type="button" data-topic="recruiting">Recruiting</button>
+    </div>
+    <div class="news-list" id="recruitNews"><div class="empty-note">Loading&hellip;</div></div>
+  </div>
+
+  <div class="tab-panel" id="tab-portal">
+    <div class="week-bar recruit-filters">
+      <label for="portalYear">Portal</label>
+      <select id="portalYear"></select>
+      <input type="search" id="portalSearch" placeholder="Player or school" aria-label="Search the portal" />
+      <select id="portalPos" aria-label="Position"><option value="">All positions</option></select>
+      <select id="portalStatus" aria-label="Status">
+        <option value="">Everyone</option>
+        <option value="open">Still available</option>
+        <option value="committed">Committed</option>
+      </select>
+      <label class="check"><input type="checkbox" id="portalMine" /> My teams</label>
+    </div>
+    <div id="portalBody"><div class="empty-note">Loading&hellip;</div></div>
+  </div>
+
+  <div class="tab-panel" id="tab-players">
+    <div class="week-bar recruit-filters">
+      <label for="playersYear">Class of</label>
+      <select id="playersYear"></select>
+      <input type="search" id="playersSearch" placeholder="Player, school or state" aria-label="Search recruits" />
+      <select id="playersPos" aria-label="Position"><option value="">All positions</option></select>
+      <select id="playersStatus" aria-label="Status">
+        <option value="">Everyone</option>
+        <option value="open">Uncommitted</option>
+        <option value="committed">Committed</option>
+      </select>
+      <label class="check"><input type="checkbox" id="playersMine" /> My teams</label>
+    </div>
+    <div id="playersBody"><div class="empty-note">Loading&hellip;</div></div>
+  </div>
+
+  <div class="tab-panel" id="tab-teams">
+    <div class="week-bar recruit-filters">
+      <label for="teamsYear">Class of</label>
+      <select id="teamsYear"></select>
+    </div>
+    <div id="teamsBody"><div class="empty-note">Loading&hellip;</div></div>
+  </div>
+</main>
+
+<footer class="foot">CFB Tracker &middot; Portal and recruiting data from <a href="https://collegefootballdata.com" target="_blank" rel="noopener noreferrer">CollegeFootballData.com</a></footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/recruiting.js"></script>
+</body>
+</html>

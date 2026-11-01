@@ -1,16 +1,45 @@
+/* ==========================================================================
+   Design tokens
+   --------------------------------------------------------------------------
+   Every color, shadow, radius and font in the app comes from these custom
+   properties, so a theme only has to override tokens (see css/themes.css).
+   Please use them in new CSS instead of raw hex values.
+
+   <html> carries three attributes, set before first paint by
+   js/theme-boot.js from the visitor's saved choices:
+     data-theme  which sports theme is active ("classic", "stadium", ...)
+     data-mode   "light" or "dark" (resolved from the saved preference or
+                 the OS setting)
+     data-sport  the sport being viewed ("cfb", "nfl", "nba", ...), so a
+                 theme can give each sport its own accent
+   ========================================================================== */
 :root {
+  color-scheme: dark;
+
+  /* Surfaces */
   --bg: #0b0d12;
   --bg-elev: #151822;
   --bg-elev-2: #1c202c;
   --border: #2a2f3d;
   --text: #eef0f4;
   --text-dim: #98a0b3;
+  --hover-tint: rgba(255, 255, 255, 0.03);
+  --overlay: rgba(0, 0, 0, 0.25);
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  /* Page backdrop: a background-image layer drawn under everything (turf
+     stripes, floodlight glow, wood grain, ...). "none" by default. */
+  --page-bg: none;
+  --header-bg: linear-gradient(135deg, #171b26, #0d0f16);
+  --brand-title: linear-gradient(90deg, #ffffff, #b9c6ff);
 
   /* Neutral site-wide brand accent — deliberately NOT tied to any one
      team's colors, since this app shows every team, not just the
      pinned favorite. Used for tabs, links, buttons, and general UI. */
   --accent: #4f8dfd;
-  --accent-soft: rgba(79, 141, 253, 0.12);
+  --accent-2: #7c5cff;
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --on-accent: #08111f;
 
   /* Reserved specifically for "this is my team" cues (favorite card,
      favorite badge, favorite row highlight) so that signal stays
@@ -18,20 +47,67 @@
      team pages instead use that team's own color (see --team-color,
      set inline per page by JS from the team's real branding). */
   --favorite: #f2b705;
-  --favorite-soft: rgba(242, 183, 5, 0.12);
+  --favorite-soft: color-mix(in srgb, var(--favorite) 12%, transparent);
+  --on-favorite: #1a1400;
 
+  /* Game states */
   --live: #ef4444;
+  --live-soft: color-mix(in srgb, var(--live) 14%, transparent);
+  --on-live: #ffffff;
   --win: #2ecc71;
+  --win-soft: color-mix(in srgb, var(--win) 15%, transparent);
   --loss: #ff6b6b;
+  --loss-soft: color-mix(in srgb, var(--loss) 15%, transparent);
+  --satellite: #b39bff;
+  --satellite-soft: rgba(160, 120, 255, 0.14);
+
+  /* Shape, depth, type */
   --radius: 10px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: var(--font-body);
+  --font-score: var(--font-display);
+  --display-transform: none;
+  --display-tracking: -0.01em;
+}
+
+/* Light mode: same accents, light surfaces. Applied when the visitor picks
+   Light, or picks Auto and their OS is in light mode (theme-boot.js
+   resolves that into data-mode). */
+:root[data-mode="light"] {
+  color-scheme: light;
+  --bg: #f4f6fa;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #eef1f6;
+  --border: #d9dee8;
+  --text: #121620;
+  --text-dim: #5b6478;
+  --hover-tint: rgba(0, 0, 0, 0.03);
+  --overlay: rgba(0, 0, 0, 0.05);
+  --header-bg: linear-gradient(135deg, #ffffff, #eef1f7);
+  --brand-title: linear-gradient(90deg, #121620, #3b4fb8);
+  --accent: #2563eb;
+  --on-accent: #ffffff;
+  --favorite: #c99400;
+  --win: #15803d;
+  --loss: #dc2626;
+  --live: #dc2626;
+  --satellite: #6d4fd8;
+  --satellite-soft: rgba(109, 79, 216, 0.12);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 6px 20px rgba(16, 24, 40, 0.1);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: var(--bg);
+  font-family: var(--font-body);
+  background: var(--page-bg), var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
 }
@@ -40,7 +116,7 @@ a { color: inherit; }
 
 /* Header / wordmark */
 header.top {
-  background: linear-gradient(135deg, #171b26, #0d0f16);
+  background: var(--header-bg);
   padding: 16px 20px;
   display: flex;
   align-items: center;
@@ -63,7 +139,7 @@ header.top {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent), #7c5cff);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 .brand .brand-icon svg { width: 22px; height: 22px; }
 .brand .brand-icon:has(img) { background: none; }
@@ -72,9 +148,11 @@ header.top {
 header.top h1 {
   margin: 0;
   font-size: 1.35rem;
+  font-family: var(--font-display);
   font-weight: 800;
-  letter-spacing: -0.01em;
-  background: linear-gradient(90deg, #ffffff, #b9c6ff);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+  background: var(--brand-title);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -93,7 +171,7 @@ nav.top-nav a {
   background: var(--bg-elev-2);
   border: 1px solid var(--border);
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.85rem;
   transition: border-color 0.15s, color 0.15s;
 }
@@ -132,6 +210,7 @@ main {
 section { margin-bottom: 32px; }
 
 h2.section-title {
+  font-family: var(--font-display);
   font-size: 1.05rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -165,7 +244,7 @@ h2.section-title {
 .favorite-card .team-meta .record { color: var(--text-dim); font-size: 0.9rem; margin-top: 2px; }
 
 .favorite-card .next-game {
-  background: rgba(0,0,0,0.25);
+  background: var(--overlay);
   border-radius: var(--radius);
   padding: 10px 16px;
   min-width: 220px;
@@ -186,7 +265,7 @@ h2.section-title {
   background: var(--bg-elev-2);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   font-size: 0.9rem;
 }
@@ -198,7 +277,7 @@ h2.section-title {
 .division-toggle {
   display: inline-flex;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 .division-toggle button {
@@ -210,7 +289,7 @@ h2.section-title {
   font-weight: 600;
   cursor: pointer;
 }
-.division-toggle button.active { background: var(--accent); color: #08111f; }
+.division-toggle button.active { background: var(--accent); color: var(--on-accent); }
 
 .empty-note {
   color: var(--text-dim);
@@ -268,7 +347,7 @@ h2.section-title {
 .team-row .team-name.winner { font-weight: 700; }
 .team-row .team-link { cursor: pointer; text-decoration: none; }
 .team-row .team-link:hover { color: var(--accent); text-decoration: underline; }
-.team-row .score { font-weight: 700; min-width: 28px; text-align: right; }
+.team-row .score { font-family: var(--font-score); font-variant-numeric: tabular-nums; font-weight: 700; min-width: 28px; text-align: right; }
 .team-row .wl-badge {
   display: inline-block;
   font-size: 0.68rem;
@@ -277,8 +356,8 @@ h2.section-title {
   padding: 1px 5px;
   margin-left: 6px;
 }
-.team-row .wl-badge.win { background: rgba(46,204,113,0.15); color: var(--win); }
-.team-row .wl-badge.loss { background: rgba(255,107,107,0.15); color: var(--loss); }
+.team-row .wl-badge.win { background: var(--win-soft); color: var(--win); }
+.team-row .wl-badge.loss { background: var(--loss-soft); color: var(--loss); }
 
 .notable-ribbon {
   display: inline-block;
@@ -337,7 +416,7 @@ h2.section-title {
   font-size: 0.85rem;
 }
 .pbp-play:last-child { border-bottom: none; }
-.pbp-play.scoring { background: rgba(46, 204, 113, 0.08); }
+.pbp-play.scoring { background: color-mix(in srgb, var(--win) 8%, transparent); }
 .pbp-play .pbp-meta {
   display: block;
   font-size: 0.7rem;
@@ -434,7 +513,7 @@ h2.section-title {
 .game-side-meta .team-name:hover { text-decoration: underline; }
 .game-side-meta .team-name.winner { color: var(--win); }
 .game-side-meta .record { color: var(--text-dim); font-size: 0.8rem; margin-top: 2px; }
-.game-side-score { font-size: 2rem; font-weight: 800; min-width: 50px; text-align: center; }
+.game-side-score { font-family: var(--font-score); font-variant-numeric: tabular-nums; font-size: 2rem; font-weight: 800; min-width: 50px; text-align: center; }
 .game-side-score.winner { color: var(--win); }
 .game-vs { color: var(--text-dim); font-size: 0.85rem; flex-shrink: 0; }
 .game-situation {
@@ -475,12 +554,12 @@ h2.section-title {
   top: 8px;
   right: 8px;
   background: var(--live);
-  color: #fff;
+  color: var(--on-live);
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .field-timeouts {
   display: flex;
@@ -574,7 +653,7 @@ h2.section-title {
   transform: translate(-50%, -50%);
   width: 52px; height: 52px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--scrim);
   color: #fff;
   display: flex;
   align-items: center;
@@ -616,17 +695,17 @@ h2.section-title {
   width: 100%;
   padding: 10px 12px;
   margin: 10px 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-elev-2);
   color: var(--text);
 }
 .login-box button, .primary-btn {
   background: var(--accent);
-  color: #08111f;
+  color: var(--on-accent);
   border: none;
   padding: 10px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 700;
 }
@@ -639,7 +718,7 @@ h2.section-title {
   gap: 10px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   margin-bottom: 8px;
   background: var(--bg-elev);
 }
@@ -690,7 +769,7 @@ h2.section-title {
 }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr.is-favorite-row { background: var(--favorite-soft); }
-.data-table tr:hover td { background: rgba(255,255,255,0.03); }
+.data-table tr:hover td { background: var(--hover-tint); }
 .data-table .rank-cell { font-weight: 700; width: 36px; }
 .data-table .team-cell { display: flex; align-items: center; gap: 8px; }
 .data-table .team-cell img { width: 22px; height: 22px; object-fit: contain; }
@@ -748,7 +827,7 @@ h2.section-title {
   font-size: 0.7rem;
   color: var(--favorite);
   border: 1px solid var(--favorite);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 10px;
   vertical-align: middle;
 }
@@ -803,7 +882,7 @@ footer.foot {
   color: var(--accent);
   margin-right: 4px;
 }
-.radio-kind-satellite { background: rgba(160, 120, 255, 0.14); color: #b39bff; }
+.radio-kind-satellite { background: var(--satellite-soft); color: var(--satellite); }
 .radio-dim { color: var(--text-dim); font-size: 0.8rem; }
 .radio-links { font-size: 0.8rem; margin-top: 4px; }
 .radio-links a, .radio-sirius a { color: var(--accent); }
@@ -822,7 +901,7 @@ footer.foot {
   background: var(--bg-elev-2);
   color: var(--text-dim);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 7px 16px;
   font-size: 0.85rem;
   font-weight: 700;
@@ -830,17 +909,16 @@ footer.foot {
   cursor: pointer;
 }
 .sport-bar button:hover { border-color: var(--accent); color: var(--text); }
-.sport-bar button.active { background: var(--accent); border-color: var(--accent); color: #08111f; }
+.sport-bar button.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* Day picker for daily sports (NBA, MLB, NHL, college hoops) */
 .week-bar input[type="date"] {
   background: var(--bg-elev-2);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 7px 10px;
   font-size: 0.9rem;
-  color-scheme: dark;
 }
 .day-controls, .week-controls { display: contents; }
 [hidden] { display: none !important; }
@@ -864,17 +942,17 @@ footer.foot {
 .follow-btn {
   margin-left: auto;
   background: var(--bg-elev-2); color: var(--text);
-  border: 1px solid var(--favorite); border-radius: 999px;
+  border: 1px solid var(--favorite); border-radius: var(--radius-pill);
   padding: 8px 16px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
 }
-.follow-btn.following { background: var(--favorite); color: #1a1400; }
+.follow-btn.following { background: var(--favorite); color: var(--on-favorite); }
 
-.news-filter { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+.news-filter { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-pill); overflow: hidden; margin-bottom: 14px; }
 .news-filter button {
   background: var(--bg-elev-2); color: var(--text-dim); border: none;
   padding: 7px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
 }
-.news-filter button.active { background: var(--accent); color: #08111f; }
+.news-filter button.active { background: var(--accent); color: var(--on-accent); }
 
 /* UFC fight cards and NASCAR races */
 .event-card { cursor: default; }
@@ -894,3 +972,159 @@ footer.foot {
 .race-place { width: 1.6em; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .car-number { color: var(--text-dim); font-size: 0.8rem; min-width: 2.6em; }
 .list-divider { grid-column: 1 / -1; margin-top: 12px; }
+
+/* Betting Lines page */
+.lines-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.lines-summary { display: flex; gap: 16px; color: var(--text-dim); font-size: 0.85rem; margin-bottom: 14px; }
+.lines-summary strong { color: var(--text); }
+.lines-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 14px; }
+.lines-list > .empty-note { grid-column: 1 / -1; }
+.line-card {
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; cursor: pointer;
+}
+.line-card:hover { border-color: var(--accent); }
+.line-card.is-favorite { border-color: var(--favorite); box-shadow: 0 0 0 1px var(--favorite); }
+.line-card.is-live { border-color: var(--live); }
+.line-card .status-row { display: flex; justify-content: space-between; gap: 8px; color: var(--text-dim); font-size: 0.78rem; margin-bottom: 8px; }
+.line-card .status-row .live-dot { color: var(--live); font-weight: 700; }
+.line-grid { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 72px); gap: 6px 6px; align-items: center; }
+.line-head { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); text-align: center; }
+.line-team { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.line-team img, .line-team .logo-gap { width: 24px; height: 24px; object-fit: contain; flex: none; }
+.line-team .rank { color: var(--text-dim); font-size: 0.75rem; min-width: 22px; }
+.line-team-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); text-decoration: none; }
+.line-team-name:hover { color: var(--accent); }
+.line-team-name .abbr { display: none; }
+.line-score { margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; }
+.line-cell {
+  background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 5px 4px; text-align: center; font-size: 0.86rem; font-variant-numeric: tabular-nums;
+  display: flex; flex-direction: column; line-height: 1.2;
+}
+.line-cell.is-fav strong { color: var(--accent); }
+.line-cell.hit { border-color: var(--win); background: var(--win-soft); }
+.line-cell .price { color: var(--text-dim); font-size: 0.72rem; }
+.line-cell .dim, .dim { color: var(--text-dim); }
+.line-move { margin-top: 8px; font-size: 0.78rem; color: var(--text-dim); }
+.line-result { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.75rem; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--bg-elev-2); border: 1px solid var(--border); }
+.chip.good { color: var(--win); border-color: color-mix(in srgb, var(--win) 40%, transparent); }
+.lines-note { color: var(--text-dim); font-size: 0.75rem; margin-top: 18px; }
+@media (max-width: 560px) {
+  .line-grid { grid-template-columns: minmax(0, 1fr) repeat(3, 58px); gap: 6px 4px; }
+  .line-cell { font-size: 0.8rem; }
+  .line-team { gap: 6px; }
+  .line-team .rank { min-width: 0; }
+  .line-team-name .full { display: none; }
+  .line-team-name .abbr { display: inline; }
+}
+
+/* Recruiting page */
+.recruit-filters { flex-wrap: wrap; gap: 8px; }
+.recruit-filters input[type="search"] {
+  background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 10px; min-width: 180px; flex: 1 1 180px; max-width: 280px;
+}
+.recruit-filters .check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-dim); }
+.recruit-count { color: var(--text-dim); font-size: 0.8rem; margin: 4px 0 10px; }
+.recruit-table td { vertical-align: top; font-size: 0.88rem; }
+.recruit-table .to-team { color: var(--win); font-weight: 600; }
+.stars { color: var(--favorite); letter-spacing: -1px; margin-right: 4px; }
+.key-note {
+  background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 14px 16px; line-height: 1.5; font-size: 0.9rem;
+}
+.key-note a { color: var(--accent); }
+.key-note code { background: var(--bg-elev-2); padding: 1px 5px; border-radius: var(--radius-sm); }
+.foot a { color: inherit; }
+
+/* ---------------------------------------------------------------------
+   Mobile / PWA
+   Phone-size tweaks and installed-app (standalone) adjustments. Kept in
+   one block at the end so page-specific styles above stay untouched.
+   --------------------------------------------------------------------- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { -webkit-tap-highlight-color: transparent; }
+
+/* Respect the notch / home indicator when installed with viewport-fit=cover. */
+header.top {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+}
+main {
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+/* Card grids never force a column wider than the screen (e.g. 320px phones). */
+.game-list { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+.my-teams { grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }
+.news-list, .video-list { grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); }
+.stats-grid { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+.radio-teams { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+.favorite-card .team-meta, .favorite-card .next-game { min-width: min(200px, 100%); }
+
+@media (max-width: 560px) {
+  header.top { padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: 12px; gap: 10px; }
+  main {
+    padding: 14px max(12px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+
+  /* Top nav becomes one swipeable row instead of wrapping onto several. */
+  nav.top-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    width: 100%;
+  }
+  nav.top-nav::-webkit-scrollbar { display: none; }
+  nav.top-nav a { flex: 0 0 auto; }
+  .tab-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn { flex: 0 0 auto; white-space: nowrap; }
+
+  /* Comfortable tap targets, and 16px form text so iOS does not zoom in on focus. */
+  nav.top-nav a, .tab-btn, .week-bar button, .unfollow-btn { min-height: 40px; }
+  nav.top-nav a { display: inline-flex; align-items: center; }
+  .week-bar select, .week-bar input, .login-box input { font-size: 16px; }
+
+  .favorite-card { padding: 14px; gap: 12px; }
+  .week-bar .refresh-note { margin-left: 0; width: 100%; }
+  .upcoming-day { width: 100%; }
+}
+
+/* Installed app: no browser bar, so keep the header in view while scrolling. */
+.is-standalone header.top { position: sticky; top: 0; z-index: 20; }
+@media (display-mode: standalone) {
+  header.top { position: sticky; top: 0; z-index: 20; }
+  body { overscroll-behavior-y: none; }
+}
+
+/* Offline fallback page (offline.html). */
+.offline-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  max-width: 420px;
+}
+.offline-page img { border-radius: 16px; }
+.offline-page h1 { margin: 0; font-size: 1.4rem; }
+.offline-page p { margin: 0; color: var(--text-dim); line-height: 1.5; }
+.offline-page button {
+  margin-top: 8px;
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
