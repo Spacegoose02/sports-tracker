@@ -129,8 +129,8 @@
       }
     }
     // An icon in front ("🎯 Pick'em", "📺 TV channel") or a colon after
-    // ("Biggest rise:") shouldn't stop a known label from translating.
-    var deco = s.match(/^([^A-Za-z0-9¿¡"'(]+)(.+)$/) || s.match(/^(.+?)(:)$/);
+    // or ellipsis ("Biggest rise:", "Loading teams…") shouldn't stop a known label from translating.
+    var deco = s.match(/^([^A-Za-z0-9¿¡"'(]+)(.+)$/) || s.match(/^(.+?)(:|\u2026|\.\.\.)$/);
     if (deco) {
       var iconFirst = !/[A-Za-z]/.test(deco[1]);
       var inner = lookup(iconFirst ? deco[2] : deco[1]);

@@ -9,8 +9,9 @@
 //   - toggle buttons that show their state with an "active" class also
 //     get aria-pressed, so screen readers hear which tab is on
 //   - icon-only live markers get a text label
-//   - on a game page, score changes are announced once in a polite live
-//     region instead of the whole scorebug being re-read every refresh
+//   - on a game page, score changes and the newest live play are
+//     announced once in a polite live region, instead of the scorebug and
+//     play-by-play feed being re-read on every refresh
 (function () {
   var I18n = window.I18n || { t: function (s) { return s; }, lang: 'en', prefs: null, setLang: function () {} };
   var t = I18n.t;
@@ -45,10 +46,14 @@
       announcer.setAttribute('aria-atomic', 'true');
       document.body.appendChild(announcer);
     }
+    // Messages that arrive together (a new play and the score it changed)
+    // are read as one; clearing first makes screen readers read repeats.
+    queued.push(text);
+    if (queued.length > 1) return;
     announcer.textContent = '';
-    // A fresh node after a tick makes screen readers read repeats too.
-    setTimeout(function () { announcer.textContent = text; }, 50);
+    setTimeout(function () { announcer.textContent = queued.join('. '); queued = []; }, 150);
   }
+  var queued = [];
 
   // ---- Clickable cards ------------------------------------------------------
   var CARD_SELECTOR = '.game-card[data-id], .upcoming-game, .line-card, .video-thumb-wrap';
@@ -98,6 +103,10 @@
       }
     });
     scope.querySelectorAll('img:not([alt])').forEach(function (img) { img.setAttribute('alt', ''); });
+    // Icon-only buttons (▶, ×, ⇄) named only by a tooltip: give them a real label.
+    scope.querySelectorAll('button[title]:not([aria-label])').forEach(function (btn) {
+      if (!/[A-Za-z0-9\u00c0-\u024f]/.test(btn.textContent)) btn.setAttribute('aria-label', btn.getAttribute('title'));
+    });
   }
 
   function enhance(scope) {
@@ -128,6 +137,27 @@
     lastScore = text;
   }
 
+  // Live play-by-play: the feed is re-rendered as a whole, so a polite
+  // live region on it would re-read every play. Announce just the newest
+  // play instead (game-live.js marks new ones with .live-new).
+  var seenPlays = {};
+  var playsPrimed = false;
+  function checkPlays() {
+    var feed = document.querySelector('.pbp-feed');
+    if (!feed) return;
+    if (feed.getAttribute('aria-live') !== 'off') feed.setAttribute('aria-live', 'off');
+    var fresh = [];
+    feed.querySelectorAll('.live-play').forEach(function (play) {
+      var text = play.querySelector('.live-play-text');
+      var key = text ? text.textContent.trim() : '';
+      if (!key || seenPlays[key]) return;
+      seenPlays[key] = true;
+      if (play.classList.contains('live-new')) fresh.push(key);
+    });
+    if (playsPrimed && fresh.length) announce(fresh[0]);
+    playsPrimed = true;
+  }
+
   function watch() {
     var bug = document.getElementById('gameScorebug');
     if (bug) {
@@ -145,7 +175,7 @@
       });
       if (bug && !pending) {
         pending = true;
-        setTimeout(function () { pending = false; checkScore(); }, 100);
+        setTimeout(function () { pending = false; checkPlays(); checkScore(); }, 100);
       }
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   }
