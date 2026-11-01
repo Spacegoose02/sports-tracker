@@ -63,7 +63,7 @@
       const live = (data.schedule || []).find((g) => g.status && g.status.state === 'in');
       const highlight = live || upcoming;
       card.innerHTML = `
-        ${team && team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt=""" onerror="this.style.display='none'">` : ''}
+        ${team && team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
         <div class="team-meta">
           <a class="name team-link" href="/team.html?id=${encodeURIComponent(state.favoriteTeamId)}">${CFB.esc(team ? team.name : 'Favorite Team')}</a>
           <div class="record">${team && team.record ? CFB.esc(team.record) + ' record' : ''} ${team && team.rank ? '&middot; Rank #' + CFB.esc(team.rank) : ''}</div>

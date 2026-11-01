@@ -169,7 +169,7 @@ const CFB = (function () {
     return `
       <div class="team-row">
         <span class="rank">${team.curatedRank ? '#' + team.curatedRank : ''}</span>
-        ${team.logo ? `<img src="${safeUrl(team.logo)}" alt=""" onerror="this.style.display='none'">` : ''}
+        ${team.logo ? `<img src="${safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
         <a class="team-name team-link ${isWinner ? 'winner' : ''}" href="${teamLink(team)}" onclick="event.stopPropagation()">${esc(team.name || team.shortName || 'TBD')}</a>
         ${possessionIcon}
         <span class="score">${team.score !== null && team.score !== undefined ? esc(team.score) : ''}</span>
