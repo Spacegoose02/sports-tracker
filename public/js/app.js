@@ -475,7 +475,7 @@
   // Hide the pieces that only exist for college football: the pinned
   // "My Team" card, admin-curated Notable Games, and the CFB YouTube feed.
   function applySportLayout(sport) {
-    document.title = sport.key === 'cfb' ? 'CFB Tracker' : `${sport.label} · CFB Tracker`;
+    document.title = sport.key === 'cfb' ? 'Stat Scraps' : `${sport.label} · Stat Scraps`;
     const isCfb = sport.key === 'cfb';
     // UFC and NASCAR have fighters and drivers, not teams to follow.
     el('favoriteSection').hidden = sport.teams === false;

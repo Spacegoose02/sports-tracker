@@ -9,8 +9,8 @@
   // Preview colors are fixed (not tokens) so each card shows what the
   // theme looks like, whichever theme is active right now.
   var THEMES = [
-    { key: 'classic', label: 'Classic', blurb: 'Clean and neutral, the original look.', score: '24-21',
-      pv: { bg: 'linear-gradient(135deg,#171b26,#0b0d12)', card: '#1c202c', text: '#eef0f4', accent: '#4f8dfd', accent2: '#7c5cff' } },
+    { key: 'classic', label: 'Classic', blurb: 'Scrappy\'s maroon and orange on a clean board.', score: '24-21',
+      pv: { bg: 'linear-gradient(135deg,#22141c,#0b0d12)', card: '#1c202c', text: '#eef0f4', accent: '#f08a4b', accent2: '#b8406a' } },
     { key: 'auto', label: 'Match the Sport', blurb: 'Turf for football, hardwood for hoops, ice for hockey.', score: 'AUTO',
       pv: { bg: 'linear-gradient(90deg,#0e1f14 0 25%,#1d140c 25% 50%,#0c1b2b 50% 75%,#141416 75%)', card: '#ffffff', text: '#111', accent: '#8ee26b', accent2: '#ff7a1a' } },
     { key: 'team', label: 'Team Colors', blurb: 'Paint the whole app in your team\'s colors.', score: 'MY TEAM',

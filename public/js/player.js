@@ -18,7 +18,7 @@
   }
 
   function renderHero(p) {
-    document.title = `${p.name || 'Player'} · CFB Tracker`;
+    document.title = `${p.name || 'Player'} · Stat Scraps`;
     el('pageTitle').textContent = p.name || 'Player';
     el('sourceNote').textContent = [p.position, p.team && p.team.name].filter(Boolean).join(' · ') || CFB.sport().label;
     const hero = el('playerHero');

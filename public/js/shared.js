@@ -126,7 +126,7 @@ const CFB = (function () {
     });
 
     const foot = document.querySelector('footer.foot');
-    if (foot && sportKey !== DEFAULT_SPORT) foot.textContent = `CFB Tracker · ${sport().label}`;
+    if (foot && sportKey !== DEFAULT_SPORT) foot.textContent = `Stat Scraps · ${sport().label}`;
   }
 
   async function getJson(url, opts) {

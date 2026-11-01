@@ -1,7 +1,7 @@
 {
   "name": "cfb-tracker",
   "version": "1.0.0",
-  "description": "College football schedules, scores, and live stats tracker with a favorite-team pin and an admin-curated notable games section.",
+  "description": "Stat Scraps: college football schedules, scores, and live stats tracker with a favorite-team pin and an admin-curated notable games section.",
   "main": "server.js",
   "private": true,
   "scripts": {

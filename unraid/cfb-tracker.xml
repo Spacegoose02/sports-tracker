@@ -9,11 +9,11 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Spacegoose02/sports-tracker/issues</Support>
   <Project>https://github.com/Spacegoose02/sports-tracker</Project>
-  <Overview>Self-hosted college football hub (plus other sports): live scores, schedules, stats, rankings, news, recruiting, accounts with followed teams, game alerts and a Home Assistant integration. Set ADMIN_PASSWORD and SESSION_SECRET before starting.</Overview>
+  <Overview>Stat Scraps with Scrappy: a self-hosted college football hub (plus other sports): live scores, schedules, stats, rankings, news, recruiting, accounts with followed teams, game alerts and a Home Assistant integration. Set ADMIN_PASSWORD and SESSION_SECRET before starting.</Overview>
   <Category>MediaApp:Other Tools:</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Spacegoose02/sports-tracker/main/unraid/cfb-tracker.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/Spacegoose02/sports-tracker/main/public/img/cfbtracker-icon-192.png</Icon>
+  <Icon>https://raw.githubusercontent.com/Spacegoose02/sports-tracker/main/public/img/statscraps-icon-192.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>

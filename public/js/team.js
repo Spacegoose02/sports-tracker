@@ -23,7 +23,7 @@
 
   function renderHero(data) {
     const team = data.team;
-    document.title = `${team ? team.name : 'Team'} · CFB Tracker`;
+    document.title = `${team ? team.name : 'Team'} · Stat Scraps`;
     el('pageTitle').textContent = team ? team.name : 'Team';
     const hero = el('teamHero');
     hero.innerHTML = `

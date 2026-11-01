@@ -1,4 +1,10 @@
-# CFB Tracker
+<p align="center"><img src="public/img/scrappy-logo.png" alt="Stat Scraps with Scrappy" width="320" /></p>
+
+# Stat Scraps
+
+**Stat Scraps with Scrappy**: your one stop for college football news,
+scores and stats, plus other sports. Scrappy, the raccoon in the backwards
+cap, is the site's mascot and resident college football guru.
 
 A single self-hosted Docker container that shows college football schedules,
 live scores/stats, and a "Notable Games" section you curate week-by-week
@@ -162,6 +168,17 @@ always pinned at the top.
   somewhere along the way. Fox Sports/CBS Sports were unaffected since
   their images apparently came through a tag this already handled.
 
+### Branding: Stat Scraps with Scrappy
+
+- The app is now called **Stat Scraps**, with Scrappy the raccoon as its
+  mascot. His head is the header icon, favicon and installed-app icon; the
+  full logo is in `public/img/scrappy-logo.png`.
+- The default **Classic** theme uses Scrappy's maroon and orange
+  (`public/css/brand.css`). The other sports themes keep their own colors.
+- Container name, image (`ghcr.io/spacegoose02/sports-tracker`), app data
+  folder (`/mnt/user/appdata/cfb-tracker`) and database file are unchanged,
+  so existing installs update in place.
+
 ### Previous round of changes (logo, play-by-play, odds, possession, calendar, richer news)
 
 - **Logo & branding**: the site now uses your `cfbtracker.png` mascot as
@@ -297,7 +314,7 @@ There are two ways, and they can be used together:
   TINYAUTH_OIDC_CLIENTS_tracker_CLIENTID=cfb-tracker
   TINYAUTH_OIDC_CLIENTS_tracker_CLIENTSECRET=<a long random string>
   TINYAUTH_OIDC_CLIENTS_tracker_TRUSTEDREDIRECTURIS=https://sports.example.com/auth/sso/callback
-  TINYAUTH_OIDC_CLIENTS_tracker_NAME=CFB Tracker
+  TINYAUTH_OIDC_CLIENTS_tracker_NAME=Stat Scraps
   TINYAUTH_OIDC_CLIENTS_tracker_TRUSTED=true
   ```
 
@@ -352,7 +369,7 @@ endpoint works with the session cookie and no key.
 
 ## Installing on your phone
 
-CFB Tracker is a Progressive Web App, so you can add it to your home screen and open it like a normal app:
+Stat Scraps is a Progressive Web App, so you can add it to your home screen and open it like a normal app:
 
 - **iPhone (Safari):** tap Share, then **Add to Home Screen**.
 - **Android (Chrome):** tap the menu, then **Install app** (or accept the install banner).
