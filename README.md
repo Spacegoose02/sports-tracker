@@ -28,6 +28,26 @@ always pinned at the top.
 > you're on live data, it's usually a one-line fix in `src/espn.js`
 > (`getRankings` / `getStandings`) to point at the right field name.
 
+### Rankings, standings, team pages, player pages and fantasy
+
+- **Rankings**: pick any past week (or the final poll), see each team's
+  movement and last-week rank, who's new, who dropped out, and the week's
+  biggest rise and drop. A **Compare polls** view puts the CFP, AP and
+  Coaches rankings side by side.
+- **Standings**: home and away records, points for and against, point
+  differential, and AP rank badges for ranked college teams.
+- **Team pages**: record splits (home, away, conference), scoring averages
+  and recent form, then tabs for Schedule & Results, a searchable
+  **Roster** (with injury tags), Season Stats and team News.
+- **Player pages** (`/player.html?id=...`): bio, this season's game log
+  and season-by-season stats. Every roster and leaders entry links here.
+- **Leaders** (`/leaders.html`): season stat leaders for every team sport.
+  For the NFL a **Fantasy** tab adds up each week's box scores into
+  PPR, half-PPR or standard points, filterable by QB, RB and WR/TE.
+- New API routes (all take `?sport=`): `/api/team/:id/roster`,
+  `/api/player/:id`, `/api/leaders`, `/api/fantasy?week=&format=ppr|half|standard`.
+  The code is in `src/players.js`, `src/leaders.js` and `src/routes/stats.js`.
+
 ### Betting lines and recruiting
 
 - **Lines** (`/lines.html`): every game's spread, total and moneylines for

@@ -10,8 +10,27 @@
     { key: 'winPercent', label: 'Pct' },
     { key: 'gamesBehind', label: 'GB' },
     { key: 'points', label: 'Pts' },
+    { key: 'home', label: 'Home' },
+    { key: 'road', label: 'Away' },
+    { key: 'pointsFor', label: 'PF' },
+    { key: 'pointsAgainst', label: 'PA' },
+    { key: 'differential', label: 'Diff' },
     { key: 'streak', label: 'Streak' },
   ];
+
+  // Team id -> AP rank (college sports), shown as a small number before
+  // the team name the way TV graphics do.
+  let apRanks = {};
+
+  async function loadApRanks() {
+    if (!CFB.sport().rankings) return;
+    try {
+      const data = await CFB.getJson(CFB.withSport('/api/rankings'));
+      const ap = (data.polls || []).find((p) => /\bap\b/i.test(`${p.shortName || ''} ${p.name || ''}`)) || (data.polls || [])[0];
+      apRanks = {};
+      ((ap && ap.ranks) || []).forEach((r) => { if (r.team) apRanks[r.team.id] = r.rank; });
+    } catch (err) { /* standings still render without ranks */ }
+  }
 
   function conferenceHtml(conf, favoriteTeamId) {
     if (!conf.entries || !conf.entries.length) return '';
@@ -35,7 +54,9 @@
                     <td>
                       <div class="team-cell">
                         ${e.team && e.team.logo ? `<img src="${CFB.safeUrl(e.team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
+                        ${e.team && apRanks[e.team.id] ? `<span class="rank-badge">${CFB.esc(apRanks[e.team.id])}</span>` : ''}
                         ${e.team ? `<a class="team-link" href="${CFB.teamLink(e.team)}">${CFB.esc(e.team.name)}</a>` : 'TBD'}
+                        ${e.clincher ? `<span class="clincher" title="Clinched">${CFB.esc(e.clincher)}</span>` : ''}
                       </div>
                     </td>
                     ${columns.map((c) => `<td>${CFB.esc(e[c.key] || '')}</td>`).join('')}
@@ -67,7 +88,10 @@
       if (sport.key === 'cfb' && cachedMeta.season) params.set('year', cachedMeta.season);
       if (group) params.set('group', group);
       const query = params.toString();
-      const data = await CFB.getJson(CFB.withSport(`/api/standings${query ? `?${query}` : ''}`));
+      const [data] = await Promise.all([
+        CFB.getJson(CFB.withSport(`/api/standings${query ? `?${query}` : ''}`)),
+        loadApRanks(),
+      ]);
       const conferences = (data.conferences || []).filter((c) => c.entries && c.entries.length);
       if (!conferences.length) {
         container.innerHTML = '<div class="empty-note">Standings aren\'t available right now.</div>';

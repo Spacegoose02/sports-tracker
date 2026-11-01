@@ -11,6 +11,7 @@
 <meta name="theme-color" content="#0b0d12" />
 <script src="/js/pwa.js" defer></script>
 <link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/stats.css" />
 <link rel="stylesheet" href="/css/themes.css" />
 <script src="/js/theme-boot.js"></script>
 </head>
@@ -22,7 +23,7 @@
     </div>
     <div>
       <h1 id="pageTitle">Team</h1>
-      <div class="subtitle">Season schedule &amp; stats</div>
+      <div class="subtitle">Schedule, roster &amp; stats</div>
     </div>
   </div>
   <nav class="top-nav">
@@ -30,6 +31,7 @@
     <a href="/upcoming.html">Upcoming</a>
     <a href="/rankings.html">Rankings</a>
     <a href="/standings.html">Standings</a>
+    <a href="/leaders.html">Leaders</a>
     <a href="/lines.html">Lines</a>
     <a href="/recruiting.html">Recruiting</a>
   </nav>
@@ -37,20 +39,47 @@
 
 <main>
   <div class="team-hero" id="teamHero">Loading&hellip;</div>
+  <div class="team-summary" id="teamSummary"></div>
 
-  <section>
-    <h2 class="section-title">Season Schedule</h2>
-    <div class="game-list" id="teamSchedule">
-      <div class="empty-note">Loading&hellip;</div>
+  <div class="tab-bar" id="teamTabs">
+    <button class="tab-btn active" type="button" data-tab="schedule">Schedule &amp; Results</button>
+    <button class="tab-btn" type="button" data-tab="roster">Roster</button>
+    <button class="tab-btn" type="button" data-tab="stats">Season Stats</button>
+    <button class="tab-btn" type="button" data-tab="news">News</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-schedule">
+    <section>
+      <h2 class="section-title">Upcoming</h2>
+      <div class="game-list" id="teamUpcoming">
+        <div class="empty-note">Loading&hellip;</div>
+      </div>
+    </section>
+    <section>
+      <h2 class="section-title">Results</h2>
+      <div class="game-list" id="teamResults">
+        <div class="empty-note">Loading&hellip;</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="tab-panel" id="tab-roster">
+    <div class="week-bar">
+      <input type="search" id="rosterFilter" placeholder="Search name, number or position" aria-label="Search the roster" />
+      <span class="refresh-note" id="rosterCoach"></span>
     </div>
-  </section>
+    <div id="teamRoster"><div class="empty-note">Loading&hellip;</div></div>
+  </div>
 
-  <section>
-    <h2 class="section-title">Season Stats</h2>
+  <div class="tab-panel" id="tab-stats">
     <div class="stats-grid" id="teamStats">
       <div class="empty-note">Loading&hellip;</div>
     </div>
-  </section>
+  </div>
+
+  <div class="tab-panel" id="tab-news">
+    <div class="news-list" id="teamNews"><div class="empty-note">Loading&hellip;</div></div>
+  </div>
 </main>
 
 <footer class="foot">CFB Tracker</footer>
