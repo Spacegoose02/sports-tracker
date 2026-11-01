@@ -16,9 +16,13 @@
 // when the address browsers use differs from the one this server reaches.
 // Answers are cached for a few minutes, and a BingeBandit that's down just
 // means no links.
+//
+// GET /api/bingebandit/status (admin only) walks the setup step by step and
+// says which one is missing; the admin page shows it.
 
 const express = require('express');
 const nodeFetch = require('node-fetch');
+const { requireAdmin } = require('./auth');
 
 const MINUTE = 60 * 1000;
 const FRESH_FOR = 5 * MINUTE;
@@ -74,6 +78,64 @@ function cleanLinks(body, linkBase, asked) {
   return out;
 }
 
+// Networks the status check asks about: the ones most games are on.
+const CHECK_NETWORKS = ['ESPN', 'ESPN2', 'ABC', 'CBS', 'FOX', 'NBC', 'FS1', 'ESPNU', 'SEC Network', 'ACC Network', 'Big Ten Network', 'CBS Sports Network'];
+const MIN_VERSION = '0.43.0';
+
+function tooOld(version) {
+  const which = version ? `BingeBandit ${version}` : 'This BingeBandit';
+  return { ok: false, step: 'version', version, message: `${which} is too old for channel links. Update it to v${MIN_VERSION} or newer.` };
+}
+
+// Walks the setup in order and stops at the first step that's missing:
+// { ok, step, message, version?, links? }. step names what to fix: url, key,
+// reach, version, bbKey, mismatch, channels, or ready.
+async function checkBingeBandit(env, fetch) {
+  const cfg = bingeBanditConfig(env);
+  if (!cfg) {
+    return env.BINGEBANDIT_URL
+      ? { ok: false, step: 'url', message: `BINGEBANDIT_URL (${String(env.BINGEBANDIT_URL).slice(0, 100)}) isn't an http:// or https:// address.` }
+      : { ok: false, step: 'url', message: "BINGEBANDIT_URL isn't set on this server. Add it (e.g. http://192.168.1.10:8484) and restart." };
+  }
+  if (!cfg.key) return { ok: false, step: 'key', message: 'No key to send. Set RELAY_API_KEY (or BINGEBANDIT_API_KEY) and put the same key in BingeBandit under Server → Settings → Sports data.' };
+
+  let version = null;
+  try {
+    const res = await fetch(`${cfg.base}/api/health`, { timeout: 5000, headers: { Accept: 'application/json' }, size: 64 * 1024 });
+    const body = res.ok ? await res.json() : null;
+    if (!body || body.product !== 'BingeBandit') throw new Error(res.ok ? "it didn't answer like BingeBandit" : `it answered ${res.status}`);
+    version = typeof body.version === 'string' ? body.version.slice(0, 40) : null;
+  } catch (err) {
+    return { ok: false, step: 'reach', message: `Can't reach BingeBandit at ${cfg.base} (${err.message}). Check the address and that this server can reach it.` };
+  }
+
+  const qs = CHECK_NETWORKS.map((n) => `network=${encodeURIComponent(n)}`).join('&');
+  let res;
+  let body = {};
+  try {
+    res = await fetch(`${cfg.base}/api/sports/watch-links?${qs}`, { timeout: 5000, headers: { Accept: 'application/json', 'X-Api-Key': cfg.key }, size: 256 * 1024 });
+    body = await res.json().catch(() => ({}));
+  } catch (err) {
+    return { ok: false, step: 'reach', version, message: `BingeBandit stopped answering (${err.message}).` };
+  }
+  if (res.status === 404 && /channel links are off/i.test(String(body.error || ''))) {
+    return { ok: false, step: 'bbKey', version, message: 'BingeBandit has no Sports data key. In BingeBandit, open Server → Settings → Sports data and enter this tracker\'s address and key.' };
+  }
+  if (res.status === 404) {
+    return tooOld(version);
+  }
+  if (res.status === 401) {
+    return { ok: false, step: 'mismatch', version, message: "BingeBandit turned down the key. The key here must match BingeBandit's Sports data key exactly." };
+  }
+  if (!res.ok) return { ok: false, step: 'reach', version, message: `BingeBandit answered ${res.status}.` };
+  if (!Array.isArray(body.links)) return tooOld(version); // an older server answers with its web page
+  const links = cleanLinks(body, cfg.linkBase, CHECK_NETWORKS);
+  if (!links.length) {
+    return { ok: false, step: 'channels', version, links, message: `Paired, but none of ${CHECK_NETWORKS.slice(0, 6).join(', ')} or the main sports networks has a channel. Tie networks to channels in BingeBandit under Admin → Live TV → Networks.` };
+  }
+  return { ok: true, step: 'ready', version, links, message: `Working. Games on these networks get a Watch on BingeBandit link: ${links.map((l) => l.network).join(', ')}.` };
+}
+
 function createBingeBanditRouter({ env = process.env, fetch = nodeFetch, now = Date.now, logger = console } = {}) {
   const router = express.Router();
   const cfg = bingeBanditConfig(env);
@@ -91,6 +153,11 @@ function createBingeBanditRouter({ env = process.env, fetch = nodeFetch, now = D
     if (!res.ok) throw new Error(`BingeBandit answered ${res.status}`);
     return cleanLinks(await res.json(), cfg.linkBase, networks);
   }
+
+  router.get('/status', requireAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await checkBingeBandit(env, fetch));
+  });
 
   router.get('/watch', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=60');
@@ -126,4 +193,4 @@ function createBingeBanditRouter({ env = process.env, fetch = nodeFetch, now = D
   return router;
 }
 
-module.exports = { createBingeBanditRouter, bingeBanditConfig, cleanLinks, networkList };
+module.exports = { createBingeBanditRouter, bingeBanditConfig, checkBingeBandit, cleanLinks, networkList };

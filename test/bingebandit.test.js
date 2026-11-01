@@ -85,3 +85,47 @@ test('watch links ask BingeBandit with the key, cache, and go quiet when it fail
     await app.close();
   }
 });
+
+// A fake BingeBandit for the setup check: health answers with version, and
+// watch-links answers whatever the test sets.
+function fakeServer({ version = '0.43.0', watch = { status: 200, body: { links: [] } }, down = false } = {}) {
+  return async (url) => {
+    if (down) throw new Error('connect ECONNREFUSED');
+    const json = (status, body) => ({ ok: status === 200, status, json: async () => body });
+    if (url.endsWith('/api/health')) return json(200, { status: 'ok', product: 'BingeBandit', version });
+    return watch.body === null
+      ? { ok: watch.status === 200, status: watch.status, json: async () => { throw new SyntaxError('not JSON'); } }
+      : json(watch.status, watch.body);
+  };
+}
+
+test('setup check names the first missing step', async () => {
+  const { checkBingeBandit } = require('../src/bingebandit');
+  const env = { BINGEBANDIT_URL: 'http://bb:8484', RELAY_API_KEY: 'k' };
+  const step = async (e, f) => (await checkBingeBandit(e, f || fakeServer())).step;
+  assert.strictEqual(await step({}), 'url');
+  assert.strictEqual(await step({ BINGEBANDIT_URL: 'http://bb:8484' }), 'key');
+  assert.strictEqual(await step(env, fakeServer({ down: true })), 'reach');
+  const old = await checkBingeBandit(env, fakeServer({ version: '0.42.0', watch: { status: 404, body: null } }));
+  assert.strictEqual(old.step, 'version');
+  assert.match(old.message, /0\.42\.0 is too old.*v0\.43\.0/);
+  assert.strictEqual(await step(env, fakeServer({ watch: { status: 404, body: { error: 'channel links are off: set the sports data key' } } })), 'bbKey');
+  assert.strictEqual(await step(env, fakeServer({ watch: { status: 401, body: { error: 'wrong' } } })), 'mismatch');
+  assert.strictEqual(await step(env, fakeServer({ watch: { status: 200, body: { links: [] } } })), 'channels');
+  const ok = await checkBingeBandit(env, fakeServer({ watch: { status: 200, body: { links: [{ network: 'ESPN2', channel: { number: 206, name: 'ESPN2' }, path: '/live/4' }] } } }));
+  assert.strictEqual(ok.ok, true);
+  assert.match(ok.message, /ESPN2/);
+});
+
+test('setup check is for admins only', async () => {
+  const app = createApp({ env: { NODE_ENV: 'test', BINGEBANDIT_URL: 'http://bb:8484', RELAY_API_KEY: 'k' }, logger: { warn() {} }, bingebandit: { fetch: fakeServer() } });
+  const server = await new Promise((resolve) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/bingebandit/status`);
+    assert.strictEqual(res.status, 401);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

@@ -22,6 +22,8 @@
     return new Date(game.date).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
+  el('bbRecheck').addEventListener('click', bbCheck);
+
   async function checkLogin() {
     const status = await getJson('/api/admin/status');
     if (status.loggedIn) {
@@ -75,7 +77,25 @@
     seasonTypeSelect.value = String(meta.seasonType || 2);
   }
 
+  // Whether "Watch on BingeBandit" links work, and if not, which setup step
+  // is missing (src/bingebandit.js checkBingeBandit).
+  async function bbCheck() {
+    const box = el('bbStatus');
+    box.className = 'bb-status';
+    box.textContent = 'Checking\u2026';
+    try {
+      const s = await getJson('/api/bingebandit/status');
+      box.classList.add(s.ok ? 'bb-status-ok' : 'bb-status-bad');
+      const links = (s.links || []).map((l) => `<li>${esc(l.network)} &rarr; ${l.channel && l.channel.number != null ? `channel ${esc(l.channel.number)} ` : ''}${esc(l.channel && l.channel.name)}</li>`).join('');
+      box.innerHTML = `<strong>${s.ok ? 'Working' : 'Not working yet'}</strong>${s.version ? ` <span class="bb-status-version">BingeBandit ${esc(s.version)}</span>` : ''}<p>${esc(s.message)}</p>${links ? `<ul>${links}</ul>` : ''}`;
+    } catch (err) {
+      box.classList.add('bb-status-bad');
+      box.textContent = `Couldn't check: ${err.message}`;
+    }
+  }
+
   async function initPanel() {
+    bbCheck();
     let meta;
     try {
       meta = await getJson('/api/meta');
