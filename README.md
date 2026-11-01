@@ -402,6 +402,18 @@ window.addEventListener('tracker:score', (e) => {
 
 The saved data goes through `Kids.store` (see `public/js/kids.js`). When accounts arrive, a sync layer can call `Kids.store.setBackend({ get(key), set(key, value) })` to keep it on the server, and listen for `tracker:kids-data` to know when something changed.
 
+## Ask Scrappy (AI chat)
+
+Scrappy is the site's raccoon mascot and sports guru, living in a chat bubble in the bottom corner of every page. Ask him things like "When do the Hokies play next and what channel?", "Who's in the AP Top 10?", "What do the ACC standings look like?" or "Who leads the NFL in passing yards?" and he answers from the same live data the site shows: scores, schedules, TV and radio, rankings, standings, team and player stats, stat leaders and news, for every sport on the site.
+
+- **Turn it on** by setting `ANTHROPIC_API_KEY` (create one at [console.anthropic.com](https://console.anthropic.com/)). With no key the bubble doesn't appear at all.
+- **Cost control**: each visitor (by IP) gets 8 messages a minute and 100 a day by default (`SCRAPPY_RATE_PER_MINUTE`, `SCRAPPY_RATE_PER_DAY`). Behind a reverse proxy, set `TRUST_PROXY` so the limit sees real visitor IPs. You can also set a monthly spend limit on the Anthropic console.
+- **Model**: Claude Opus 5.5 at low effort by default; set `SCRAPPY_MODEL` to use another Claude model (for example `claude-sonnet-5-5` or `claude-haiku-5-5` to spend less).
+- **Kid-safe**: Scrappy keeps it family-friendly, sticks to sports, and won't give betting advice. Replies are shown as plain text, never as HTML.
+- The conversation stays in the browser tab (sessionStorage) and is only sent to the server when you ask a question. Nothing is saved on the server.
+
+The server side is `src/scrappy.js` (the prompt and tools) and `src/routes/scrappy.js`; the bubble is `public/js/scrappy.js` and `public/css/scrappy.css`.
+
 ## Pulling Notable Games into a Dynacat / Glance dashboard
 
 If you run a [Glance](https://github.com/glanceapp/glance)-based dashboard
@@ -561,6 +573,9 @@ If the tracker is down, BingeBandit reads ESPN directly until it's back.
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(generated)* | Web push keys. Left unset, a pair is generated once and saved as `vapid.json` in the data folder |
 | `VAPID_SUBJECT` | `mailto:admin@localhost` | Contact address push services see; use your email |
 | `GAME_ALERTS` | *(on)* | Set to `false` to stop checking scores for game alerts |
+| `ANTHROPIC_API_KEY` | *(unset: Scrappy off)* | Turns on Scrappy, the AI sports chat bubble (see [Ask Scrappy](#ask-scrappy-ai-chat)) |
+| `SCRAPPY_MODEL` | `claude-opus-5-5` | Claude model Scrappy uses |
+| `SCRAPPY_RATE_PER_MINUTE` / `SCRAPPY_RATE_PER_DAY` | `8` / `100` | Scrappy messages allowed per visitor IP |
 
 To find a different team's ESPN ID, visit
 `https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams`

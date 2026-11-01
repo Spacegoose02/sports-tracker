@@ -43,6 +43,12 @@ services:
       # NCAA_API_BASE: "https://ncaa-api.example.com"  # fallback if ESPN is down
       # NCAA_API_DIVISION: "fbs"
       # RELAY_API_KEY: ""                 # share ESPN data with BingeBandit
+
+      # --- Scrappy, the AI chat bubble (off until a key is set) ---
+      # ANTHROPIC_API_KEY: ""             # from console.anthropic.com
+      # SCRAPPY_MODEL: "claude-opus-5-5"
+      # SCRAPPY_RATE_PER_MINUTE: "8"      # messages per visitor IP
+      # SCRAPPY_RATE_PER_DAY: "100"
       # NEWS_FEEDS_JSON: '[{"name":"ESPN","url":"https://example.com/feed.rss"}]'
       # RECRUITING_FEEDS_JSON: '[{"name":"On3","url":"https://example.com/feed.rss"}]'
       # YOUTUBE_CHANNELS_JSON: '[{"id":"UC...","name":"Channel"}]'
