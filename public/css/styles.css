@@ -1021,7 +1021,7 @@ footer.foot {
   flex-direction: column;
   min-width: 96px;
 }
-.summary-tile span { color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.summary-tile > span { color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .summary-tile strong { font-size: 1.1rem; }
 .form-W { color: var(--win); margin-right: 3px; }
 .form-L { color: var(--loss); margin-right: 3px; }
@@ -1159,3 +1159,4 @@ main {
   font-weight: 600;
   cursor: pointer;
 }
+.roster-table td:not(:first-child), .roster-table th { white-space: nowrap; }

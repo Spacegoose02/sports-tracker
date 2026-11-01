@@ -113,6 +113,7 @@
         const id = String(r.team.id);
         if (!teams.has(id)) teams.set(id, { team: r.team, record: r.recordSummary, ranks: [] });
         teams.get(id).ranks[i] = r;
+        if (!teams.get(id).record) teams.get(id).record = r.recordSummary;
       });
     });
     // Sort by the first poll (CFP when it's out, else AP), then by the

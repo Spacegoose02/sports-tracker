@@ -128,7 +128,7 @@
     document.querySelectorAll('#leaderTabs .tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         showTab(btn.dataset.tab);
-        history.replaceState(null, '', CFB.withSport(`${location.pathname}#${btn.dataset.tab}`).replace(/#(\w+)(\?.*)$/, '$2#$1'));
+        history.replaceState(null, '', `#${btn.dataset.tab}`);
       });
     });
     if (sport.fantasy) initFantasy();
