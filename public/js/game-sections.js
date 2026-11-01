@@ -105,6 +105,7 @@ const CFBGame = (function () {
           <div class="wp-headline"><strong>${headline}</strong> <span class="wp-dim">${isPre ? 'chance to win, before kickoff' : (detail.status && detail.status.state === 'post' ? 'final' : 'chance to win right now')}</span></div>
           ${bar}
           ${chart}
+          ${typeof CFBLive !== 'undefined' ? CFBLive.swingsHtml(detail, away, home) : ''}
           <div class="wp-dim wp-source">${isPre && wp.pregame ? esc(wp.pregame.source) : 'ESPN win probability, play by play'}</div>
         </div>
       </section>`;

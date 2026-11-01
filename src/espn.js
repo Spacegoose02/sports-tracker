@@ -558,6 +558,24 @@ async function getGameSummary(eventId, sport) {
   }, 10 * 1000); // 10s cache for in-game data
 }
 
+// The fields every play-by-play row carries, whatever the sport. teamId,
+// the running score and the play type feed the live feed's filters.
+function playFields(p, team) {
+  const score = (v) => (v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
+  return {
+    id: p.id ? String(p.id) : null,
+    text: p.text,
+    type: (p.type && p.type.text) || null,
+    period: p.period && p.period.number,
+    clock: p.clock && p.clock.displayValue,
+    teamId: team && team.id ? String(team.id) : null,
+    awayScore: score(p.awayScore),
+    homeScore: score(p.homeScore),
+    yards: score(p.statYardage),
+    scoringPlay: !!p.scoringPlay,
+  };
+}
+
 function buildPlayByPlay(drivesJson) {
   if (!drivesJson) return [];
   const drives = [...(drivesJson.previous || []), ...(drivesJson.current ? [drivesJson.current] : [])];
@@ -567,11 +585,8 @@ function buildPlayByPlay(drivesJson) {
     for (const p of drive.plays || []) {
       if (!p.text) continue;
       plays.push({
-        text: p.text,
-        period: p.period && p.period.number,
-        clock: p.clock && p.clock.displayValue,
+        ...playFields(p, (p.start && p.start.team) || drive.team),
         drive: driveDesc,
-        scoringPlay: !!p.scoringPlay,
       });
     }
   }
@@ -584,13 +599,7 @@ function buildFlatPlayByPlay(plays) {
   if (!Array.isArray(plays)) return [];
   return plays
     .filter((p) => p && p.text)
-    .map((p) => ({
-      text: p.text,
-      period: p.period && p.period.number,
-      clock: p.clock && p.clock.displayValue,
-      drive: null,
-      scoringPlay: !!p.scoringPlay,
-    }))
+    .map((p) => ({ ...playFields(p, p.team), drive: null }))
     .reverse()
     .slice(0, 250);
 }
@@ -786,7 +795,13 @@ async function getTeamStatistics(teamId, season, sport) {
       teamId,
       categories: splits.map((cat) => ({
         name: cat.displayName || cat.name,
-        stats: (cat.stats || []).map((s) => ({ name: s.displayName || s.name, value: s.displayValue })),
+        stats: (cat.stats || []).map((s) => ({
+          name: s.displayName || s.name,
+          value: s.displayValue,
+          // Raw number and league rank, for the compare tool.
+          number: Number.isFinite(Number(s.value)) ? Number(s.value) : null,
+          rank: s.rankDisplayValue || null,
+        })),
       })),
     };
   }, 5 * 60 * 1000);
