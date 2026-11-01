@@ -1,0 +1,8 @@
+/* ==========================================================================
+   Sports themes
+   --------------------------------------------------------------------------
+   Each theme is a block of token overrides keyed on <html data-theme="...">
+   (and optionally data-mode / data-sport). Themes only change tokens and
+   decorative layers, never layout, so every page works under every theme.
+   "classic" is the default look defined in styles.css.
+   ========================================================================== */
