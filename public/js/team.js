@@ -27,10 +27,23 @@
     hero.innerHTML = `
       ${team && team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
       <div>
-        <div class="name">${CFB.esc(team ? team.name : 'Unknown team')} ${data.isFavorite ? '<span class="fav-badge">My Team</span>' : ''}</div>
+        <div class="name">${CFB.esc(team ? team.name : 'Unknown team')}</div>
         <div class="meta">${team && team.record ? CFB.esc(team.record) + ' overall' : ''} ${team && team.rank ? '&middot; Rank #' + CFB.esc(team.rank) : ''} ${team && team.standingSummary ? '&middot; ' + CFB.esc(team.standingSummary) : ''}</div>
       </div>
+      ${team ? '<button type="button" class="follow-btn" id="followBtn"></button>' : ''}
     `;
+    const followBtn = el('followBtn');
+    if (followBtn) {
+      const saved = { id: teamId, name: team.name, abbreviation: team.abbreviation, logo: team.logo };
+      const paint = () => {
+        const on = CFB.follows.has(teamId);
+        followBtn.classList.toggle('following', on);
+        followBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        followBtn.innerHTML = on ? '&#9733; Following' : '&#9734; Follow';
+      };
+      followBtn.addEventListener('click', () => { CFB.follows.toggle(saved); paint(); });
+      paint();
+    }
     // Brand this page with the team's own color rather than a hardcoded
     // one, so e.g. Miami's page looks like Miami, not like whichever team
     // is pinned as the site favorite.

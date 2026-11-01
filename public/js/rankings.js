@@ -21,7 +21,7 @@
     }
 
     body.innerHTML = poll.ranks.map((r) => {
-      const isFav = r.team && String(r.team.id) === String(state.favoriteTeamId);
+      const isFav = r.team && (String(r.team.id) === String(state.favoriteTeamId) || CFB.follows.has(r.team.id));
       return `
         <tr class="${isFav ? 'is-favorite-row' : ''}">
           <td class="rank-cell">${CFB.esc(r.rank)}</td>

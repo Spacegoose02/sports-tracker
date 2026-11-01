@@ -202,6 +202,24 @@ football, so existing bookmarks and the Dynacat widget keep working.
   college-football features.
 - To add a league ESPN covers, add one entry to `src/sports.js`.
 
+## Following teams
+
+Anyone using the site can follow as many teams as they like, in any sport:
+open a team's page and tap **☆ Follow**. Follows are saved in that
+visitor's browser, so every person (and device) has their own list.
+
+- **My Teams** at the top of the home page shows each followed team in
+  the current sport with its record and live or next game. Tap × to
+  unfollow.
+- Games involving a followed team are highlighted and listed first on
+  Schedule & Scores; followed teams are also highlighted in Rankings and
+  Standings.
+- The **News** tab defaults to **My teams**: ESPN headlines for the teams
+  you follow, each tagged with its team (`GET /api/news/teams?sport=cfb&teams=259,52`,
+  up to 10 teams). **All news** shows the full feed as before.
+- `FAVORITE_TEAM_ID` is still used as a starting point: a visitor's first
+  visit follows that team automatically, and unfollowing it sticks.
+
 ## Pulling Notable Games into a Dynacat / Glance dashboard
 
 If you run a [Glance](https://github.com/glanceapp/glance)-based dashboard
