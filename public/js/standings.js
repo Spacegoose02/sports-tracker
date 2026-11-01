@@ -29,7 +29,7 @@
             </thead>
             <tbody>
               ${conf.entries.map((e) => {
-                const isFav = e.team && String(e.team.id) === String(favoriteTeamId);
+                const isFav = e.team && (String(e.team.id) === String(favoriteTeamId) || CFB.follows.has(e.team.id));
                 return `
                   <tr class="${isFav ? 'is-favorite-row' : ''}">
                     <td>
@@ -79,8 +79,13 @@
     }
   }
 
-  CFB.loadSports().then(() => {
+  CFB.loadSports().then((sport) => {
     CFB.initSportBar();
+    if (sport.standings === false) {
+      el('sourceNote').textContent = sport.label;
+      el('standingsContainer').innerHTML = `<div class="empty-note">${CFB.esc(sport.label)} doesn't have standings. See the schedule for upcoming events and results.</div>`;
+      return;
+    }
     CFB.initDivisionToggle((group) => load(group));
   });
 })();

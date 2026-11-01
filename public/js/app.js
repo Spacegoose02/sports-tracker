@@ -14,15 +14,36 @@
     videosLoaded: false,
   };
 
+  // UFC / NASCAR: live and upcoming events (soonest first), then recent
+  // results (newest first).
+  function renderEvents() {
+    const list = el('gameList');
+    const events = state.events || [];
+    if (!events.length) {
+      list.innerHTML = '<div class="empty-note">No events scheduled right now.</div>';
+      return;
+    }
+    const ahead = events.filter((e) => !e.status || e.status.state !== 'post');
+    const past = events.filter((e) => e.status && e.status.state === 'post').reverse();
+    list.innerHTML = `
+      ${ahead.length ? ahead.map(CFB.eventCardHtml).join('') : '<div class="empty-note">No upcoming events in the next two months.</div>'}
+      ${past.length ? `<h2 class="section-title list-divider">Recent results</h2>${past.map(CFB.eventCardHtml).join('')}` : ''}`;
+  }
+
   function renderGames() {
+    if (state.events) { renderEvents(); return; }
     const list = el('gameList');
     if (!state.games.length) {
       list.innerHTML = '<div class="empty-note">No games found for this week.</div>';
       return;
     }
     const notableIds = new Set(state.notable.map((r) => String(r.event_id)));
-    list.innerHTML = state.games.map((g) => CFB.gameCardHtml(g, {
-      favoriteTeamId: state.favoriteTeamId,
+    // Games involving a followed team go first, in their original order.
+    const followed = CFB.follows.ids();
+    const isFollowedGame = (g) => (g.home && followed.has(String(g.home.id))) || (g.away && followed.has(String(g.away.id)));
+    const ordered = [...state.games.filter(isFollowedGame), ...state.games.filter((g) => !isFollowedGame(g))];
+    list.innerHTML = ordered.map((g) => CFB.gameCardHtml(g, {
+      followedIds: followed,
       notable: notableIds.has(String(g.id)),
     })).join('');
     CFB.wireGameCardClicks(list);
@@ -41,7 +62,7 @@
     const cards = state.notable.map((row) => {
       const game = state.games.find((g) => String(g.id) === String(row.event_id));
       if (game) {
-        return CFB.gameCardHtml(game, { favoriteTeamId: state.favoriteTeamId, notable: true });
+        return CFB.gameCardHtml(game, { followedIds: CFB.follows.ids(), notable: true });
       }
       return `
         <div class="game-card" data-id="${CFB.esc(row.event_id)}" data-source="${CFB.esc(row.source)}">
@@ -54,37 +75,58 @@
     CFB.wireGameCardClicks(grid);
   }
 
-  async function renderFavorite() {
-    const card = el('favoriteCard');
-    try {
-      const data = await CFB.getJson(CFB.withSport('/api/team/favorite'));
-      const team = data.team;
-      const upcoming = (data.schedule || []).find((g) => g.status && g.status.state !== 'post');
-      const live = (data.schedule || []).find((g) => g.status && g.status.state === 'in');
-      const highlight = live || upcoming;
-      card.innerHTML = `
-        ${team && team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
-        <div class="team-meta">
-          <a class="name team-link" href="/team.html?id=${encodeURIComponent(state.favoriteTeamId)}">${CFB.esc(team ? team.name : 'Favorite Team')}</a>
-          <div class="record">${team && team.record ? CFB.esc(team.record) + ' record' : ''} ${team && team.rank ? '&middot; Rank #' + CFB.esc(team.rank) : ''}</div>
-        </div>
-        ${highlight ? `
-        <div class="next-game" data-id="${CFB.esc(highlight.id)}" data-source="${CFB.esc(highlight.source || 'espn')}" style="cursor:pointer">
-          <div class="label">${live ? 'Live Now' : 'Next Game'}</div>
-          <div class="matchup">${CFB.esc(highlight.shortName || highlight.name)}</div>
-          <div class="when">${CFB.esc(CFB.statusLabel(highlight))}</div>
-        </div>` : ''}
-      `;
-      CFB.applyTeamColor(card, team && team.color);
-      const nextGameEl = card.querySelector('.next-game');
-      if (nextGameEl) {
-        nextGameEl.addEventListener('click', () => {
-          location.href = CFB.gameLink(nextGameEl.dataset.id, nextGameEl.dataset.source);
+  // "My Teams": one card per team this visitor follows in the current
+  // sport, each with its record and live or next game.
+  function myTeamCardHtml(saved, data) {
+    const team = (data && data.team) || saved;
+    const schedule = (data && data.schedule) || [];
+    const live = schedule.find((g) => g.status && g.status.state === 'in');
+    const upcoming = schedule.find((g) => g.status && g.status.state === 'pre');
+    const highlight = live || upcoming;
+    return `
+      ${team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
+      <div class="team-meta">
+        <a class="name team-link" href="${CFB.teamLink({ id: saved.id })}">${CFB.esc(team.name || 'Team')}</a>
+        <div class="record">${team.record ? CFB.esc(team.record) : ''}${team.rank ? ' &middot; Rank #' + CFB.esc(team.rank) : ''}</div>
+      </div>
+      ${highlight ? `
+      <a class="next-game" href="${CFB.gameLink(highlight.id, highlight.source)}">
+        <div class="label">${live ? 'Live Now' : 'Next Game'}</div>
+        <div class="matchup">${CFB.esc(highlight.shortName || highlight.name)}</div>
+        <div class="when">${CFB.esc(CFB.statusLabel(highlight))}</div>
+      </a>` : ''}
+      <button type="button" class="unfollow-btn" title="Unfollow" aria-label="Unfollow ${CFB.esc(team.name || 'team')}">&times;</button>`;
+  }
+
+  async function renderMyTeams() {
+    const wrap = el('myTeams');
+    const teams = CFB.follows.list();
+    if (!teams.length) {
+      wrap.innerHTML = '<div class="empty-note">You aren\'t following any teams in this sport yet. Open any team and tap <strong>&#9734; Follow</strong> to pin it here.</div>';
+      return;
+    }
+    wrap.innerHTML = teams.map((t) => `<div class="favorite-card" data-team-id="${CFB.esc(t.id)}">${myTeamCardHtml(t, null)}</div>`).join('');
+    await Promise.all(teams.map(async (t) => {
+      const card = wrap.querySelector(`[data-team-id="${CSS.escape(String(t.id))}"]`);
+      try {
+        const data = await CFB.getJson(CFB.withSport(`/api/team/${encodeURIComponent(t.id)}?lite=1`));
+        card.innerHTML = myTeamCardHtml(t, data);
+        CFB.applyTeamColor(card, data.team && data.team.color);
+      } catch (err) {
+        // Keep the saved name/logo if the live lookup fails.
+      }
+    }));
+    wrap.querySelectorAll('.favorite-card').forEach((card) => {
+      const btn = card.querySelector('.unfollow-btn');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          CFB.follows.remove(card.dataset.teamId);
+          renderMyTeams();
+          renderGames();
+          state.newsLoaded = false;
         });
       }
-    } catch (err) {
-      card.innerHTML = '<div class="empty-note">Could not load favorite team.</div>';
-    }
+    });
   }
 
   function populateSelectors(meta) {
@@ -159,7 +201,14 @@
   function scoreboardUrl() {
     const sport = CFB.sport();
     const params = new URLSearchParams();
-    if (sport.schedule === 'day') {
+    if (sport.schedule === 'event') {
+      // UFC / NASCAR: the last month of results and the next two months.
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      const end = new Date();
+      end.setDate(end.getDate() + 60);
+      params.set('dates', `${CFB.ymd(start)}-${CFB.ymd(end)}`);
+    } else if (sport.schedule === 'day') {
       params.set('dates', CFB.ymd(state.day || new Date()));
     } else {
       params.set('year', state.season);
@@ -191,11 +240,14 @@
           : Promise.resolve([]),
       ]);
       state.games = scoreboard.games || [];
+      state.events = scoreboard.events || null;
       state.notable = notable || [];
       state.favoriteTeamId = scoreboard.favoriteTeamId;
-      el('sourceNote').textContent = sport.schedule === 'day'
-        ? `${sport.label} · ${dayLabel(state.day || new Date())}`
-        : `${sport.label} · ${scoreboard.season} · Week ${scoreboard.week}`;
+      el('sourceNote').textContent = sport.schedule === 'event'
+        ? `${sport.label} · Events`
+        : sport.schedule === 'day'
+          ? `${sport.label} · ${dayLabel(state.day || new Date())}`
+          : `${sport.label} · ${scoreboard.season} · Week ${scoreboard.week}`;
       renderGames();
       renderNotable();
       scheduleAutoRefresh();
@@ -207,7 +259,7 @@
 
   function scheduleAutoRefresh() {
     if (state.pollTimer) clearInterval(state.pollTimer);
-    const anyLive = state.games.some((g) => g.status && g.status.state === 'in');
+    const anyLive = [...state.games, ...(state.events || [])].some((g) => g.status && g.status.state === 'in');
     el('refreshNote').textContent = anyLive ? 'Auto-refreshing live games every 20s' : '';
     if (anyLive) {
       state.pollTimer = setInterval(loadWeek, 20000);
@@ -245,15 +297,51 @@
     return `${Math.round(hours / 24)}d ago`;
   }
 
+  // News tab: "My teams" (headlines for followed teams) or "All news".
+  // Defaults to My teams whenever the visitor follows a team in this sport.
+  const NEWS_MODE_KEY = 'tracker-news-mode';
+
+  function newsMode() {
+    if (!CFB.follows.list().length) return 'all';
+    try { return localStorage.getItem(NEWS_MODE_KEY) === 'all' ? 'all' : 'mine'; } catch (e) { return 'mine'; }
+  }
+
+  function initNewsFilter() {
+    const filter = el('newsFilter');
+    const update = () => {
+      const hasFollows = CFB.follows.list().length > 0;
+      filter.hidden = !hasFollows;
+      filter.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.filter === newsMode()));
+    };
+    filter.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        try { localStorage.setItem(NEWS_MODE_KEY, btn.dataset.filter); } catch (e) { /* ignore */ }
+        update();
+        loadNews();
+      });
+    });
+    update();
+    return update;
+  }
+
   async function loadNews() {
     const list = el('newsList');
     list.innerHTML = '<div class="empty-note">Loading&hellip;</div>';
+    if (state.updateNewsFilter) state.updateNewsFilter();
+    const mode = newsMode();
+    const followed = CFB.follows.list();
+    const teamNames = new Map(followed.map((t) => [String(t.id), t.abbreviation || t.name]));
+    const url = mode === 'mine'
+      ? CFB.withSport(`/api/news/teams?teams=${encodeURIComponent(followed.map((t) => t.id).join(','))}`)
+      : CFB.withSport('/api/news');
     try {
-      const data = await CFB.getJson(CFB.withSport('/api/news'));
+      const data = await CFB.getJson(url);
       state.newsLoaded = true;
       const items = data.items || [];
       if (!items.length) {
-        list.innerHTML = '<div class="empty-note">No news available right now.</div>';
+        list.innerHTML = mode === 'mine'
+          ? '<div class="empty-note">No recent headlines for the teams you follow. Try All news.</div>'
+          : '<div class="empty-note">No news available right now.</div>';
         return;
       }
       list.innerHTML = items.filter((item) => CFB.safeUrl(item.link)).map((item) => `
@@ -263,7 +351,7 @@
             : '<div class="news-thumb-placeholder">&#128240;</div>'}
           <div class="news-item-body">
             <div class="news-item-top">
-              <span class="news-source">${CFB.esc(item.source)}</span>
+              <span class="news-source">${CFB.esc(item.source)}${item.teamId && teamNames.get(String(item.teamId)) ? ` &middot; ${CFB.esc(teamNames.get(String(item.teamId)))}` : ''}</span>
               ${item.pubDate ? `<span class="news-time">${timeAgo(item.pubDate)}</span>` : ''}
             </div>
             <div class="news-title">${CFB.esc(item.title)}</div>
@@ -330,7 +418,8 @@
   function applySportLayout(sport) {
     document.title = sport.key === 'cfb' ? 'CFB Tracker' : `${sport.label} · CFB Tracker`;
     const isCfb = sport.key === 'cfb';
-    el('favoriteSection').hidden = !isCfb;
+    // UFC and NASCAR have fighters and drivers, not teams to follow.
+    el('favoriteSection').hidden = sport.teams === false;
     document.querySelector('.tab-btn[data-tab="notable"]').hidden = !sport.notable;
     document.querySelector('.tab-btn[data-tab="videos"]').hidden = !isCfb;
   }
@@ -339,12 +428,15 @@
     const sport = await CFB.loadSports();
     CFB.initSportBar();
     applySportLayout(sport);
-    if (sport.schedule === 'day') {
+    if (sport.schedule === 'event') {
+      el('weekControls').hidden = true;
+    } else if (sport.schedule === 'day') {
       initDayControls();
     } else {
       try {
         const meta = await CFB.getJson(CFB.withSport('/api/meta'));
         state.favoriteTeamId = meta.favoriteTeamId;
+        if (sport.key === 'cfb') CFB.follows.seedDefault(meta.favoriteTeamId, meta.favoriteTeamName);
         populateSelectors(meta);
         el('sourceNote').textContent = `${sport.label} · ${meta.season} · Week ${meta.week}`;
       } catch (err) {
@@ -357,7 +449,8 @@
       state.group = group;
       loadWeek();
     });
-    if (sport.key === 'cfb') renderFavorite();
+    state.updateNewsFilter = initNewsFilter();
+    if (sport.teams !== false) renderMyTeams();
   }
 
   init();

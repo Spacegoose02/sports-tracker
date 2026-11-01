@@ -223,6 +223,8 @@ async function getScoreboard({ sport, year, week, seasontype, groups, dates } = 
   if (group) params.set('groups', group);
   params.set('limit', 400);
 
+  if (cfg.format === 'card' || cfg.format === 'race') return getEvents(cfg, params);
+
   const key = `espn:${cfg.key}:scoreboard:${params.toString()}`;
   return cache.getOrFetch(key, async () => {
     const json = await fetchJson(`${baseFor(cfg.key)}/scoreboard?${params.toString()}`);
@@ -236,6 +238,113 @@ async function getScoreboard({ sport, year, week, seasontype, groups, dates } = 
       games: events.map((e) => fillInWinner(normalizeGame(e))),
     };
   });
+}
+
+// ---- UFC and NASCAR -------------------------------------------------------
+// These leagues don't have two-team games. ESPN models a UFC event as one
+// event whose `competitions` are the individual fights, and a NASCAR race
+// weekend as one event whose competitions are practice, qualifying and the
+// race. Both are returned as `events` (with `games: []` so callers that only
+// know team sports still work).
+
+async function getEvents(cfg, params) {
+  const key = `espn:${cfg.key}:events:${params.toString()}`;
+  return cache.getOrFetch(key, async () => {
+    const json = await fetchJson(`${baseFor(cfg.key)}/scoreboard?${params.toString()}`);
+    const events = (json.events || []).map((e) => (cfg.format === 'card' ? normalizeCard(e) : normalizeRace(e)));
+    events.sort((a, b) => Date.parse(a.date || 0) - Date.parse(b.date || 0));
+    return {
+      sport: cfg.key,
+      season: json.season && json.season.year,
+      week: null,
+      seasonType: json.season && json.season.type,
+      day: null,
+      games: [],
+      events,
+    };
+  }, 60 * 1000);
+}
+
+function normalizeStatus(status) {
+  const type = (status && status.type) || {};
+  return {
+    state: type.state, // 'pre' | 'in' | 'post'
+    detail: type.detail,
+    shortDetail: type.shortDetail,
+    completed: !!type.completed,
+    period: status && status.period,
+    clock: status && status.displayClock,
+  };
+}
+
+function eventShell(event, comp) {
+  const broadcasts = (comp && comp.broadcasts) || [];
+  return {
+    id: event.id,
+    name: event.name,
+    shortName: event.shortName,
+    date: (comp && comp.date) || event.date,
+    venue: (comp && comp.venue && comp.venue.fullName) || (event.circuit && event.circuit.fullName) || (event.venues && event.venues[0] && event.venues[0].fullName) || null,
+    broadcast: (broadcasts[0] && broadcasts[0].names && broadcasts[0].names[0]) || null,
+    status: normalizeStatus((comp && comp.status) || event.status),
+  };
+}
+
+function fighter(c) {
+  const athlete = c.athlete || {};
+  const records = c.records || c.record || [];
+  return {
+    id: athlete.id || c.id || null,
+    name: athlete.displayName || athlete.fullName || null,
+    shortName: athlete.shortName || athlete.displayName || null,
+    flag: (athlete.flag && athlete.flag.href) || null,
+    record: (records[0] && records[0].summary) || null,
+    winner: !!c.winner,
+  };
+}
+
+// A fight card: every competition is one bout. ESPN lists the prelims
+// first, so reverse to put the main event on top.
+function normalizeCard(event) {
+  const comps = event.competitions || [];
+  const main = comps[comps.length - 1];
+  const bouts = comps.slice().reverse().map((comp) => {
+    const [a, b] = comp.competitors || [];
+    const status = normalizeStatus(comp.status || event.status);
+    return {
+      id: comp.id || null,
+      weightClass: (comp.type && (comp.type.text || comp.type.abbreviation)) || null,
+      status,
+      result: status.completed ? (status.detail || null) : null,
+      fighters: [a, b].filter(Boolean).map(fighter),
+    };
+  });
+  const shell = eventShell(event, main);
+  // The event is live if any fight is, and only final when all are.
+  if (bouts.some((b) => b.status.state === 'in')) shell.status = { ...shell.status, state: 'in' };
+  else if (bouts.length && bouts.every((b) => b.status.state === 'post')) shell.status = { ...shell.status, state: 'post', completed: true };
+  return { ...shell, date: (comps[0] && comps[0].date) || event.date, bouts };
+}
+
+// A race weekend: keep the race itself (not practice or qualifying), with
+// its running order (finishing order once it's over). Before the start the
+// competitor list is just the entry list, so it's dropped.
+function normalizeRace(event) {
+  const comps = event.competitions || [];
+  const race = comps.find((c) => c.type && /^race$/i.test(c.type.abbreviation || '')) || comps[comps.length - 1];
+  const shell = eventShell(event, race);
+  let order = ((race && race.competitors) || [])
+    .filter((c) => c.athlete)
+    .map((c) => ({
+      place: Number(c.order) || null,
+      name: c.athlete.displayName || null,
+      shortName: c.athlete.shortName || c.athlete.displayName || null,
+      number: (c.vehicle && c.vehicle.number) || null,
+      winner: !!c.winner,
+    }))
+    .sort((a, b) => (a.place || 999) - (b.place || 999));
+  if (shell.status.state === 'pre') order = [];
+  return { ...shell, race: order.slice(0, 10), fieldSize: order.length };
 }
 
 // Full-season schedule for one team (used for the pinned favorite team and
@@ -617,6 +726,8 @@ module.exports = {
   getTeamStatistics,
   // Exported for tests.
   normalizeGame,
+  normalizeCard,
+  normalizeRace,
   parseStandings,
   buildFlatPlayByPlay,
   parseSituation,

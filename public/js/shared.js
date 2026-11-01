@@ -101,6 +101,7 @@ const CFB = (function () {
         const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html'];
         let page = listPages.includes(location.pathname) ? location.pathname : '/';
         if (page === '/rankings.html' && !s.rankings) page = '/';
+        if (page === '/standings.html' && s.standings === false) page = '/';
         location.href = `${page}?sport=${encodeURIComponent(s.key)}`;
       });
       bar.appendChild(btn);
@@ -111,6 +112,7 @@ const CFB = (function () {
       const href = a.getAttribute('href');
       if (!href || !href.startsWith('/') || href.startsWith('/admin')) return;
       if (href === '/rankings.html' && !sport().rankings) { a.remove(); return; }
+      if (href === '/standings.html' && sport().standings === false) { a.remove(); return; }
       a.setAttribute('href', withSport(href));
     });
 
@@ -126,6 +128,69 @@ const CFB = (function () {
     }
     return res.json();
   }
+
+  // ---- Followed teams ----------------------------------------------------
+  // Each visitor follows their own teams, any number per sport, saved in
+  // their browser. Entries are { sport, id, name, abbreviation, logo }.
+  const FOLLOW_KEY = 'tracker-follows';
+  const FOLLOW_SEEDED_KEY = 'tracker-follows-seeded';
+  const MAX_FOLLOWS = 30;
+
+  function readFollows() {
+    try {
+      const list = JSON.parse(localStorage.getItem(FOLLOW_KEY) || '[]');
+      return Array.isArray(list) ? list.filter((t) => t && t.sport && t.id) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writeFollows(list) {
+    try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(list.slice(0, MAX_FOLLOWS))); } catch (e) { /* ignore */ }
+  }
+
+  const follows = {
+    // Followed teams for one sport (default: the current sport).
+    list(sportKeyArg) {
+      const key = sportKeyArg || sportKey;
+      return readFollows().filter((t) => t.sport === key);
+    },
+    ids(sportKeyArg) {
+      return new Set(follows.list(sportKeyArg).map((t) => String(t.id)));
+    },
+    has(teamId, sportKeyArg) {
+      return follows.ids(sportKeyArg).has(String(teamId));
+    },
+    add(team, sportKeyArg) {
+      const key = sportKeyArg || sportKey;
+      if (!team || !team.id || follows.has(team.id, key)) return;
+      const list = readFollows();
+      list.push({ sport: key, id: String(team.id), name: team.name || null, abbreviation: team.abbreviation || null, logo: team.logo || null });
+      writeFollows(list);
+    },
+    remove(teamId, sportKeyArg) {
+      const key = sportKeyArg || sportKey;
+      writeFollows(readFollows().filter((t) => !(t.sport === key && String(t.id) === String(teamId))));
+    },
+    toggle(team, sportKeyArg) {
+      if (follows.has(team.id, sportKeyArg)) { follows.remove(team.id, sportKeyArg); return false; }
+      follows.add(team, sportKeyArg);
+      return true;
+    },
+    // The server's FAVORITE_TEAM_ID used to be the only "my team". Follow
+    // it once on a visitor's first visit so nothing disappears for them;
+    // if they unfollow it later it stays unfollowed.
+    seedDefault(teamId, name) {
+      if (!teamId) return;
+      try {
+        if (localStorage.getItem(FOLLOW_SEEDED_KEY)) return;
+        localStorage.setItem(FOLLOW_SEEDED_KEY, '1');
+      } catch (e) {
+        return;
+      }
+      follows.add({ id: teamId, name }, 'cfb');
+    },
+  };
 
   function fmtTime(iso) {
     if (!iso) return '';
@@ -191,8 +256,9 @@ const CFB = (function () {
   // look and behave identically (channel, time, rank, live indicator).
   function gameCardHtml(game, opts) {
     opts = opts || {};
-    const isFav = opts.favoriteTeamId && ((game.home && String(game.home.id) === String(opts.favoriteTeamId)) ||
-      (game.away && String(game.away.id) === String(opts.favoriteTeamId)));
+    const followed = opts.followedIds || new Set();
+    const isFollowed = (team) => team && (followed.has(String(team.id)) || (opts.favoriteTeamId && String(team.id) === String(opts.favoriteTeamId)));
+    const isFav = isFollowed(game.home) || isFollowed(game.away);
     const isLive = game.status && game.status.state === 'in';
     const isCompleted = !!(game.status && game.status.completed);
     const possessionId = isLive && game.situation ? game.situation.possession : null;
@@ -211,6 +277,42 @@ const CFB = (function () {
         ${teamRowHtml(game.home, { completed: isCompleted, hasPossession: homeHasBall })}
         ${game.venue ? `<div class="venue">${esc(game.venue)}</div>` : ''}
         ${oddsLine(game)}
+      </div>`;
+  }
+
+  // UFC fight cards and NASCAR races: one card per event, listing the
+  // fights (winner marked) or the top of the running order.
+  function eventCardHtml(event) {
+    const isLive = event.status && event.status.state === 'in';
+    const when = isLive ? 'LIVE' : event.status && event.status.state === 'post' ? 'Final' : fmtTime(event.date);
+    let body = '';
+    if (event.bouts) {
+      body = event.bouts.map((b, i) => {
+        const [x, y] = b.fighters;
+        const side = (f) => (f ? `<span class="fighter ${f.winner ? 'winner' : ''}">${esc(f.name || 'TBD')}${f.record ? ` <span class="fighter-record">${esc(f.record)}</span>` : ''}${f.winner ? ' <span class="wl-badge win">W</span>' : ''}</span>` : '<span class="fighter">TBD</span>');
+        return `
+          <div class="bout ${i === 0 ? 'main-event' : ''}">
+            ${i === 0 ? '<div class="bout-label">Main event</div>' : ''}
+            <div class="bout-row">${side(x)}<span class="bout-vs">vs</span>${side(y)}</div>
+            ${b.weightClass || b.result ? `<div class="bout-meta">${[b.weightClass, b.result].filter(Boolean).map(esc).join(' &middot; ')}</div>` : ''}
+          </div>`;
+      }).join('');
+    } else if (event.race) {
+      body = event.race.length
+        ? `<ol class="race-order">${event.race.map((d) => `
+            <li class="${d.winner ? 'winner' : ''}"><span class="race-place">${esc(d.place || '')}</span>${d.number ? `<span class="car-number">#${esc(d.number)}</span>` : ''}<span>${esc(d.name)}</span></li>`).join('')}
+          </ol>${event.fieldSize > event.race.length ? `<div class="bout-meta">Top ${event.race.length} of ${esc(event.fieldSize)}</div>` : ''}`
+        : '<div class="bout-meta">Running order appears once the race starts.</div>';
+    }
+    return `
+      <div class="game-card event-card ${isLive ? 'is-live' : ''}">
+        <div class="status-row">
+          <span class="${isLive ? 'live-dot' : ''}">${esc(when)}</span>
+          ${event.broadcast ? `<span>${esc(event.broadcast)}</span>` : ''}
+        </div>
+        <div class="event-name">${esc(event.name || event.shortName || 'Event')}</div>
+        ${event.venue ? `<div class="venue">${esc(event.venue)}</div>` : ''}
+        ${body}
       </div>`;
   }
 
@@ -330,8 +432,8 @@ const CFB = (function () {
 
   return {
     el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
-    wireGameCardClicks, gameDetailSectionsHtml,
+    wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
-    loadSports, sport, withSport, initSportBar,
+    loadSports, sport, withSport, initSportBar, follows,
   };
 })();
