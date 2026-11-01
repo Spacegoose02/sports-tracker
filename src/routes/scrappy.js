@@ -2,7 +2,7 @@
 // rate limited per IP since every message costs an API call.
 //
 //   GET  /api/scrappy        -> { enabled }   (the bubble hides when false)
-//   POST /api/scrappy/chat   { messages: [{ role, content }] } -> { reply }
+//   POST /api/scrappy/chat   { messages: [{ role, content }], lang?: 'en' | 'es' } -> { reply }
 
 const express = require('express');
 const { rateLimit } = require('../security');
@@ -27,7 +27,8 @@ function createScrappyRouter({ env = process.env, client, logger = console, fetc
     const history = cleanHistory(req.body && req.body.messages);
     if (!history) return res.status(400).json({ error: 'Send messages ending with a question.' });
     try {
-      const reply = await scrappy.chat(history);
+      const lang = req.body && req.body.lang === 'es' ? 'es' : 'en';
+      const reply = await scrappy.chat(history, { lang });
       res.set('Cache-Control', 'no-store').json({ reply });
     } catch (err) {
       logger.warn(`[scrappy] ${err.status || ''} ${err.message}`);

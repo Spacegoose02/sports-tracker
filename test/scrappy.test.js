@@ -215,6 +215,23 @@ test('Claude prefers itself when both are set, and gets web search from SearXNG'
   }
 });
 
+test('Scrappy answers in Spanish when the site is set to Spanish', async () => {
+  const client = fakeClient([
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: '¡Hola!' }] },
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Hi!' }] },
+  ]);
+  const app = await start({ ...BASE, ANTHROPIC_API_KEY: 'test' }, { client });
+  try {
+    await post(app.url, { messages: [{ role: 'user', content: 'hola' }], lang: 'es' });
+    await post(app.url, { messages: [{ role: 'user', content: 'hi' }], lang: '<script>' });
+    const spanish = (call) => call.system.some((b) => /Reply in Spanish/.test(b.text));
+    assert.strictEqual(spanish(client.calls[0]), true);
+    assert.strictEqual(spanish(client.calls[1]), false);
+  } finally {
+    await app.close();
+  }
+});
+
 test('SCRAPPY_PROVIDER=ollama picks Ollama even with a Claude key', () => {
   const { createScrappy } = require('../src/scrappy');
   const s = createScrappy({ env: { ANTHROPIC_API_KEY: 'x', OLLAMA_URL: 'http://o:11434', SCRAPPY_PROVIDER: 'ollama' } });

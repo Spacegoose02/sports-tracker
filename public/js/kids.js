@@ -369,7 +369,10 @@ const Kids = (function () {
     else playCharge(ctx);
   }
 
+  // Follows the Display panel's Motion setting (js/i18n.js), which falls
+  // back to the OS reduced-motion setting.
   function prefersReducedMotion() {
+    if (window.I18n && window.I18n.reducedMotion) return window.I18n.reducedMotion();
     return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 

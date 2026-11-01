@@ -189,7 +189,7 @@
       fetch('/api/scrappy/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history.slice(-MAX_SEND) }),
+        body: JSON.stringify({ messages: history.slice(-MAX_SEND), lang: document.documentElement.lang || 'en' }),
       })
         .then(function (res) {
           return res.json().catch(function () { return {}; }).then(function (body) {
