@@ -29,20 +29,19 @@
 
 <main>
   <div class="week-bar">
-    <div class="division-toggle" id="divisionToggle">
-      <button data-division="fbs" class="active">FBS</button>
-      <button data-division="fcs">FCS</button>
-    </div>
-    <label for="seasonSelect">Season</label>
-    <select id="seasonSelect"></select>
-    <label for="weekSelect">Week</label>
-    <select id="weekSelect"></select>
-    <label for="seasonTypeSelect">Type</label>
-    <select id="seasonTypeSelect">
-      <option value="2">Regular Season</option>
-      <option value="3">Postseason / Bowls</option>
-    </select>
-    <button id="goBtn">Go</button>
+    <div class="division-toggle" id="divisionToggle"></div>
+    <span class="week-controls" id="weekControls">
+      <label for="seasonSelect">Season</label>
+      <select id="seasonSelect"></select>
+      <label for="weekSelect">Week</label>
+      <select id="weekSelect"></select>
+      <label for="seasonTypeSelect">Type</label>
+      <select id="seasonTypeSelect">
+        <option value="2">Regular Season</option>
+        <option value="3">Postseason / Bowls</option>
+      </select>
+      <button id="goBtn">Go</button>
+    </span>
   </div>
 
   <div class="upcoming-strip" id="upcomingStrip">

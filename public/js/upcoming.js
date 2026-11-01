@@ -1,6 +1,6 @@
 (function () {
   const el = CFB.el;
-  const state = { season: null, week: null, seasonType: 2, division: 'fbs', games: [] };
+  const state = { season: null, week: null, seasonType: 2, group: null, games: [] };
 
   function populateSelectors(meta) {
     const seasonSelect = el('seasonSelect');
@@ -18,7 +18,8 @@
     seasonSelect.value = currentYear;
 
     weekSelect.innerHTML = '';
-    for (let w = 1; w <= 15; w++) {
+    const sport = CFB.sport();
+    for (let w = 1; w <= (sport.maxWeek || 15); w++) {
       const opt = document.createElement('option');
       opt.value = w;
       opt.textContent = `Week ${w}`;
@@ -26,6 +27,15 @@
     }
     weekSelect.value = meta.week || 1;
 
+    if (sport.seasonTypes) {
+      seasonTypeSelect.innerHTML = '';
+      sport.seasonTypes.forEach((t) => {
+        const opt = document.createElement('option');
+        opt.value = t.value;
+        opt.textContent = t.label;
+        seasonTypeSelect.appendChild(opt);
+      });
+    }
     seasonTypeSelect.value = String(meta.seasonType || 2);
   }
 
@@ -38,7 +48,7 @@
       .filter((g) => g.status && g.status.state === 'pre' && g.date)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
     if (!upcoming.length) {
-      strip.innerHTML = '<div class="empty-note">No upcoming games left for this week.</div>';
+      strip.innerHTML = `<div class="empty-note">No upcoming games left for this ${CFB.sport().schedule === 'day' ? 'stretch' : 'week'}.</div>`;
       return;
     }
     const groups = [];
@@ -73,17 +83,32 @@
   }
 
   async function loadWeek() {
+    const sport = CFB.sport();
     state.season = Number(el('seasonSelect').value);
     state.week = Number(el('weekSelect').value);
     state.seasonType = Number(el('seasonTypeSelect').value);
 
     el('upcomingStrip').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
 
-    const groups = state.division === 'fcs' ? 81 : 80;
+    const params = new URLSearchParams();
+    if (sport.schedule === 'day') {
+      // Daily sports: the next seven days.
+      const start = new Date();
+      const end = new Date();
+      end.setDate(end.getDate() + 6);
+      params.set('dates', `${CFB.ymd(start)}-${CFB.ymd(end)}`);
+    } else {
+      params.set('year', state.season);
+      params.set('week', state.week);
+      params.set('seasontype', state.seasonType);
+    }
+    if (state.group) params.set('groups', state.group);
     try {
-      const scoreboard = await CFB.getJson(`/api/scoreboard?year=${state.season}&week=${state.week}&seasontype=${state.seasonType}&groups=${groups}`);
+      const scoreboard = await CFB.getJson(CFB.withSport(`/api/scoreboard?${params.toString()}`));
       state.games = scoreboard.games || [];
-      el('sourceNote').textContent = `${scoreboard.season} · Week ${scoreboard.week}`;
+      el('sourceNote').textContent = sport.schedule === 'day'
+        ? `${sport.label} · Next 7 days`
+        : `${sport.label} · ${scoreboard.season} · Week ${scoreboard.week}`;
       renderUpcoming();
     } catch (err) {
       el('upcomingStrip').innerHTML = '<div class="empty-note">Could not load the schedule.</div>';
@@ -91,16 +116,22 @@
   }
 
   async function init() {
-    try {
-      const meta = await CFB.getJson('/api/meta');
-      populateSelectors(meta);
-      el('sourceNote').textContent = `${meta.season} · Week ${meta.week}`;
-    } catch (err) {
-      populateSelectors({ season: new Date().getFullYear(), week: 1, seasonType: 2 });
+    const sport = await CFB.loadSports();
+    CFB.initSportBar();
+    if (sport.schedule === 'day') {
+      el('weekControls').hidden = true;
+    } else {
+      try {
+        const meta = await CFB.getJson(CFB.withSport('/api/meta'));
+        populateSelectors(meta);
+        el('sourceNote').textContent = `${sport.label} · ${meta.season} · Week ${meta.week}`;
+      } catch (err) {
+        populateSelectors({ season: new Date().getFullYear(), week: 1, seasonType: 2 });
+      }
+      el('goBtn').addEventListener('click', loadWeek);
     }
-    el('goBtn').addEventListener('click', loadWeek);
-    CFB.initDivisionToggle((division) => {
-      state.division = division;
+    CFB.initDivisionToggle((group) => {
+      state.group = group;
       loadWeek();
     });
   }

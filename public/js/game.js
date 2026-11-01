@@ -113,7 +113,8 @@
     const wrap = el('fieldPositionWrap');
     if (!wrap) return;
     const isLive = detail.status && detail.status.state === 'in';
-    const fd = isLive ? computeFieldData(detail.situation, away, home) : null;
+    // The yard-line diagram only makes sense for football.
+    const fd = isLive && CFB.sport().field ? computeFieldData(detail.situation, away, home) : null;
     if (!fd) { wrap.innerHTML = ''; return; }
 
     const timeoutsRow = (detail.situation.homeTimeouts !== null || detail.situation.awayTimeouts !== null)
@@ -135,14 +136,25 @@
 
   function statusLine(detail) {
     if (!detail.status) return '';
-    if (detail.status.state === 'in') return detail.status.shortDetail || `Q${detail.status.period} ${detail.status.clock}`;
+    if (detail.status.state === 'in') return detail.status.shortDetail || `${CFB.sport().periodPrefix || 'Q'}${detail.status.period} ${detail.status.clock}`;
     if (detail.status.state === 'post') return 'Final' + (detail.status.detail && detail.status.detail !== 'Final' ? ` (${detail.status.detail})` : '');
     return detail.date ? CFB.fmtTime(detail.date) : (detail.status.detail || '');
   }
 
+  // "2 outs · 1-2 count · Runners on 1st, 3rd" for a live baseball game.
+  function baseballLine(b) {
+    if (!b) return '';
+    const parts = [];
+    if (b.outs !== null) parts.push(`${b.outs} out${b.outs === 1 ? '' : 's'}`);
+    if (b.balls !== null && b.strikes !== null) parts.push(`${b.balls}-${b.strikes} count`);
+    const runners = [b.onFirst && '1st', b.onSecond && '2nd', b.onThird && '3rd'].filter(Boolean);
+    parts.push(runners.length ? `Runner${runners.length > 1 ? 's' : ''} on ${runners.join(', ')}` : 'Bases empty');
+    return parts.join(' · ');
+  }
+
   async function load() {
     try {
-      const detail = await CFB.getJson(`/api/game/${encodeURIComponent(gameId)}?source=${encodeURIComponent(source)}`);
+      const detail = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}?source=${encodeURIComponent(source)}`));
       document.title = `${(detail.teams || []).map((t) => t.abbreviation || t.shortName || t.name).join(' @ ')} · CFB Tracker`;
 
       const away = (detail.teams || []).find((t) => t.homeAway === 'away');
@@ -168,10 +180,12 @@
       renderFieldPosition(detail, away, home);
 
       const situationEl = el('gameSituation');
-      if (detail.situation && (detail.situation.down || detail.situation.lastPlay)) {
+      const baseball = isLive && detail.situation ? baseballLine(detail.situation.baseball) : '';
+      if (detail.situation && (detail.situation.down || detail.situation.lastPlay || baseball)) {
         situationEl.classList.remove('empty-note');
         situationEl.innerHTML = `
           ${detail.situation.down ? `<div><strong>${CFB.esc(detail.situation.down)}</strong></div>` : ''}
+          ${baseball ? `<div><strong>${CFB.esc(baseball)}</strong></div>` : ''}
           ${detail.situation.lastPlay ? `<div>${CFB.esc(detail.situation.lastPlay)}</div>` : ''}`;
       } else {
         situationEl.classList.add('empty-note');
@@ -187,5 +201,8 @@
     }
   }
 
-  load();
+  CFB.loadSports().then(() => {
+    CFB.initSportBar();
+    load();
+  });
 })();
