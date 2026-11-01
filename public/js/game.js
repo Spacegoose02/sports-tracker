@@ -152,6 +152,41 @@
     return parts.join(' · ');
   }
 
+  // Kid mode: "What just happened?" in plain words, for the last play and
+  // the latest scoring play.
+  function renderKidExplainer(detail) {
+    let box = el('kidExplainer');
+    if (!CFB.kidMode() || !window.KidsCore) {
+      if (box) box.remove();
+      return;
+    }
+    const sportKey = CFB.sport().key;
+    const plays = detail.playByPlay || [];
+    const lastText = (detail.situation && detail.situation.lastPlay) || (plays[0] && plays[0].text) || null;
+    const scoring = plays.find((p) => p.scoringPlay);
+    const items = [];
+    const lastExplained = KidsCore.explainPlay(lastText, sportKey);
+    if (lastExplained) items.push({ title: 'What just happened?', text: lastExplained, play: lastText });
+    const scoreExplained = scoring && scoring.text !== lastText ? KidsCore.explainPlay(scoring.text, sportKey) : null;
+    if (scoreExplained) items.push({ title: 'Last time someone scored', text: scoreExplained, play: scoring.text });
+    if (!items.length) {
+      if (box) box.remove();
+      return;
+    }
+    if (!box) {
+      box = document.createElement('section');
+      box.id = 'kidExplainer';
+      box.className = 'kid-explainer';
+      el('gameSituation').insertAdjacentElement('afterend', box);
+    }
+    box.innerHTML = items.map((i) => `
+      <div class="kid-explainer-item">
+        <div class="kid-explainer-title">${CFB.esc(i.title)}</div>
+        <div class="kid-explainer-text">${CFB.esc(i.text)}</div>
+        <div class="kid-explainer-play">${CFB.esc(i.play)}</div>
+      </div>`).join('');
+  }
+
   // Remembered across refreshes so a live update doesn't snap the page back:
   // which box-score team tab is open, and how far the play-by-play feed is
   // scrolled.
@@ -294,6 +329,13 @@
         bug.classList.add('score-flash');
       }
 
+      // Kids Zone: confetti when a followed team scores, and a sticker for
+      // watching it live.
+      if (typeof Kids !== 'undefined') {
+        Kids.watchScores([detail], CFB.sport().key);
+        Kids.awardWatched(detail, CFB.sport().key);
+      }
+
       el('gameWatch').innerHTML = CFBGame.watchHtml(detail);
 
       renderFieldPosition(detail, away, home);
@@ -315,6 +357,8 @@
       wireWinProb();
       el('gameBoxScore').innerHTML = CFBGame.boxScoreHtml(detail);
       el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail);
+      renderKidExplainer(detail);
+
       el('gameInjuries').innerHTML = CFBGame.injuriesHtml(detail);
       el('gameForm').innerHTML = CFBGame.recentFormHtml(detail);
       restoreUi(saved);

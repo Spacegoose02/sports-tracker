@@ -172,6 +172,9 @@ function normalizeCompetitor(c) {
     uid: team.uid,
     name: team.displayName || team.name,
     shortName: team.shortDisplayName || team.abbreviation,
+    // "Hokies" and "Virginia Tech": the kids' trivia and countdown use these.
+    nickname: team.name || null,
+    location: team.location || null,
     abbreviation: team.abbreviation,
     logo: team.logo || (team.logos && team.logos[0] && team.logos[0].href) || null,
     color: team.color ? `#${team.color}` : null,
@@ -461,6 +464,8 @@ async function getTeamInfo(teamId, sport) {
       id: team.id,
       name: team.displayName,
       shortName: team.shortDisplayName,
+      nickname: team.name || null,
+      location: team.location || null,
       abbreviation: team.abbreviation,
       logo: team.logos && team.logos[0] && team.logos[0].href,
       color: team.color ? `#${team.color}` : null,

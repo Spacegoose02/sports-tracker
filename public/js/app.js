@@ -282,6 +282,8 @@
       renderNotable();
       flashChanged(before);
       scheduleAutoRefresh();
+      // Confetti and a fanfare when a followed team scores (kids.js).
+      if (typeof Kids !== 'undefined') Kids.watchScores(state.games, sport.key);
     } catch (err) {
       if (seq !== loadSeq) return;
       if (silent) {

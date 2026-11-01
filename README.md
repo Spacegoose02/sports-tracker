@@ -363,6 +363,28 @@ Install and offline support need the site to be served over **HTTPS** (or opened
 
 The service worker lives in `public/sw.js`. If you change how it caches, bump its `VERSION` so every phone drops the old cache on its next visit.
 
+## Kids Zone
+
+Things for kids watching with the family. All of it is saved in the browser for now, so each device keeps its own players, picks and stickers.
+
+- **Kid mode** (the 🧒 button in the header): bigger logos and scores, simpler status words ("Playing now!", "Game over"), no betting odds, and on a game's page a "What just happened?" box that explains the last play in plain words ("That's a touchdown, worth 6 points!").
+- **Celebrations**: when a team you follow scores, the Scores page and the game page throw confetti in the team's color, show a big banner and play a "Charge!" fanfare (a goal horn for hockey). Basketball only celebrates wins, since it scores every few seconds. Turn confetti or sounds off on the Kids page. To play a real fight song instead, put an mp3 at `public/sounds/<sport>-<team id>.mp3`, for example `public/sounds/cfb-259.mp3`.
+- **Pick'em** (`/kids.html`): add each player, then everyone picks winners for this week's games until kickoff. Right picks count on a family leaderboard and earn badges (first win, 3 in a row, 10 and 25 right, perfect week, upset spotter).
+- **Trivia**: ten questions mixing the teams you follow (nickname, logo, home stadium, team color) with rules questions for those sports.
+- **Sticker book**: a team sticker for every live game you watch on its game page and every pick you get right.
+- **Countdown** (`/countdown.html`): a big countdown to the next game of every team you follow. "Full screen" (or `?kiosk=1`) hides the header for a TV or tablet.
+
+For other code, such as a Home Assistant hook, every celebration also fires a `tracker:score` event on `window`:
+
+```js
+window.addEventListener('tracker:score', (e) => {
+  // e.detail: { kind: 'score' | 'win', sport, gameId, teamId, teamName,
+  //             color, points, label, score, opponent: { id, name, score } }
+});
+```
+
+The saved data goes through `Kids.store` (see `public/js/kids.js`). When accounts arrive, a sync layer can call `Kids.store.setBackend({ get(key), set(key, value) })` to keep it on the server, and listen for `tracker:kids-data` to know when something changed.
+
 ## Pulling Notable Games into a Dynacat / Glance dashboard
 
 If you run a [Glance](https://github.com/glanceapp/glance)-based dashboard
