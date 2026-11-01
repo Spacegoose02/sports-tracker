@@ -43,10 +43,10 @@
         return CFB.gameCardHtml(game, { favoriteTeamId: state.favoriteTeamId, notable: true });
       }
       return `
-        <div class="game-card" data-id="${row.event_id}" data-source="${row.source}">
+        <div class="game-card" data-id="${CFB.esc(row.event_id)}" data-source="${CFB.esc(row.source)}">
           <div class="status-row"><span class="notable-ribbon">Notable</span></div>
-          <div class="team-row"><span class="team-name">${row.game_name || 'Game'}</span></div>
-          ${row.label ? `<div class="venue">${row.label}</div>` : ''}
+          <div class="team-row"><span class="team-name">${CFB.esc(row.game_name || 'Game')}</span></div>
+          ${row.label ? `<div class="venue">${CFB.esc(row.label)}</div>` : ''}
         </div>`;
     });
     grid.innerHTML = cards.join('');
@@ -62,16 +62,16 @@
       const live = (data.schedule || []).find((g) => g.status && g.status.state === 'in');
       const highlight = live || upcoming;
       card.innerHTML = `
-        ${team && team.logo ? `<img class="logo" src="${team.logo}" alt="" onerror="this.style.display='none'">` : ''}
+        ${team && team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt=""" onerror="this.style.display='none'">` : ''}
         <div class="team-meta">
-          <a class="name team-link" href="/team.html?id=${encodeURIComponent(state.favoriteTeamId)}">${team ? team.name : 'Favorite Team'}</a>
-          <div class="record">${team && team.record ? team.record + ' record' : ''} ${team && team.rank ? '&middot; Rank #' + team.rank : ''}</div>
+          <a class="name team-link" href="/team.html?id=${encodeURIComponent(state.favoriteTeamId)}">${CFB.esc(team ? team.name : 'Favorite Team')}</a>
+          <div class="record">${team && team.record ? CFB.esc(team.record) + ' record' : ''} ${team && team.rank ? '&middot; Rank #' + CFB.esc(team.rank) : ''}</div>
         </div>
         ${highlight ? `
-        <div class="next-game" data-id="${highlight.id}" data-source="${highlight.source || 'espn'}" style="cursor:pointer">
+        <div class="next-game" data-id="${CFB.esc(highlight.id)}" data-source="${CFB.esc(highlight.source || 'espn')}" style="cursor:pointer">
           <div class="label">${live ? 'Live Now' : 'Next Game'}</div>
-          <div class="matchup">${highlight.shortName || highlight.name}</div>
-          <div class="when">${CFB.statusLabel(highlight)}</div>
+          <div class="matchup">${CFB.esc(highlight.shortName || highlight.name)}</div>
+          <div class="when">${CFB.esc(CFB.statusLabel(highlight))}</div>
         </div>` : ''}
       `;
       CFB.applyTeamColor(card, team && team.color);
@@ -191,18 +191,18 @@
         list.innerHTML = '<div class="empty-note">No news available right now.</div>';
         return;
       }
-      list.innerHTML = items.map((item) => `
-        <a class="news-item" href="${item.link}" target="_blank" rel="noopener noreferrer">
-          ${item.image
-            ? `<img class="news-thumb" src="${item.image}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'news-thumb-placeholder',textContent:'📰'}))">`
+      list.innerHTML = items.filter((item) => CFB.safeUrl(item.link)).map((item) => `
+        <a class="news-item" href="${CFB.safeUrl(item.link)}" target="_blank" rel="noopener noreferrer">
+          ${CFB.safeUrl(item.image)
+            ? `<img class="news-thumb" src="${CFB.safeUrl(item.image)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'news-thumb-placeholder',textContent:'📰'}))">`
             : '<div class="news-thumb-placeholder">&#128240;</div>'}
           <div class="news-item-body">
             <div class="news-item-top">
-              <span class="news-source">${item.source}</span>
+              <span class="news-source">${CFB.esc(item.source)}</span>
               ${item.pubDate ? `<span class="news-time">${timeAgo(item.pubDate)}</span>` : ''}
             </div>
-            <div class="news-title">${item.title}</div>
-            ${item.summary ? `<div class="news-summary">${item.summary}</div>` : ''}
+            <div class="news-title">${CFB.esc(item.title)}</div>
+            ${item.summary ? `<div class="news-summary">${CFB.esc(item.summary)}</div>` : ''}
           </div>
         </a>`).join('');
     } catch (err) {
@@ -218,7 +218,7 @@
     if (!thumbWrap) return;
     thumbWrap.innerHTML = `
       <div class="video-embed-wrap">
-        <iframe src="${video.embedUrl}" title="${video.title}" frameborder="0"
+        <iframe src="${CFB.safeUrl(video.embedUrl)}" title="${CFB.esc(video.title)}" frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowfullscreen></iframe>
       </div>`;
@@ -238,13 +238,13 @@
       list.innerHTML = items.map((v, i) => `
         <div class="video-card" data-index="${i}">
           <div class="video-thumb-wrap">
-            <img class="video-thumb" src="${v.thumbnail}" alt="" loading="lazy" onerror="this.style.display='none'">
+            <img class="video-thumb" src="${CFB.safeUrl(v.thumbnail)}" alt="" loading="lazy" onerror="this.style.display='none'">
             <span class="video-play-btn">&#9658;</span>
           </div>
           <div class="video-item-body">
-            <div class="video-title">${v.title}</div>
+            <div class="video-title">${CFB.esc(v.title)}</div>
             <div class="video-meta">
-              <span class="video-channel">${v.channel}</span>
+              <span class="video-channel">${CFB.esc(v.channel)}</span>
               ${v.views !== null ? `<span>&middot; ${formatViews(v.views)}</span>` : ''}
               ${v.publishedAt ? `<span>&middot; ${timeAgo(v.publishedAt)}</span>` : ''}
             </div>

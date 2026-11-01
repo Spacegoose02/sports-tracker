@@ -5,6 +5,34 @@
 const CFB = (function () {
   const el = (id) => document.getElementById(id);
 
+  // Escape text before it goes into an innerHTML template. Everything that
+  // comes from outside this app (ESPN, RSS feeds, YouTube, admin notes)
+  // must go through this, so a stray "<" can't turn into markup or script.
+  function esc(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Only http(s) and same-site relative URLs may be used for links and
+  // images; anything else (javascript:, data:, ...) becomes empty. The
+  // result is attribute-escaped and safe to drop into src="" or href="".
+  function safeUrl(value) {
+    if (!value) return '';
+    const str = String(value).trim();
+    if (/^\/(?!\/)/.test(str)) return esc(str);
+    try {
+      const url = new URL(str);
+      return url.protocol === 'http:' || url.protocol === 'https:' ? esc(url.toString()) : '';
+    } catch (err) {
+      return '';
+    }
+  }
+
   async function getJson(url, opts) {
     const res = await fetch(url, opts);
     if (!res.ok) {
@@ -56,10 +84,10 @@ const CFB = (function () {
     return `
       <div class="team-row">
         <span class="rank">${team.curatedRank ? '#' + team.curatedRank : ''}</span>
-        ${team.logo ? `<img src="${team.logo}" alt="" onerror="this.style.display='none'">` : ''}
-        <a class="team-name team-link ${isWinner ? 'winner' : ''}" href="${teamLink(team)}" onclick="event.stopPropagation()">${team.name || team.shortName || 'TBD'}</a>
+        ${team.logo ? `<img src="${safeUrl(team.logo)}" alt=""" onerror="this.style.display='none'">` : ''}
+        <a class="team-name team-link ${isWinner ? 'winner' : ''}" href="${teamLink(team)}" onclick="event.stopPropagation()">${esc(team.name || team.shortName || 'TBD')}</a>
         ${possessionIcon}
-        <span class="score">${team.score !== null && team.score !== undefined ? team.score : ''}</span>
+        <span class="score">${team.score !== null && team.score !== undefined ? esc(team.score) : ''}</span>
         ${wlBadge}
       </div>`;
   }
@@ -67,7 +95,7 @@ const CFB = (function () {
   function oddsLine(game) {
     if (!game.odds) return '';
     const parts = [];
-    if (game.odds.details) parts.push(game.odds.details);
+    if (game.odds.details) parts.push(esc(game.odds.details));
     else if (game.odds.spread !== null) parts.push(`Spread ${game.odds.spread > 0 ? '+' : ''}${game.odds.spread}`);
     if (game.odds.overUnder !== null) parts.push(`O/U ${game.odds.overUnder}`);
     if (!parts.length) return '';
@@ -86,17 +114,17 @@ const CFB = (function () {
     const awayHasBall = !!(possessionId && game.away && String(possessionId) === String(game.away.id));
     const homeHasBall = !!(possessionId && game.home && String(possessionId) === String(game.home.id));
     return `
-      <div class="game-card ${isFav ? 'is-favorite' : ''} ${isLive ? 'is-live' : ''}" data-id="${game.id}" data-source="${game.source || 'espn'}">
+      <div class="game-card ${isFav ? 'is-favorite' : ''} ${isLive ? 'is-live' : ''}" data-id="${esc(game.id)}" data-source="${esc(game.source || 'espn')}">
         <div class="status-row">
-          <span class="${isLive ? 'live-dot' : ''}">${statusLabel(game)}</span>
+          <span class="${isLive ? 'live-dot' : ''}">${esc(statusLabel(game))}</span>
           <span style="display:flex;align-items:center;gap:6px;">
             ${opts.notable ? '<span class="notable-ribbon">Notable</span>' : ''}
-            ${game.broadcast ? `<span>${game.broadcast}</span>` : ''}
+            ${game.broadcast ? `<span>${esc(game.broadcast)}</span>` : ''}
           </span>
         </div>
         ${teamRowHtml(game.away, { completed: isCompleted, hasPossession: awayHasBall })}
         ${teamRowHtml(game.home, { completed: isCompleted, hasPossession: homeHasBall })}
-        ${game.venue ? `<div class="venue">${game.venue}</div>` : ''}
+        ${game.venue ? `<div class="venue">${esc(game.venue)}</div>` : ''}
         ${oddsLine(game)}
       </div>`;
   }
@@ -121,20 +149,20 @@ const CFB = (function () {
   function gameDetailSectionsHtml(detail) {
     const oddsHtml = detail.odds && (detail.odds.details || detail.odds.overUnder !== null)
       ? `<section><h2 class="section-title">Odds</h2><div class="odds-box">
-          ${detail.odds.details ? `<div>${detail.odds.details}</div>` : ''}
-          ${detail.odds.overUnder !== null ? `<div>Over/Under: <strong>${detail.odds.overUnder}</strong></div>` : ''}
-          ${detail.odds.provider ? `<div class="odds-provider">via ${detail.odds.provider}</div>` : ''}
+          ${detail.odds.details ? `<div>${esc(detail.odds.details)}</div>` : ''}
+          ${detail.odds.overUnder !== null ? `<div>Over/Under: <strong>${esc(detail.odds.overUnder)}</strong></div>` : ''}
+          ${detail.odds.provider ? `<div class="odds-provider">via ${esc(detail.odds.provider)}</div>` : ''}
         </div></section>`
       : '';
     const leadersHtml = (detail.leaders || []).map((teamLeaders) => `
-      <div><strong>${teamLeaders.team}</strong>
-        ${(teamLeaders.categories || []).map((c) => `<div class="stat-row"><span>${c.name}</span><span>${c.athlete ? c.athlete + ' &middot; ' : ''}${c.value || ''}</span></div>`).join('')}
+      <div><strong>${esc(teamLeaders.team)}</strong>
+        ${(teamLeaders.categories || []).map((c) => `<div class="stat-row"><span>${esc(c.name)}</span><span>${c.athlete ? esc(c.athlete) + ' &middot; ' : ''}${esc(c.value || '')}</span></div>`).join('')}
       </div>`).join('');
     const boxHtml = detail.boxscore ? detail.boxscore.teams.map((t) => `
-      <div><strong>${t.team}</strong>
-        ${t.stats.map((s) => `<div class="stat-row"><span>${s.name}</span><span>${s.value}</span></div>`).join('')}
+      <div><strong>${esc(t.team)}</strong>
+        ${t.stats.map((s) => `<div class="stat-row"><span>${esc(s.name)}</span><span>${esc(s.value)}</span></div>`).join('')}
       </div>`).join('') : '';
-    const playsHtml = detail.drives ? `<div class="plays"><strong>${detail.drives.description || 'Latest drive'}</strong><br>${(detail.drives.plays || []).join('<br>')}</div>` : '';
+    const playsHtml = detail.drives ? `<div class="plays"><strong>${esc(detail.drives.description || 'Latest drive')}</strong><br>${(detail.drives.plays || []).map(esc).join('<br>')}</div>` : '';
     // Full play-by-play — only really meaningful once the game has actually
     // started (pregame there's nothing to show), shown newest-first in a
     // scrollable feed so it doesn't dominate the page for a long game.
@@ -142,8 +170,8 @@ const CFB = (function () {
       ? `<section><h2 class="section-title">Play-by-Play</h2><div class="pbp-feed">
           ${detail.playByPlay.map((p) => `
             <div class="pbp-play ${p.scoringPlay ? 'scoring' : ''}">
-              <span class="pbp-meta">${[p.drive, p.period ? `Q${p.period}` : null, p.clock].filter(Boolean).join(' &middot; ')}</span>
-              <span class="pbp-text">${p.text}</span>
+              <span class="pbp-meta">${[p.drive, p.period ? `Q${p.period}` : null, p.clock].filter(Boolean).map(esc).join(' &middot; ')}</span>
+              <span class="pbp-text">${esc(p.text)}</span>
             </div>`).join('')}
         </div></section>`
       : '';
@@ -195,7 +223,7 @@ const CFB = (function () {
   }
 
   return {
-    el, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
+    el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml,
     applyTeamColor, initDivisionToggle,
   };

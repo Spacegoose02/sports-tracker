@@ -24,16 +24,16 @@
       const isFav = r.team && String(r.team.id) === String(state.favoriteTeamId);
       return `
         <tr class="${isFav ? 'is-favorite-row' : ''}">
-          <td class="rank-cell">${r.rank}</td>
+          <td class="rank-cell">${CFB.esc(r.rank)}</td>
           <td>
             <div class="team-cell">
-              ${r.team && r.team.logo ? `<img src="${r.team.logo}" alt="" onerror="this.style.display='none'">` : ''}
-              ${r.team ? `<a class="team-link" href="${CFB.teamLink(r.team)}">${r.team.name}</a>` : 'TBD'}
+              ${r.team && r.team.logo ? `<img src="${CFB.safeUrl(r.team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
+              ${r.team ? `<a class="team-link" href="${CFB.teamLink(r.team)}">${CFB.esc(r.team.name)}</a>` : 'TBD'}
             </div>
           </td>
-          <td>${r.recordSummary || ''}</td>
-          <td>${r.points !== null ? r.points : ''}</td>
-          <td>${r.firstPlaceVotes || ''}</td>
+          <td>${CFB.esc(r.recordSummary || '')}</td>
+          <td>${r.points !== null ? CFB.esc(r.points) : ''}</td>
+          <td>${CFB.esc(r.firstPlaceVotes || '')}</td>
           <td>${trendHtml(r)}</td>
         </tr>`;
     }).join('');
@@ -43,7 +43,7 @@
       others.innerHTML = `
         <strong>Others Receiving Votes</strong>
         <div class="others-list">
-          ${poll.others.map((o) => `<span>${o.team ? o.team.name : 'Unknown'}${o.points ? ` (${o.points})` : ''}</span>`).join(', ')}
+          ${poll.others.map((o) => `<span>${CFB.esc(o.team ? o.team.name : 'Unknown')}${o.points ? ` (${CFB.esc(o.points)})` : ''}</span>`).join(', ')}
         </div>`;
     } else {
       others.innerHTML = '';
@@ -72,7 +72,7 @@
         el('othersVotes').innerHTML = '';
         return;
       }
-      pollSelect.innerHTML = state.polls.map((p) => `<option value="${p.id}">${p.name}</option>`).join('');
+      pollSelect.innerHTML = state.polls.map((p) => `<option value="${CFB.esc(p.id)}">${CFB.esc(p.name)}</option>`).join('');
       // Prefer the AP poll by default if present.
       const ap = state.polls.find((p) => /ap/i.test(p.shortName || p.name || ''));
       state.selectedPollId = (ap || state.polls[0]).id;

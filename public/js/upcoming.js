@@ -57,12 +57,12 @@
       <div class="upcoming-day">
         <div class="upcoming-day-label">${group.label}</div>
         ${group.games.map((g) => `
-          <div class="upcoming-game" data-id="${g.id}" data-source="${g.source || 'espn'}">
+          <div class="upcoming-game" data-id="${CFB.esc(g.id)}" data-source="${CFB.esc(g.source || 'espn')}">
             <div class="upcoming-game-top">
               <span class="time">${new Date(g.date).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
-              ${g.broadcast ? `<span class="channel">${g.broadcast}</span>` : ''}
+              ${g.broadcast ? `<span class="channel">${CFB.esc(g.broadcast)}</span>` : ''}
             </div>
-            <div class="matchup">${g.away ? (g.away.abbreviation || g.away.shortName || 'TBD') : 'TBD'} @ ${g.home ? (g.home.abbreviation || g.home.shortName || 'TBD') : 'TBD'}</div>
+            <div class="matchup">${CFB.esc(g.away ? (g.away.abbreviation || g.away.shortName || 'TBD') : 'TBD')} @ ${CFB.esc(g.home ? (g.home.abbreviation || g.home.shortName || 'TBD') : 'TBD')}</div>
           </div>`).join('')}
       </div>`).join('');
     strip.querySelectorAll('.upcoming-game').forEach((row) => {

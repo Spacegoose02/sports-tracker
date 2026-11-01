@@ -6,6 +6,7 @@
 
 const fetch = require('node-fetch');
 const cache = require('./cache');
+const { safeHttpUrl } = require('./security');
 
 // Defaults are the channels from your Dynacat config. Override entirely via
 // YOUTUBE_CHANNELS_JSON (a JSON array of { "id": "UC...", "name": "..." })
@@ -53,6 +54,9 @@ function parseAtom(xml, channelName) {
     const titleMatch = block.match(/<title>([\s\S]*?)<\/title>/i);
     if (!videoIdMatch || !titleMatch) continue;
     const videoId = videoIdMatch[1].trim();
+    // Video IDs go straight into embed URLs, so only accept YouTube's
+    // actual ID alphabet.
+    if (!/^[A-Za-z0-9_-]{6,20}$/.test(videoId)) continue;
     const publishedMatch = block.match(/<published>([^<]+)<\/published>/i);
     const thumbMatch = block.match(/<media:thumbnail[^>]*url=["']([^"']+)["']/i);
     const viewsMatch = block.match(/<media:statistics[^>]*views=["'](\d+)["']/i);
@@ -63,7 +67,7 @@ function parseAtom(xml, channelName) {
       channel: channelName,
       url: `https://www.youtube.com/watch?v=${videoId}`,
       embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`,
-      thumbnail: thumbMatch ? thumbMatch[1] : `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      thumbnail: (thumbMatch && safeHttpUrl(thumbMatch[1])) || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       views: viewsMatch ? Number(viewsMatch[1]) : null,
       publishedAt: publishedAt && !Number.isNaN(publishedAt.getTime()) ? publishedAt.toISOString() : null,
     });
@@ -102,4 +106,4 @@ async function getVideos() {
   }, 20 * 60 * 1000);
 }
 
-module.exports = { getVideos };
+module.exports = { getVideos, parseAtom };

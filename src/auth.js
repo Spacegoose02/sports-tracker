@@ -18,8 +18,7 @@ function timingSafeEqual(a, b) {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-function checkPassword(candidate) {
-  const expected = process.env.ADMIN_PASSWORD || 'changeme';
+function checkPassword(candidate, expected = process.env.ADMIN_PASSWORD || 'changeme') {
   return timingSafeEqual(candidate || '', expected);
 }
 

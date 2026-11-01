@@ -5,7 +5,7 @@
     if (!conf.entries || !conf.entries.length) return '';
     return `
       <div class="conference-block">
-        <h3>${conf.name}</h3>
+        <h3>${CFB.esc(conf.name)}</h3>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
@@ -23,13 +23,13 @@
                   <tr class="${isFav ? 'is-favorite-row' : ''}">
                     <td>
                       <div class="team-cell">
-                        ${e.team && e.team.logo ? `<img src="${e.team.logo}" alt="" onerror="this.style.display='none'">` : ''}
-                        ${e.team ? `<a class="team-link" href="${CFB.teamLink(e.team)}">${e.team.name}</a>` : 'TBD'}
+                        ${e.team && e.team.logo ? `<img src="${CFB.safeUrl(e.team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
+                        ${e.team ? `<a class="team-link" href="${CFB.teamLink(e.team)}">${CFB.esc(e.team.name)}</a>` : 'TBD'}
                       </div>
                     </td>
-                    <td>${e.conference || ''}</td>
-                    <td>${e.overall || ''}</td>
-                    <td>${e.streak || ''}</td>
+                    <td>${CFB.esc(e.conference || '')}</td>
+                    <td>${CFB.esc(e.overall || '')}</td>
+                    <td>${CFB.esc(e.streak || '')}</td>
                   </tr>`;
               }).join('')}
             </tbody>

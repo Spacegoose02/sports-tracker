@@ -3,8 +3,16 @@ const ds = require('../datasource');
 const db = require('../db');
 const news = require('../news');
 const videos = require('../videos');
+const { isSafeId } = require('../security');
 
 const router = express.Router();
+
+// Team and game IDs are placed into upstream API URLs, so reject anything
+// that isn't a plain ID before it gets that far.
+router.param('id', (req, res, next, id) => {
+  if (!isSafeId(id)) return res.status(400).json({ error: 'Invalid id' });
+  return next();
+});
 
 function favoriteTeamId() {
   return process.env.FAVORITE_TEAM_ID || '259';
@@ -127,7 +135,7 @@ router.get('/standings', async (req, res) => {
 
 router.get('/game/:id', async (req, res) => {
   try {
-    const source = req.query.source || 'espn';
+    const source = req.query.source === 'ncaa-api' ? 'ncaa-api' : 'espn';
     const summary = await ds.getGameSummary(req.params.id, source);
     res.json(summary);
   } catch (err) {
