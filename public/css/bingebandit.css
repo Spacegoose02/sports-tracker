@@ -1,0 +1,19 @@
+/* "Watch on BingeBandit" in the game page's Where to watch box: the home
+   server's Live TV channel for the game's network, above the streaming apps. */
+.watch-streams .bb-watch { align-items: center; }
+.bb-watch-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent, #fff) !important;
+  font-weight: 700;
+  text-decoration: none;
+  line-height: 1.2;
+}
+.bb-watch-link:hover,
+.bb-watch-link:focus-visible { filter: brightness(1.1); text-decoration: none; }
+.bb-watch-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bb-watch-mark { font-size: 0.7em; }

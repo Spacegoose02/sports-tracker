@@ -309,6 +309,26 @@
     else if (document.hidden && pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   });
 
+  // The BingeBandit Live TV channel for each of the game's networks. Asked
+  // once per set of networks (not on every live poll); the server answers
+  // no links when BingeBandit isn't set up.
+  const bingeBandit = { asked: '', links: [] };
+  async function loadBingeBandit(detail) {
+    if (detail.status && detail.status.state === 'post') return;
+    const networks = (detail.broadcasts && detail.broadcasts.length ? detail.broadcasts.map((b) => b.network) : [detail.broadcast]).filter(Boolean);
+    const key = networks.join('|');
+    if (!key || key === bingeBandit.asked) return;
+    bingeBandit.asked = key;
+    try {
+      const qs = networks.map((n) => `network=${encodeURIComponent(n)}`).join('&');
+      const res = await CFB.getJson(`/api/bingebandit/watch?${qs}`);
+      bingeBandit.links = (res && res.links) || [];
+    } catch (err) {
+      bingeBandit.links = [];
+    }
+    if (ui.lastLoaded) el('gameWatch').innerHTML = CFBGame.watchHtml(ui.lastLoaded, bingeBandit.links);
+  }
+
   async function load() {
     try {
       const detail = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}?source=${encodeURIComponent(source)}`));
@@ -356,7 +376,8 @@
         Kids.awardWatched(detail, CFB.sport().key);
       }
 
-      el('gameWatch').innerHTML = CFBGame.watchHtml(detail);
+      el('gameWatch').innerHTML = CFBGame.watchHtml(detail, bingeBandit.links);
+      loadBingeBandit(detail);
 
       renderFieldPosition(detail, away, home);
 

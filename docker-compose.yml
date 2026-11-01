@@ -43,6 +43,9 @@ services:
       # NCAA_API_BASE: "https://ncaa-api.example.com"  # fallback if ESPN is down
       # NCAA_API_DIVISION: "fbs"
       # RELAY_API_KEY: ""                 # share ESPN data with BingeBandit
+      # BINGEBANDIT_URL: "http://192.168.1.10:8484"  # "Watch on BingeBandit" channel links
+      # BINGEBANDIT_LINK_URL: ""          # address browsers open, if different
+      # BINGEBANDIT_API_KEY: ""           # defaults to RELAY_API_KEY
 
       # --- Scrappy, the AI chat bubble (off until a key is set) ---
       # ANTHROPIC_API_KEY: ""             # from console.anthropic.com
