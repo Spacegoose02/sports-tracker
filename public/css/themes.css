@@ -6,3 +6,601 @@
    decorative layers, never layout, so every page works under every theme.
    "classic" is the default look defined in styles.css.
    ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Shared polish (every theme)
+   -------------------------------------------------------------------------- */
+:root {
+  --header-stripe: linear-gradient(90deg, var(--accent), var(--accent-2));
+  --header-stripe-h: 3px;
+  --card-bg: var(--bg-elev);
+  --score-glow: none;
+}
+
+body { transition: background-color 0.25s ease, color 0.25s ease; }
+
+header.top {
+  position: relative;
+  z-index: 50;
+  background: var(--header-bg);
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+  box-shadow: var(--shadow-sm);
+}
+header.top::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: calc(-1 * var(--header-stripe-h));
+  height: var(--header-stripe-h);
+  background: var(--header-stripe);
+  pointer-events: none;
+}
+main { padding-top: 26px; }
+/* Pin the header on wider screens only; on phones it wraps to two rows
+   and would eat too much of the screen. */
+@media (min-width: 760px) {
+  header.top { position: sticky; top: 0; }
+}
+/* Installed app (see the Mobile / PWA block in styles.css): always pinned. */
+.is-standalone header.top { position: sticky; top: 0; }
+@media (display-mode: standalone) {
+  header.top { position: sticky; top: 0; }
+}
+
+h2.section-title::before {
+  content: "";
+  width: 4px;
+  height: 1em;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+}
+
+.game-card, .news-item, .video-card, .stat-category, .upcoming-day, .favorite-card, .team-hero, .game-scorebug {
+  box-shadow: var(--shadow-sm);
+}
+.game-card, .news-item, .video-card { background: var(--card-bg); }
+.game-card:hover, .news-item:hover, .video-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.game-card.is-live {
+  box-shadow: 0 0 0 1px var(--live), 0 0 18px var(--live-soft);
+}
+.team-row .score, .game-side-score { text-shadow: var(--score-glow); }
+
+nav.top-nav a { transition: border-color 0.15s, color 0.15s, background 0.15s; }
+nav.top-nav a:hover { background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  body, .game-card, .news-item, .video-card { transition: none; }
+  .game-card:hover, .news-item:hover, .video-card:hover { transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Theme picker (js/theme-picker.js)
+   -------------------------------------------------------------------------- */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.theme-toggle:hover, .theme-toggle[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.theme-toggle .swatch-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 0 2px var(--bg-elev);
+}
+
+.theme-panel {
+  position: fixed;
+  top: 72px;
+  right: 16px;
+  z-index: 100;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-md), 0 20px 60px rgba(0, 0, 0, 0.35);
+  padding: 16px;
+}
+.theme-panel h3 {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.theme-panel .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.theme-panel .panel-head strong { font-family: var(--font-display); font-size: 1.05rem; text-transform: var(--display-transform); }
+.theme-panel .panel-close {
+  background: none; border: none; color: var(--text-dim); font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 2px 6px;
+}
+.theme-panel .panel-close:hover { color: var(--text); }
+
+.mode-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.mode-switch button {
+  background: var(--bg-elev-2); color: var(--text-dim); border: none;
+  padding: 8px 0; font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+}
+.mode-switch button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.theme-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.theme-option:hover { border-color: var(--text-dim); }
+.theme-option[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.theme-option[aria-checked="true"]::after {
+  content: "\2713";
+  position: absolute; top: 6px; right: 6px;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--on-accent);
+  font-size: 0.72rem; font-weight: 800;
+}
+.theme-option .preview {
+  height: 54px;
+  display: block;
+  background: var(--pv-bg);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.theme-option .preview::before {
+  /* mini scoreboard chip */
+  content: attr(data-score);
+  position: absolute; left: 10px; bottom: 9px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--pv-card);
+  color: var(--pv-text);
+  font: 800 0.72rem/1 var(--pv-font, inherit);
+  letter-spacing: 0.04em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.theme-option .preview::after {
+  content: "";
+  position: absolute; right: 10px; bottom: 11px;
+  width: 34px; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--pv-accent), var(--pv-accent-2, var(--pv-accent)));
+}
+.theme-option .label { padding: 7px 10px 2px; font-weight: 700; font-size: 0.85rem; }
+.theme-option .blurb { padding: 0 10px 8px; font-size: 0.72rem; color: var(--text-dim); line-height: 1.3; }
+
+.team-theme-pick { display: grid; gap: 6px; margin-bottom: 6px; }
+.team-theme-pick label { font-size: 0.78rem; color: var(--text-dim); }
+.team-theme-pick select {
+  background: var(--bg-elev-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 10px; font: inherit; font-size: 0.88rem;
+}
+.team-theme-pick .hint { font-size: 0.75rem; color: var(--text-dim); }
+
+@media (max-width: 560px) {
+  .theme-toggle .toggle-label { display: none; }
+  /* The nav scrolls sideways on phones, so pin the button to the header's
+     top-right corner where it's always reachable. */
+  .theme-toggle {
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    width: 40px; height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+  .theme-toggle .swatch-dot { width: 18px; height: 18px; }
+  .theme-panel { top: auto; bottom: 0; right: 0; left: 0; width: 100%; border-radius: 16px 16px 0 0; max-height: 80vh; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
+/* ==========================================================================
+   THEMES
+   Each theme: a mode-agnostic block (fonts, shape), then [data-mode="dark"]
+   and [data-mode="light"] palettes. "auto" maps each sport to its theme.
+   ========================================================================== */
+
+/* ---- Stadium Lights: night game under the floodlights / sunny day game -- */
+:root:is([data-theme="stadium"]) {
+  --font-display: "Bahnschrift", "DIN Alternate", "Roboto Condensed", "Arial Narrow", var(--font-body);
+  --display-transform: uppercase;
+  --display-tracking: 0.03em;
+}
+:root[data-mode="dark"]:is([data-theme="stadium"]) {
+  --bg: #060a17;
+  --bg-elev: #0d1430;
+  --bg-elev-2: #131c3d;
+  --border: #22305c;
+  --text: #f1f5ff;
+  --text-dim: #93a1c6;
+  --accent: #38c6ff;
+  --accent-2: #a6f0ff;
+  --on-accent: #001523;
+  --header-bg: linear-gradient(180deg, rgba(10, 16, 40, 0.92), rgba(6, 10, 23, 0.88));
+  --brand-title: linear-gradient(90deg, #ffffff, #a6f0ff);
+  --page-bg:
+    radial-gradient(ellipse 45% 35% at 8% -6%, rgba(255, 252, 220, 0.20), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 92% -6%, rgba(255, 252, 220, 0.20), transparent 70%),
+    radial-gradient(ellipse 80% 30% at 50% 110%, rgba(46, 160, 80, 0.22), transparent 70%);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --score-glow: 0 0 10px rgba(166, 240, 255, 0.35);
+}
+:root[data-mode="light"]:is([data-theme="stadium"]) {
+  --bg: #eaf3fb;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f1f7fd;
+  --border: #cfe0ef;
+  --text: #0c1b2e;
+  --text-dim: #4c6580;
+  --accent: #0a6fd6;
+  --accent-2: #16a34a;
+  --on-accent: #ffffff;
+  --header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(234, 243, 251, 0.9));
+  --brand-title: linear-gradient(90deg, #0c1b2e, #0a6fd6);
+  --page-bg:
+    radial-gradient(circle at 88% -4%, rgba(255, 214, 102, 0.45), transparent 22%),
+    linear-gradient(180deg, #bfe0ff 0, #eaf3fb 260px),
+    radial-gradient(ellipse 80% 25% at 50% 108%, rgba(34, 160, 70, 0.25), transparent 70%);
+}
+
+/* ---- Retro Scoreboard: amber bulbs on a black board / vintage scorecard - */
+:root:is([data-theme="retro"]) {
+  --font-display: "Courier New", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-score: ui-monospace, "SFMono-Regular", "Courier New", Menlo, monospace;
+  --display-transform: uppercase;
+  --display-tracking: 0.08em;
+  --radius: 4px;
+  --radius-sm: 3px;
+}
+:root[data-mode="dark"]:is([data-theme="retro"]) {
+  --bg: #080706;
+  --bg-elev: #12100c;
+  --bg-elev-2: #1b1712;
+  --border: #3a2f1c;
+  --text: #ffe9bf;
+  --text-dim: #b39463;
+  --accent: #ffb000;
+  --accent-2: #ff6a00;
+  --on-accent: #1a0e00;
+  --favorite: #ffd54a;
+  --live: #ff3b30;
+  --win: #8dff6a;
+  --loss: #ff6b5a;
+  --header-bg: linear-gradient(180deg, #15110b, #0b0906);
+  --brand-title: linear-gradient(90deg, #ffd27a, #ffb000);
+  --page-bg: radial-gradient(rgba(255, 176, 0, 0.07) 1px, transparent 1.6px) 0 0 / 7px 7px;
+  --header-stripe: repeating-linear-gradient(90deg, #ffb000 0 6px, transparent 6px 10px);
+  --score-glow: 0 0 6px rgba(255, 176, 0, 0.75), 0 0 14px rgba(255, 106, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+:root[data-mode="dark"][data-theme="retro"] .team-row .score:not(:empty),
+:root[data-mode="dark"][data-theme="retro"] .game-side-score:not(:empty) {
+  color: #ffb000;
+  background: #000;
+  border-radius: 3px;
+  padding: 1px 6px;
+  box-shadow: inset 0 0 0 1px #2b2010;
+}
+:root[data-mode="light"]:is([data-theme="retro"]) {
+  --bg: #f1e7d0;
+  --bg-elev: #fbf5e6;
+  --bg-elev-2: #f3e9d2;
+  --border: #d4c19a;
+  --text: #2a2015;
+  --text-dim: #77654a;
+  --accent: #b4410b;
+  --accent-2: #1f4e79;
+  --on-accent: #fff8ec;
+  --favorite: #a86f00;
+  --header-bg: linear-gradient(180deg, #fbf5e6, #efe3c7);
+  --brand-title: linear-gradient(90deg, #2a2015, #b4410b);
+  --page-bg: repeating-linear-gradient(0deg, rgba(42, 32, 21, 0.035) 0 1px, transparent 1px 28px);
+  --header-stripe: repeating-linear-gradient(90deg, #b4410b 0 14px, #1f4e79 14px 28px);
+}
+
+/* ---- Gridiron: mowed turf and chalk lines (auto: CFB, NFL) -------------- */
+:root:is([data-theme="gridiron"], [data-theme="auto"][data-sport="cfb"], [data-theme="auto"][data-sport="nfl"]) {
+  --font-display: "Bahnschrift", "DIN Alternate", "Roboto Condensed", "Arial Narrow", var(--font-body);
+  --display-transform: uppercase;
+  --display-tracking: 0.04em;
+}
+:root[data-mode="dark"]:is([data-theme="gridiron"], [data-theme="auto"][data-sport="cfb"], [data-theme="auto"][data-sport="nfl"]) {
+  --bg: #07130b;
+  --bg-elev: #0e1f14;
+  --bg-elev-2: #14291b;
+  --border: #22432e;
+  --text: #effaf1;
+  --text-dim: #93b39c;
+  --accent: #8ee26b;
+  --accent-2: #f5f5f0;
+  --on-accent: #08200d;
+  --header-bg: linear-gradient(180deg, rgba(11, 28, 16, 0.94), rgba(7, 19, 11, 0.9));
+  --brand-title: linear-gradient(90deg, #ffffff, #c9f5b3);
+  --page-bg:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 90px, transparent 90px 180px),
+    repeating-linear-gradient(90deg, transparent 0 179px, rgba(255, 255, 255, 0.05) 179px 181px);
+  --header-stripe: repeating-linear-gradient(90deg, #f5f5f0 0 2px, transparent 2px 18px);
+  --header-stripe-h: 5px;
+}
+:root[data-mode="light"]:is([data-theme="gridiron"], [data-theme="auto"][data-sport="cfb"], [data-theme="auto"][data-sport="nfl"]) {
+  --bg: #e9f3e8;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f0f7ef;
+  --border: #c7dec5;
+  --text: #0f2214;
+  --text-dim: #4e6a55;
+  --accent: #1d7a36;
+  --accent-2: #7a4a1f;
+  --on-accent: #ffffff;
+  --header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(233, 243, 232, 0.9));
+  --brand-title: linear-gradient(90deg, #0f2214, #1d7a36);
+  --page-bg:
+    repeating-linear-gradient(90deg, rgba(29, 122, 54, 0.05) 0 90px, transparent 90px 180px),
+    repeating-linear-gradient(90deg, transparent 0 179px, rgba(29, 122, 54, 0.12) 179px 181px);
+  --header-stripe: repeating-linear-gradient(90deg, #1d7a36 0 2px, transparent 2px 18px);
+  --header-stripe-h: 5px;
+}
+
+/* ---- Hardwood: maple court and a basketball-orange accent (auto: NBA, CBB) */
+:root:is([data-theme="hardwood"], [data-theme="auto"][data-sport="nba"], [data-theme="auto"][data-sport="mcbb"]) {
+  --font-display: "Futura", "Century Gothic", "Trebuchet MS", var(--font-body);
+  --display-transform: uppercase;
+  --display-tracking: 0.05em;
+}
+:root[data-mode="dark"]:is([data-theme="hardwood"], [data-theme="auto"][data-sport="nba"], [data-theme="auto"][data-sport="mcbb"]) {
+  --bg: #120c07;
+  --bg-elev: #1d140c;
+  --bg-elev-2: #261a10;
+  --border: #3f2c1b;
+  --text: #fcf2e4;
+  --text-dim: #c4a585;
+  --accent: #ff7a1a;
+  --accent-2: #ffc061;
+  --on-accent: #1f0d00;
+  --header-bg: linear-gradient(180deg, rgba(32, 21, 12, 0.95), rgba(18, 12, 7, 0.9));
+  --brand-title: linear-gradient(90deg, #ffe2bd, #ff9a3d);
+  --page-bg:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(90deg, rgba(255, 190, 120, 0.035) 0 32px, transparent 32px 64px);
+}
+:root[data-mode="light"]:is([data-theme="hardwood"], [data-theme="auto"][data-sport="nba"], [data-theme="auto"][data-sport="mcbb"]) {
+  --bg: #f3dfbf;
+  --bg-elev: #fffaf1;
+  --bg-elev-2: #fbefdc;
+  --border: #e0c393;
+  --text: #2b1a0a;
+  --text-dim: #7a5a3a;
+  --accent: #d1500a;
+  --accent-2: #1f3f8a;
+  --on-accent: #ffffff;
+  --header-bg: linear-gradient(180deg, rgba(255, 250, 241, 0.95), rgba(243, 223, 191, 0.9));
+  --brand-title: linear-gradient(90deg, #2b1a0a, #d1500a);
+  --page-bg:
+    repeating-linear-gradient(90deg, rgba(120, 70, 20, 0.14) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(90deg, rgba(160, 100, 40, 0.06) 0 32px, transparent 32px 64px);
+}
+
+/* ---- Ice Rink: frosted white ice, red and blue lines (auto: NHL) -------- */
+:root:is([data-theme="ice"], [data-theme="auto"][data-sport="nhl"]) {
+  --display-tracking: 0.02em;
+}
+:root[data-mode="dark"]:is([data-theme="ice"], [data-theme="auto"][data-sport="nhl"]) {
+  --bg: #06111c;
+  --bg-elev: #0c1b2b;
+  --bg-elev-2: #12253a;
+  --border: #1d3a57;
+  --text: #ecf7ff;
+  --text-dim: #8fb1cb;
+  --accent: #5ad4ff;
+  --accent-2: #e8414f;
+  --on-accent: #001521;
+  --header-bg: linear-gradient(180deg, rgba(12, 27, 43, 0.94), rgba(6, 17, 28, 0.9));
+  --brand-title: linear-gradient(90deg, #ffffff, #9fe6ff);
+  --page-bg:
+    linear-gradient(90deg, transparent calc(50% - 3px), rgba(232, 65, 79, 0.16) calc(50% - 3px) calc(50% + 3px), transparent calc(50% + 3px)),
+    linear-gradient(90deg, transparent calc(22% - 4px), rgba(90, 150, 255, 0.12) calc(22% - 4px) calc(22% + 4px), transparent calc(22% + 4px) calc(78% - 4px), rgba(90, 150, 255, 0.12) calc(78% - 4px) calc(78% + 4px), transparent calc(78% + 4px)),
+    radial-gradient(ellipse 70% 50% at 50% 0, rgba(160, 220, 255, 0.10), transparent 70%);
+  --header-stripe: linear-gradient(90deg, #2563eb 0 22%, transparent 22% 48%, #e8414f 48% 52%, transparent 52% 78%, #2563eb 78%);
+}
+:root[data-mode="light"]:is([data-theme="ice"], [data-theme="auto"][data-sport="nhl"]) {
+  --bg: #f1f7fb;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f5fafd;
+  --border: #d3e3ee;
+  --text: #0b1e2e;
+  --text-dim: #52708a;
+  --accent: #0b63c4;
+  --accent-2: #c8102e;
+  --on-accent: #ffffff;
+  --header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(241, 247, 251, 0.9));
+  --brand-title: linear-gradient(90deg, #0b1e2e, #0b63c4);
+  --page-bg:
+    linear-gradient(90deg, transparent calc(50% - 3px), rgba(200, 16, 46, 0.09) calc(50% - 3px) calc(50% + 3px), transparent calc(50% + 3px)),
+    linear-gradient(90deg, transparent calc(22% - 4px), rgba(11, 99, 196, 0.08) calc(22% - 4px) calc(22% + 4px), transparent calc(22% + 4px) calc(78% - 4px), rgba(11, 99, 196, 0.08) calc(78% - 4px) calc(78% + 4px), transparent calc(78% + 4px)),
+    radial-gradient(ellipse 70% 50% at 50% 0, rgba(190, 225, 245, 0.6), transparent 70%);
+  --header-stripe: linear-gradient(90deg, #0b63c4 0 22%, transparent 22% 48%, #c8102e 48% 52%, transparent 52% 78%, #0b63c4 78%);
+}
+
+/* ---- Diamond: infield clay and checkerboard-mowed grass (auto: MLB) ----- */
+:root:is([data-theme="diamond"], [data-theme="auto"][data-sport="mlb"]) {
+  --font-display: "Rockwell", "Georgia", "Times New Roman", serif;
+  --display-tracking: 0.01em;
+}
+:root[data-mode="dark"]:is([data-theme="diamond"], [data-theme="auto"][data-sport="mlb"]) {
+  --bg: #08130d;
+  --bg-elev: #101e16;
+  --bg-elev-2: #16281d;
+  --border: #284032;
+  --text: #f6f3ea;
+  --text-dim: #a6b5a6;
+  --accent: #ef8a55;
+  --accent-2: #f6f3ea;
+  --on-accent: #2a0f02;
+  --header-bg: linear-gradient(180deg, rgba(16, 30, 22, 0.94), rgba(8, 19, 13, 0.9));
+  --brand-title: linear-gradient(90deg, #fffaf0, #ffb38a);
+  --page-bg: conic-gradient(rgba(255, 255, 255, 0.025) 25%, transparent 0 50%, rgba(255, 255, 255, 0.025) 0 75%, transparent 0) 0 0 / 80px 80px;
+  --header-stripe: repeating-linear-gradient(135deg, #c8102e 0 3px, transparent 3px 9px);
+}
+:root[data-mode="light"]:is([data-theme="diamond"], [data-theme="auto"][data-sport="mlb"]) {
+  --bg: #f4efe4;
+  --bg-elev: #fffdf8;
+  --bg-elev-2: #f7f1e5;
+  --border: #e0d4bc;
+  --text: #1b2219;
+  --text-dim: #66705f;
+  --accent: #b0481c;
+  --accent-2: #1c6b3a;
+  --on-accent: #ffffff;
+  --header-bg: linear-gradient(180deg, rgba(255, 253, 248, 0.95), rgba(244, 239, 228, 0.9));
+  --brand-title: linear-gradient(90deg, #1b2219, #b0481c);
+  --page-bg: conic-gradient(rgba(28, 107, 58, 0.05) 25%, transparent 0 50%, rgba(28, 107, 58, 0.05) 0 75%, transparent 0) 0 0 / 80px 80px;
+  --header-stripe: repeating-linear-gradient(135deg, #c8102e 0 3px, transparent 3px 9px);
+}
+
+/* ---- Octagon: chain-link cage, fight-night red and gold (auto: UFC) ----- */
+:root:is([data-theme="octagon"], [data-theme="auto"][data-sport="ufc"]) {
+  --font-display: "Impact", "Haettenschweiler", "Arial Narrow Bold", var(--font-body);
+  --display-transform: uppercase;
+  --display-tracking: 0.04em;
+  --radius: 6px;
+}
+:root[data-mode="dark"]:is([data-theme="octagon"], [data-theme="auto"][data-sport="ufc"]) {
+  --bg: #09090a;
+  --bg-elev: #141416;
+  --bg-elev-2: #1c1c1f;
+  --border: #2f2f34;
+  --text: #f6f6f6;
+  --text-dim: #a0a0a8;
+  --accent: #ff2e2e;
+  --accent-2: #f5c518;
+  --on-accent: #ffffff;
+  --favorite: #f5c518;
+  --header-bg: linear-gradient(180deg, rgba(20, 20, 22, 0.95), rgba(9, 9, 10, 0.9));
+  --brand-title: linear-gradient(90deg, #ffffff, #f5c518);
+  --page-bg:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 16px),
+    radial-gradient(ellipse 60% 40% at 50% -5%, rgba(255, 46, 46, 0.18), transparent 70%);
+}
+:root[data-mode="light"]:is([data-theme="octagon"], [data-theme="auto"][data-sport="ufc"]) {
+  --bg: #f3f3f1;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f6f6f4;
+  --border: #dadad6;
+  --text: #121212;
+  --text-dim: #5d5d63;
+  --accent: #c40d0d;
+  --accent-2: #b8860b;
+  --on-accent: #ffffff;
+  --favorite: #b8860b;
+  --header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(243, 243, 241, 0.9));
+  --brand-title: linear-gradient(90deg, #121212, #c40d0d);
+  --page-bg:
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.04) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.04) 0 1px, transparent 1px 16px);
+}
+
+/* ---- Speedway: asphalt, caution yellow and the checkered flag (auto: NASCAR) */
+:root:is([data-theme="speedway"], [data-theme="auto"][data-sport="nascar"]) {
+  --font-display: "Bahnschrift", "Eurostile", "Arial Black", var(--font-body);
+  --display-transform: uppercase;
+  --display-tracking: 0.03em;
+  --header-stripe-h: 8px;
+}
+:root[data-mode="dark"]:is([data-theme="speedway"], [data-theme="auto"][data-sport="nascar"]) {
+  --bg: #0d0e11;
+  --bg-elev: #17191d;
+  --bg-elev-2: #1f2227;
+  --border: #33363d;
+  --text: #f4f4f2;
+  --text-dim: #a3a6ad;
+  --accent: #ffd60a;
+  --accent-2: #ff3b1f;
+  --on-accent: #1a1500;
+  --header-bg: linear-gradient(180deg, rgba(23, 25, 29, 0.95), rgba(13, 14, 17, 0.9));
+  --brand-title: linear-gradient(90deg, #ffffff, #ffd60a);
+  --page-bg:
+    radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1.5px) 0 0 / 5px 5px,
+    linear-gradient(90deg, transparent 48%, rgba(255, 214, 10, 0.05) 48% 52%, transparent 52%);
+  --header-stripe: conic-gradient(#f4f4f2 25%, #111 0 50%, #f4f4f2 0 75%, #111 0) 0 0 / 8px 8px;
+}
+:root[data-mode="light"]:is([data-theme="speedway"], [data-theme="auto"][data-sport="nascar"]) {
+  --bg: #efefec;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f4f4f2;
+  --border: #d6d6d1;
+  --text: #141518;
+  --text-dim: #5c5f66;
+  --accent: #d1220c;
+  --accent-2: #e0b400;
+  --on-accent: #ffffff;
+  --header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(239, 239, 236, 0.9));
+  --brand-title: linear-gradient(90deg, #141518, #d1220c);
+  --page-bg: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1.5px) 0 0 / 5px 5px;
+  --header-stripe: conic-gradient(#141518 25%, #fff 0 50%, #141518 0 75%, #fff 0) 0 0 / 8px 8px;
+}
+
+/* ---- Team Colors: your team's real colors everywhere ------------------- */
+/* theme-boot.js sets --team-accent-dark / --team-accent-light (the team's
+   primary color nudged until it reads well on each background), plus
+   --team-primary / --team-secondary / --team-on-accent-*. */
+:root[data-mode="dark"]:is([data-theme="team"]) {
+  --bg: color-mix(in srgb, var(--team-primary, #4f8dfd) 9%, #07080b);
+  --bg-elev: color-mix(in srgb, var(--team-primary, #4f8dfd) 11%, #111318);
+  --bg-elev-2: color-mix(in srgb, var(--team-primary, #4f8dfd) 14%, #171a21);
+  --border: color-mix(in srgb, var(--team-primary, #4f8dfd) 28%, #262a35);
+  --accent: var(--team-accent-dark, #4f8dfd);
+  --accent-2: var(--team-secondary-dark, var(--team-accent-dark, #7c5cff));
+  --on-accent: var(--team-on-accent-dark, #08111f);
+  --header-bg: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #4f8dfd) 40%, #07080b), color-mix(in srgb, var(--team-primary, #4f8dfd) 12%, #07080b));
+  --brand-title: linear-gradient(90deg, #ffffff, color-mix(in srgb, var(--team-accent-dark, #4f8dfd) 50%, #ffffff));
+  --page-bg: radial-gradient(ellipse 80% 45% at 50% -10%, color-mix(in srgb, var(--team-primary, #4f8dfd) 35%, transparent), transparent 70%);
+  --header-stripe: linear-gradient(90deg, var(--team-primary, #4f8dfd) 0 50%, var(--team-secondary, #ffffff) 50%);
+  --header-stripe-h: 4px;
+}
+:root[data-mode="light"]:is([data-theme="team"]) {
+  --bg: color-mix(in srgb, var(--team-primary, #2563eb) 6%, #f6f7f9);
+  --bg-elev: #ffffff;
+  --bg-elev-2: color-mix(in srgb, var(--team-primary, #2563eb) 5%, #f3f4f7);
+  --border: color-mix(in srgb, var(--team-primary, #2563eb) 18%, #d9dee8);
+  --accent: var(--team-accent-light, #2563eb);
+  --accent-2: var(--team-secondary-light, var(--team-accent-light, #7c5cff));
+  --on-accent: var(--team-on-accent-light, #ffffff);
+  --header-bg: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #2563eb) 14%, #ffffff), #ffffff);
+  --brand-title: linear-gradient(90deg, #121620, var(--team-accent-light, #2563eb));
+  --page-bg: radial-gradient(ellipse 80% 40% at 50% -10%, color-mix(in srgb, var(--team-primary, #2563eb) 18%, transparent), transparent 70%);
+  --header-stripe: linear-gradient(90deg, var(--team-primary, #2563eb) 0 50%, var(--team-secondary-light, #121620) 50%);
+  --header-stripe-h: 4px;
+}

@@ -187,9 +187,113 @@
       </div>`).join('');
   }
 
+  // Remembered across refreshes so a live update doesn't snap the page back:
+  // which box-score team tab is open, and how far the play-by-play feed is
+  // scrolled.
+  const ui = { boxTab: '0', lastScores: null, matchupLoaded: false, lastLoaded: null };
+
+  function captureUi() {
+    const feed = document.querySelector('.pbp-feed');
+    return { pbpScroll: feed ? feed.scrollTop : 0 };
+  }
+
+  function restoreUi(saved) {
+    const feed = document.querySelector('.pbp-feed');
+    if (feed && saved.pbpScroll) feed.scrollTop = saved.pbpScroll;
+    selectBoxTab(ui.boxTab);
+  }
+
+  function selectBoxTab(idx) {
+    const tabs = document.querySelectorAll('[data-box-tab]');
+    if (!tabs.length) return;
+    if (!document.querySelector(`[data-box-panel="${idx}"]`)) idx = '0';
+    ui.boxTab = idx;
+    tabs.forEach((b) => b.classList.toggle('active', b.dataset.boxTab === idx));
+    document.querySelectorAll('[data-box-panel]').forEach((p) => p.classList.toggle('active', p.dataset.boxPanel === idx));
+  }
+
+  document.addEventListener('click', (e) => {
+    const tab = e.target.closest && e.target.closest('[data-box-tab]');
+    if (tab) selectBoxTab(tab.dataset.boxTab);
+  });
+
+  // Hover/touch readout on the win probability line.
+  function wireWinProb() {
+    const wrap = document.querySelector('.wp-chart');
+    if (!wrap) return;
+    const pts = (wrap.dataset.points || '').split(',').map(Number).filter((n) => !Number.isNaN(n));
+    if (pts.length < 2) return;
+    const svg = wrap.querySelector('svg');
+    const cross = wrap.querySelector('.wp-cross');
+    const tip = wrap.querySelector('.wp-tip');
+    const move = (clientX) => {
+      const rect = svg.getBoundingClientRect();
+      const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      const i = Math.round(frac * (pts.length - 1));
+      const home = Math.round(pts[i] * 100);
+      const vbX = 4 + (i / (pts.length - 1)) * (600 - 8);
+      cross.setAttribute('x1', vbX);
+      cross.setAttribute('x2', vbX);
+      cross.style.display = '';
+      tip.style.display = '';
+      tip.style.left = `${(i / (pts.length - 1)) * 100}%`;
+      tip.textContent = home >= 50 ? `${wrap.dataset.home} ${home}%` : `${wrap.dataset.away} ${100 - home}%`;
+    };
+    const hide = () => { cross.style.display = 'none'; tip.style.display = 'none'; };
+    svg.addEventListener('mousemove', (e) => move(e.clientX));
+    svg.addEventListener('touchmove', (e) => { if (e.touches[0]) move(e.touches[0].clientX); }, { passive: true });
+    svg.addEventListener('mouseleave', hide);
+    svg.addEventListener('touchend', hide);
+  }
+
+  async function loadMatchup() {
+    const box = el('gameMatchup');
+    if (!box || source !== 'espn') return;
+    try {
+      const m = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}/matchup`));
+      box.innerHTML = CFBGame.matchupHtml(m);
+      ui.matchupLoaded = true;
+    } catch (err) {
+      box.innerHTML = '';
+    }
+  }
+
+  // How often to refresh: every 15s while live, every minute in the half
+  // hour before kickoff (to catch the start), otherwise not at all.
+  function refreshDelay(detail) {
+    const state = detail.status && detail.status.state;
+    if (state === 'in') return 15000;
+    if (state === 'pre' && detail.date) {
+      const until = new Date(detail.date).getTime() - Date.now();
+      if (until < 30 * 60 * 1000) return 60000;
+    }
+    return null;
+  }
+
+  function scheduleNext(detail) {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+    const delay = refreshDelay(detail);
+    const note = el('gameRefreshNote');
+    if (note) {
+      note.textContent = delay
+        ? `Updates on its own every ${delay / 1000}s · last updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`
+        : '';
+    }
+    // Paused while the tab is hidden; picked back up on visibilitychange.
+    if (delay && !document.hidden) pollTimer = setTimeout(load, delay);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && ui.lastLoaded && refreshDelay(ui.lastLoaded)) load();
+    else if (document.hidden && pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  });
+
   async function load() {
     try {
       const detail = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}?source=${encodeURIComponent(source)}`));
+      ui.lastLoaded = detail;
+      const saved = captureUi();
       document.title = `${(detail.teams || []).map((t) => t.abbreviation || t.shortName || t.name).join(' @ ')} · CFB Tracker`;
 
       const away = (detail.teams || []).find((t) => t.homeAway === 'away');
@@ -198,19 +302,41 @@
       const possessionId = isLive && detail.situation ? detail.situation.possession : null;
       const awayHasBall = !!(possessionId && away && String(possessionId) === String(away.id));
       const homeHasBall = !!(possessionId && home && String(possessionId) === String(home.id));
+      const networks = (detail.broadcasts || []).filter((b) => !b.market || /national/i.test(b.market)).map((b) => b.network);
+      const tvText = (networks.length ? networks : [detail.broadcast]).filter(Boolean).join(' / ');
 
-      el('statusNote').textContent = [statusLine(detail), detail.broadcast, detail.venue].filter(Boolean).join(' · ');
+      el('statusNote').textContent = [statusLine(detail), tvText, detail.venue].filter(Boolean).join(' · ');
+
+      const scores = `${away && away.score}-${home && home.score}`;
+      const scoreChanged = ui.lastScores !== null && ui.lastScores !== scores;
+      ui.lastScores = scores;
 
       el('gameScorebug').innerHTML = `
         <div class="game-status-row">
           ${isLive ? '<span class="live-dot">&#9679; LIVE</span>' : ''}
           <span>${CFB.esc(statusLine(detail))}</span>
+          ${tvText ? `<span class="tv-badge" title="TV channel">&#128250; ${CFB.esc(tvText)}</span>` : ''}
         </div>
         <div class="game-sides">
           ${teamSideHtml(away, 'away', awayHasBall)}
           <div class="game-vs">@</div>
           ${teamSideHtml(home, 'home', homeHasBall)}
         </div>`;
+      if (scoreChanged) {
+        const bug = el('gameScorebug');
+        bug.classList.remove('score-flash');
+        void bug.offsetWidth; // restart the animation
+        bug.classList.add('score-flash');
+      }
+
+      // Kids Zone: confetti when a followed team scores, and a sticker for
+      // watching it live.
+      if (typeof Kids !== 'undefined') {
+        Kids.watchScores([detail], CFB.sport().key);
+        Kids.awardWatched(detail, CFB.sport().key);
+      }
+
+      el('gameWatch').innerHTML = CFBGame.watchHtml(detail);
 
       renderFieldPosition(detail, away, home);
 
@@ -227,17 +353,24 @@
         situationEl.textContent = '';
       }
 
+      el('gameWinProb').innerHTML = CFBGame.winProbHtml(detail, away, home);
+      wireWinProb();
+      el('gameBoxScore').innerHTML = CFBGame.boxScoreHtml(detail);
       el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail);
       renderKidExplainer(detail);
 
-      if (typeof Kids !== 'undefined') {
-        Kids.watchScores([detail], CFB.sport().key);
-        Kids.awardWatched(detail, CFB.sport().key);
-      }
+      el('gameInjuries').innerHTML = CFBGame.injuriesHtml(detail);
+      el('gameForm').innerHTML = CFBGame.recentFormHtml(detail);
+      restoreUi(saved);
 
-      if (pollTimer) clearInterval(pollTimer);
-      if (isLive) pollTimer = setInterval(load, 20000);
+      if (!ui.matchupLoaded) loadMatchup();
+      scheduleNext(detail);
     } catch (err) {
+      // Keep showing the last good data during a live game; just retry.
+      if (ui.lastLoaded) {
+        scheduleNext(ui.lastLoaded);
+        return;
+      }
       el('gameScorebug').innerHTML = '<div class="empty-note">Could not load this game.</div>';
     }
   }

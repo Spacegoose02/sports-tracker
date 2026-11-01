@@ -28,6 +28,26 @@ always pinned at the top.
 > you're on live data, it's usually a one-line fix in `src/espn.js`
 > (`getRankings` / `getStandings`) to point at the right field name.
 
+### Rankings, standings, team pages, player pages and fantasy
+
+- **Rankings**: pick any past week (or the final poll), see each team's
+  movement and last-week rank, who's new, who dropped out, and the week's
+  biggest rise and drop. A **Compare polls** view puts the CFP, AP and
+  Coaches rankings side by side.
+- **Standings**: home and away records, points for and against, point
+  differential, and AP rank badges for ranked college teams.
+- **Team pages**: record splits (home, away, conference), scoring averages
+  and recent form, then tabs for Schedule & Results, a searchable
+  **Roster** (with injury tags), Season Stats and team News.
+- **Player pages** (`/player.html?id=...`): bio, this season's game log
+  and season-by-season stats. Every roster and leaders entry links here.
+- **Leaders** (`/leaders.html`): season stat leaders for every team sport.
+  For the NFL a **Fantasy** tab adds up each week's box scores into
+  PPR, half-PPR or standard points, filterable by QB, RB and WR/TE.
+- New API routes (all take `?sport=`): `/api/team/:id/roster`,
+  `/api/player/:id`, `/api/leaders`, `/api/fantasy?week=&format=ppr|half|standard`.
+  The code is in `src/players.js`, `src/leaders.js` and `src/routes/stats.js`.
+
 ### Betting lines and recruiting
 
 - **Lines** (`/lines.html`): every game's spread, total and moneylines for
@@ -286,6 +306,17 @@ Picking notable games then happens in `/admin` here instead of editing your
 dashboard's YAML every week. Open that file for the full widget block and
 setup notes — you just need to point it at this container's host:port.
 
+## Home Assistant scorecards
+
+`custom_components/sports_tracker` is a Home Assistant integration (HACS
+custom repository: this repo) that turns the teams you follow into sensors
+and ships a dashboard card with a live football field, NASCAR track outline,
+baseball diamond, hockey rink, basketball court and UFC octagon, plus score
+events for automations like flashing the lights on a touchdown. See
+[docs/home-assistant.md](docs/home-assistant.md).
+
+![Home Assistant scorecards](docs/img/ha-scorecards.png)
+
 ## Running on Unraid
 
 You have two straightforward options. Either way, the app needs one
@@ -421,7 +452,9 @@ and search for the team, or check the URL on ESPN's team page
 npm test
 ```
 
-Runs on every pull request through GitHub Actions.
+The Home Assistant integration has its own Python tests
+(`tests/home_assistant`, see [docs/home-assistant.md](docs/home-assistant.md)).
+Both run on every pull request through GitHub Actions.
 
 ## Local development (without Docker)
 

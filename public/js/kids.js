@@ -151,6 +151,8 @@ const Kids = (function () {
   function initHeader() {
     document.body.classList.toggle('kid-mode', CFB.kidMode());
     const nav = document.querySelector('nav.top-nav');
+    // No betting page in kid mode.
+    if (nav && CFB.kidMode()) nav.querySelectorAll('a[href^="/lines.html"]').forEach((a) => a.remove());
     if (!nav || nav.querySelector('.kids-link')) return;
     if (location.pathname !== '/kids.html') {
       const link = document.createElement('a');

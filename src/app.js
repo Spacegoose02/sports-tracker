@@ -46,6 +46,7 @@ function createApp({ env = process.env, logger = console, relay = {} } = {}) {
   );
 
   app.use('/api/admin', createAdminRouter());
+  app.use('/api', require('./routes/stats'));
   app.use('/api', apiRoutes);
   // ESPN's site API, cached, for other apps such as BingeBandit (src/relay.js).
   app.use('/espn', createRelayRouter({ env, logger, ...relay }));

@@ -1,0 +1,59 @@
+blueprint:
+  name: Sports Tracker - flash lights when your team scores
+  description: >
+    Flashes lights in your team's colors when a followed team scores
+    (uses the sports_tracker_score event from the Sports Tracker integration).
+  domain: automation
+  source_url: https://github.com/Spacegoose02/sports-tracker/blob/main/blueprints/automation/sports_tracker/score_lights.yaml
+  input:
+    item:
+      name: Team
+      description: The sport and ESPN team id you follow, e.g. cfb:259 for Virginia Tech.
+      selector:
+        text:
+    lights:
+      name: Lights
+      selector:
+        target:
+          entity:
+            domain: light
+    color_1:
+      name: First color
+      default: [134, 31, 65]
+      selector:
+        color_rgb:
+    color_2:
+      name: Second color
+      default: [232, 119, 34]
+      selector:
+        color_rgb:
+    flashes:
+      name: Flashes
+      default: 4
+      selector:
+        number:
+          min: 1
+          max: 15
+mode: single
+triggers:
+  - trigger: event
+    event_type: sports_tracker_score
+    event_data:
+      item: !input item
+      scored_by: team
+actions:
+  - repeat:
+      count: !input flashes
+      sequence:
+        - action: light.turn_on
+          target: !input lights
+          data:
+            rgb_color: !input color_1
+            brightness: 255
+        - delay: 0.6
+        - action: light.turn_on
+          target: !input lights
+          data:
+            rgb_color: !input color_2
+            brightness: 255
+        - delay: 0.6

@@ -223,14 +223,43 @@
     return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   }
 
-  async function loadWeek() {
+  // Score of every game on screen, so a refresh can flash the cards whose
+  // score just changed.
+  function scoreMap() {
+    const map = new Map();
+    for (const g of state.games || []) {
+      if (g && g.id) map.set(String(g.id), `${g.away && g.away.score}-${g.home && g.home.score}-${g.status && g.status.state}`);
+    }
+    return map;
+  }
+
+  function flashChanged(before) {
+    if (!before) return;
+    const after = scoreMap();
+    after.forEach((v, id) => {
+      if (before.has(id) && before.get(id) !== v) {
+        document.querySelectorAll(`.game-card[data-id="${CSS.escape(id)}"]`).forEach((card) => card.classList.add('score-flash'));
+      }
+    });
+  }
+
+  let loadSeq = 0;
+
+  // `silent` is the background refresh: no "Loading" placeholder, and the
+  // last good scores stay up if a refresh fails.
+  async function loadWeek(opts) {
+    const silent = !!(opts && opts.silent);
+    const seq = ++loadSeq;
     const sport = CFB.sport();
     state.season = Number(el('seasonSelect').value);
     state.week = Number(el('weekSelect').value);
     state.seasonType = Number(el('seasonTypeSelect').value);
+    const before = silent ? scoreMap() : null;
 
-    el('gameList').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
-    el('notableGrid').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
+    if (!silent) {
+      el('gameList').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
+      el('notableGrid').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
+    }
 
     try {
       const [scoreboard, notable] = await Promise.all([
@@ -239,6 +268,7 @@
           ? CFB.getJson(`/api/notable?season=${state.season}&week=${state.week}`).catch(() => [])
           : Promise.resolve([]),
       ]);
+      if (seq !== loadSeq) return; // a newer load (e.g. a week change) won
       state.games = scoreboard.games || [];
       state.events = scoreboard.events || null;
       state.notable = notable || [];
@@ -250,23 +280,50 @@
           : `${sport.label} · ${scoreboard.season} · Week ${scoreboard.week}`;
       renderGames();
       renderNotable();
+      flashChanged(before);
       scheduleAutoRefresh();
       // Confetti and a fanfare when a followed team scores (kids.js).
       if (typeof Kids !== 'undefined') Kids.watchScores(state.games, sport.key);
     } catch (err) {
+      if (seq !== loadSeq) return;
+      if (silent) {
+        scheduleAutoRefresh(); // keep the last good scores, try again
+        return;
+      }
       el('gameList').innerHTML = '<div class="empty-note">Could not load scoreboard.</div>';
       el('notableGrid').innerHTML = '<div class="empty-note">Could not load notable games.</div>';
     }
   }
 
-  function scheduleAutoRefresh() {
-    if (state.pollTimer) clearInterval(state.pollTimer);
-    const anyLive = [...state.games, ...(state.events || [])].some((g) => g.status && g.status.state === 'in');
-    el('refreshNote').textContent = anyLive ? 'Auto-refreshing live games every 20s' : '';
-    if (anyLive) {
-      state.pollTimer = setInterval(loadWeek, 20000);
-    }
+  // Live scores update on their own: every 20s while any game on screen is
+  // live, every minute when one starts within the next half hour (so the
+  // card flips to LIVE without a reload). Paused while the tab is hidden and
+  // refreshed as soon as it's visible again.
+  function refreshDelay() {
+    const all = [...state.games, ...(state.events || [])];
+    if (all.some((g) => g.status && g.status.state === 'in')) return 20000;
+    const soon = Date.now() + 30 * 60 * 1000;
+    if (all.some((g) => g.status && g.status.state === 'pre' && g.date && new Date(g.date).getTime() < soon)) return 60000;
+    return null;
   }
+
+  function scheduleAutoRefresh() {
+    if (state.pollTimer) clearTimeout(state.pollTimer);
+    state.pollTimer = null;
+    const delay = refreshDelay();
+    const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    el('refreshNote').textContent = delay ? `Live · updates every ${delay / 1000}s · ${time}` : '';
+    if (delay && !document.hidden) state.pollTimer = setTimeout(() => loadWeek({ silent: true }), delay);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (state.pollTimer) clearTimeout(state.pollTimer);
+      state.pollTimer = null;
+    } else if (refreshDelay()) {
+      loadWeek({ silent: true });
+    }
+  });
 
   function initTabs() {
     document.querySelectorAll('.tab-btn').forEach((btn) => {
