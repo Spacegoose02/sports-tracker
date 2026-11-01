@@ -12,7 +12,14 @@ if (!process.env.DATA_DIR) {
 // into a sandbox and returns that CFB object.
 function loadShared() {
   const code = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'shared.js'), 'utf8');
-  const sandbox = { document: { getElementById: () => null }, URL, console };
+  const sandbox = {
+    document: { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [] },
+    location: { search: '', pathname: '/' },
+    localStorage: { getItem: () => null, setItem() {} },
+    URL,
+    URLSearchParams,
+    console,
+  };
   vm.createContext(sandbox);
   vm.runInContext(`${code}\nthis.CFB = CFB;`, sandbox);
   return sandbox.CFB;

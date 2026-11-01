@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 require('./helpers');
-const { buildRadioInfo, parseEspnBroadcasts } = require('../src/radio');
+const { buildRadioInfo, parseEspnBroadcasts, corePath } = require('../src/radio');
 
 test('parseEspnBroadcasts keeps radio and satellite, drops TV, de-duplicates', () => {
   const list = parseEspnBroadcasts([
@@ -61,4 +61,9 @@ test('radio endpoint rejects unknown sports', async () => {
   } finally {
     await app.close();
   }
+});
+
+test('corePath inserts leagues/ for the core API', () => {
+  assert.strictEqual(corePath('football/college-football'), 'football/leagues/college-football');
+  assert.strictEqual(corePath('basketball/nba'), 'basketball/leagues/nba');
 });

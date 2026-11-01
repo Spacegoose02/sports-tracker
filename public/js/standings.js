@@ -1,8 +1,21 @@
 (function () {
   const el = CFB.el;
 
+  // Columns shown when at least one team in the group has a value. College
+  // standings carry conference records; pro standings carry win % and
+  // games back (NHL: points).
+  const COLUMNS = [
+    { key: 'conference', label: 'Conf' },
+    { key: 'overall', label: 'Overall' },
+    { key: 'winPercent', label: 'Pct' },
+    { key: 'gamesBehind', label: 'GB' },
+    { key: 'points', label: 'Pts' },
+    { key: 'streak', label: 'Streak' },
+  ];
+
   function conferenceHtml(conf, favoriteTeamId) {
     if (!conf.entries || !conf.entries.length) return '';
+    const columns = COLUMNS.filter((c) => conf.entries.some((e) => e[c.key]));
     return `
       <div class="conference-block">
         <h3>${CFB.esc(conf.name)}</h3>
@@ -11,9 +24,7 @@
             <thead>
               <tr>
                 <th>Team</th>
-                <th>Conference</th>
-                <th>Overall</th>
-                <th>Streak</th>
+                ${columns.map((c) => `<th>${c.label}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
@@ -27,9 +38,7 @@
                         ${e.team ? `<a class="team-link" href="${CFB.teamLink(e.team)}">${CFB.esc(e.team.name)}</a>` : 'TBD'}
                       </div>
                     </td>
-                    <td>${CFB.esc(e.conference || '')}</td>
-                    <td>${CFB.esc(e.overall || '')}</td>
-                    <td>${CFB.esc(e.streak || '')}</td>
+                    ${columns.map((c) => `<td>${CFB.esc(e[c.key] || '')}</td>`).join('')}
                   </tr>`;
               }).join('')}
             </tbody>
@@ -40,21 +49,28 @@
 
   let cachedMeta = null;
 
-  async function load(division) {
+  async function load(group) {
+    const sport = CFB.sport();
     const container = el('standingsContainer');
     container.innerHTML = '<div class="empty-note">Loading&hellip;</div>';
     try {
       if (!cachedMeta) {
-        cachedMeta = await CFB.getJson('/api/meta');
+        cachedMeta = await CFB.getJson(CFB.withSport('/api/meta')).catch(() => ({}));
       }
-      el('sourceNote').textContent = `${cachedMeta.season} season`;
+      el('sourceNote').textContent = sport.key === 'cfb' && cachedMeta.season
+        ? `${sport.label} · ${cachedMeta.season} season`
+        : sport.label;
 
-      const group = division === 'fcs' ? 81 : 80;
-      const data = await CFB.getJson(`/api/standings?year=${cachedMeta.season}&group=${group}`);
+      const params = new URLSearchParams();
+      // College football standings need an explicit season; the other
+      // leagues return the current season when none is given.
+      if (sport.key === 'cfb' && cachedMeta.season) params.set('year', cachedMeta.season);
+      if (group) params.set('group', group);
+      const query = params.toString();
+      const data = await CFB.getJson(CFB.withSport(`/api/standings${query ? `?${query}` : ''}`));
       const conferences = (data.conferences || []).filter((c) => c.entries && c.entries.length);
       if (!conferences.length) {
-        const divisionLabel = division === 'fcs' ? 'FCS' : 'FBS';
-        container.innerHTML = `<div class="empty-note">${divisionLabel} standings aren't available right now.</div>`;
+        container.innerHTML = '<div class="empty-note">Standings aren\'t available right now.</div>';
         return;
       }
       container.innerHTML = conferences.map((c) => conferenceHtml(c, cachedMeta.favoriteTeamId)).join('');
@@ -63,5 +79,8 @@
     }
   }
 
-  CFB.initDivisionToggle((division) => load(division));
+  CFB.loadSports().then(() => {
+    CFB.initSportBar();
+    CFB.initDivisionToggle((group) => load(group));
+  });
 })();

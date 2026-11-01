@@ -4,7 +4,6 @@
 (function () {
   const params = new URLSearchParams(location.search);
   const gameId = params.get('id');
-  const sport = params.get('sport') || 'college-football';
   const box = CFB.el('gameRadio');
   if (!box || !gameId || params.get('source') === 'ncaa-api') return;
 
@@ -35,7 +34,7 @@
 
   async function load() {
     try {
-      const info = await CFB.getJson(`/api/game/${encodeURIComponent(gameId)}/radio?sport=${encodeURIComponent(sport)}`);
+      const info = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}/radio`));
       const national = info.national && info.national.length
         ? `<div class="radio-team"><strong>National</strong><ul class="radio-list">${info.national.map(stationHtml).join('')}</ul></div>`
         : '';

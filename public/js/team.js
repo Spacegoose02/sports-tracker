@@ -10,7 +10,7 @@
 
   async function load() {
     try {
-      const data = await CFB.getJson(`/api/team/${encodeURIComponent(teamId)}`);
+      const data = await CFB.getJson(CFB.withSport(`/api/team/${encodeURIComponent(teamId)}`));
       renderHero(data);
       renderSchedule(data.schedule || []);
       renderStats(data.stats || []);
@@ -65,5 +65,8 @@
     `).join('');
   }
 
-  load();
+  CFB.loadSports().then(() => {
+    CFB.initSportBar();
+    load();
+  });
 })();

@@ -5,7 +5,8 @@
     season: null,
     week: null,
     seasonType: 2,
-    division: 'fbs',
+    group: null,
+    day: null, // Date, for day-based sports
     games: [],
     notable: [],
     pollTimer: null,
@@ -56,13 +57,13 @@
   async function renderFavorite() {
     const card = el('favoriteCard');
     try {
-      const data = await CFB.getJson('/api/team/favorite');
+      const data = await CFB.getJson(CFB.withSport('/api/team/favorite'));
       const team = data.team;
       const upcoming = (data.schedule || []).find((g) => g.status && g.status.state !== 'post');
       const live = (data.schedule || []).find((g) => g.status && g.status.state === 'in');
       const highlight = live || upcoming;
       card.innerHTML = `
-        ${team && team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt=""" onerror="this.style.display='none'">` : ''}
+        ${team && team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
         <div class="team-meta">
           <a class="name team-link" href="/team.html?id=${encodeURIComponent(state.favoriteTeamId)}">${CFB.esc(team ? team.name : 'Favorite Team')}</a>
           <div class="record">${team && team.record ? CFB.esc(team.record) + ' record' : ''} ${team && team.rank ? '&middot; Rank #' + CFB.esc(team.rank) : ''}</div>
@@ -91,6 +92,7 @@
     const weekSelect = el('weekSelect');
     const seasonTypeSelect = el('seasonTypeSelect');
 
+    const sport = CFB.sport();
     const currentYear = meta.season || new Date().getFullYear();
     seasonSelect.innerHTML = '';
     for (let y = currentYear; y >= currentYear - 2; y--) {
@@ -102,7 +104,7 @@
     seasonSelect.value = currentYear;
 
     weekSelect.innerHTML = '';
-    for (let w = 1; w <= 15; w++) {
+    for (let w = 1; w <= (sport.maxWeek || 15); w++) {
       const opt = document.createElement('option');
       opt.value = w;
       opt.textContent = `Week ${w}`;
@@ -110,10 +112,70 @@
     }
     weekSelect.value = meta.week || 1;
 
+    if (sport.seasonTypes) {
+      seasonTypeSelect.innerHTML = '';
+      sport.seasonTypes.forEach((t) => {
+        const opt = document.createElement('option');
+        opt.value = t.value;
+        opt.textContent = t.label;
+        seasonTypeSelect.appendChild(opt);
+      });
+    }
     seasonTypeSelect.value = String(meta.seasonType || 2);
   }
 
+  // ---- Day-based sports (NBA, MLB, NHL, college hoops) ----
+  function toInputValue(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  function setDay(date) {
+    state.day = date;
+    el('dayInput').value = toInputValue(date);
+    loadWeek();
+  }
+
+  function shiftDay(delta) {
+    const d = new Date(state.day || new Date());
+    d.setDate(d.getDate() + delta);
+    setDay(d);
+  }
+
+  function initDayControls() {
+    el('weekControls').hidden = true;
+    el('dayControls').hidden = false;
+    state.day = new Date();
+    el('dayInput').value = toInputValue(state.day);
+    el('dayInput').addEventListener('change', () => {
+      const [y, m, d] = el('dayInput').value.split('-').map(Number);
+      if (y && m && d) setDay(new Date(y, m - 1, d));
+    });
+    el('prevDayBtn').addEventListener('click', () => shiftDay(-1));
+    el('nextDayBtn').addEventListener('click', () => shiftDay(1));
+    el('todayBtn').addEventListener('click', () => setDay(new Date()));
+  }
+
+  function scoreboardUrl() {
+    const sport = CFB.sport();
+    const params = new URLSearchParams();
+    if (sport.schedule === 'day') {
+      params.set('dates', CFB.ymd(state.day || new Date()));
+    } else {
+      params.set('year', state.season);
+      params.set('week', state.week);
+      params.set('seasontype', state.seasonType);
+    }
+    if (state.group) params.set('groups', state.group);
+    return CFB.withSport(`/api/scoreboard?${params.toString()}`);
+  }
+
+  function dayLabel(date) {
+    return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
   async function loadWeek() {
+    const sport = CFB.sport();
     state.season = Number(el('seasonSelect').value);
     state.week = Number(el('weekSelect').value);
     state.seasonType = Number(el('seasonTypeSelect').value);
@@ -121,16 +183,19 @@
     el('gameList').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
     el('notableGrid').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
 
-    const groups = state.division === 'fcs' ? 81 : 80;
     try {
       const [scoreboard, notable] = await Promise.all([
-        CFB.getJson(`/api/scoreboard?year=${state.season}&week=${state.week}&seasontype=${state.seasonType}&groups=${groups}`),
-        CFB.getJson(`/api/notable?season=${state.season}&week=${state.week}`).catch(() => []),
+        CFB.getJson(scoreboardUrl()),
+        sport.notable
+          ? CFB.getJson(`/api/notable?season=${state.season}&week=${state.week}`).catch(() => [])
+          : Promise.resolve([]),
       ]);
       state.games = scoreboard.games || [];
       state.notable = notable || [];
       state.favoriteTeamId = scoreboard.favoriteTeamId;
-      el('sourceNote').textContent = `${scoreboard.season} · Week ${scoreboard.week}`;
+      el('sourceNote').textContent = sport.schedule === 'day'
+        ? `${sport.label} · ${dayLabel(state.day || new Date())}`
+        : `${sport.label} · ${scoreboard.season} · Week ${scoreboard.week}`;
       renderGames();
       renderNotable();
       scheduleAutoRefresh();
@@ -184,7 +249,7 @@
     const list = el('newsList');
     list.innerHTML = '<div class="empty-note">Loading&hellip;</div>';
     try {
-      const data = await CFB.getJson('/api/news');
+      const data = await CFB.getJson(CFB.withSport('/api/news'));
       state.newsLoaded = true;
       const items = data.items || [];
       if (!items.length) {
@@ -260,22 +325,39 @@
     }
   }
 
+  // Hide the pieces that only exist for college football: the pinned
+  // "My Team" card, admin-curated Notable Games, and the CFB YouTube feed.
+  function applySportLayout(sport) {
+    document.title = sport.key === 'cfb' ? 'CFB Tracker' : `${sport.label} · CFB Tracker`;
+    const isCfb = sport.key === 'cfb';
+    el('favoriteSection').hidden = !isCfb;
+    document.querySelector('.tab-btn[data-tab="notable"]').hidden = !sport.notable;
+    document.querySelector('.tab-btn[data-tab="videos"]').hidden = !isCfb;
+  }
+
   async function init() {
-    try {
-      const meta = await CFB.getJson('/api/meta');
-      state.favoriteTeamId = meta.favoriteTeamId;
-      populateSelectors(meta);
-      el('sourceNote').textContent = `${meta.season} · Week ${meta.week}`;
-    } catch (err) {
-      populateSelectors({ season: new Date().getFullYear(), week: 1, seasonType: 2 });
+    const sport = await CFB.loadSports();
+    CFB.initSportBar();
+    applySportLayout(sport);
+    if (sport.schedule === 'day') {
+      initDayControls();
+    } else {
+      try {
+        const meta = await CFB.getJson(CFB.withSport('/api/meta'));
+        state.favoriteTeamId = meta.favoriteTeamId;
+        populateSelectors(meta);
+        el('sourceNote').textContent = `${sport.label} · ${meta.season} · Week ${meta.week}`;
+      } catch (err) {
+        populateSelectors({ season: new Date().getFullYear(), week: 1, seasonType: 2 });
+      }
+      el('goBtn').addEventListener('click', loadWeek);
     }
     initTabs();
-    CFB.initDivisionToggle((division) => {
-      state.division = division;
+    CFB.initDivisionToggle((group) => {
+      state.group = group;
       loadWeek();
     });
-    el('goBtn').addEventListener('click', loadWeek);
-    renderFavorite();
+    if (sport.key === 'cfb') renderFavorite();
   }
 
   init();

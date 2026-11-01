@@ -33,6 +33,91 @@ const CFB = (function () {
     }
   }
 
+  // ---- Sport selection -------------------------------------------------
+  // The current sport comes from ?sport= in the URL (so links are
+  // shareable), else the last one picked (localStorage), else college
+  // football. The list of sports is fetched once from /api/sports.
+  const SPORT_STORAGE_KEY = 'tracker-sport';
+  const DEFAULT_SPORT = 'cfb';
+
+  function readSportKey() {
+    const fromUrl = new URLSearchParams(location.search).get('sport');
+    if (fromUrl) return fromUrl;
+    try { return localStorage.getItem(SPORT_STORAGE_KEY) || DEFAULT_SPORT; } catch (e) { return DEFAULT_SPORT; }
+  }
+
+  let sportKey = readSportKey();
+  let sportList = null;
+  let sportInfo = null;
+
+  async function loadSports() {
+    if (sportInfo) return sportInfo;
+    try {
+      const data = await getJson('/api/sports');
+      sportList = data.sports || [];
+    } catch (err) {
+      sportList = [];
+    }
+    sportInfo = sportList.find((s) => s.key === sportKey) || sportList.find((s) => s.key === DEFAULT_SPORT) || {
+      key: DEFAULT_SPORT, label: 'College Football', shortLabel: 'CFB', schedule: 'week', maxWeek: 15,
+      seasonTypes: [{ value: 2, label: 'Regular Season' }, { value: 3, label: 'Postseason / Bowls' }],
+      groups: [{ key: 'fbs', label: 'FBS', value: 80 }, { key: 'fcs', label: 'FCS', value: 81 }],
+      rankings: true, field: true, notable: true, periodPrefix: 'Q',
+    };
+    sportKey = sportInfo.key;
+    try { localStorage.setItem(SPORT_STORAGE_KEY, sportKey); } catch (e) { /* ignore */ }
+    return sportInfo;
+  }
+
+  function sport() {
+    return sportInfo || { key: sportKey, periodPrefix: 'Q' };
+  }
+
+  // Adds ?sport= to an API or page URL.
+  function withSport(url) {
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}sport=${encodeURIComponent(sportKey)}`;
+  }
+
+  // Sport picker row at the top of <main>, plus sport-aware nav links.
+  // Changing sport reloads the current list page for the new sport; on a
+  // team or game page (which belong to one sport) it goes to the home page.
+  function initSportBar() {
+    const main = document.querySelector('main');
+    if (!main || !sportList || sportList.length < 2) return;
+    const bar = document.createElement('nav');
+    bar.className = 'sport-bar';
+    bar.setAttribute('aria-label', 'Sport');
+    sportList.forEach((s) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = s.shortLabel;
+      btn.title = s.label;
+      btn.className = s.key === sportKey ? 'active' : '';
+      btn.setAttribute('aria-pressed', s.key === sportKey ? 'true' : 'false');
+      btn.addEventListener('click', () => {
+        if (s.key === sportKey) return;
+        try { localStorage.setItem(SPORT_STORAGE_KEY, s.key); } catch (e) { /* ignore */ }
+        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html'];
+        let page = listPages.includes(location.pathname) ? location.pathname : '/';
+        if (page === '/rankings.html' && !s.rankings) page = '/';
+        location.href = `${page}?sport=${encodeURIComponent(s.key)}`;
+      });
+      bar.appendChild(btn);
+    });
+    main.insertBefore(bar, main.firstChild);
+
+    document.querySelectorAll('nav.top-nav a').forEach((a) => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('/') || href.startsWith('/admin')) return;
+      if (href === '/rankings.html' && !sport().rankings) { a.remove(); return; }
+      a.setAttribute('href', withSport(href));
+    });
+
+    const foot = document.querySelector('footer.foot');
+    if (foot && sportKey !== DEFAULT_SPORT) foot.textContent = `CFB Tracker · ${sport().label}`;
+  }
+
   async function getJson(url, opts) {
     const res = await fetch(url, opts);
     if (!res.ok) {
@@ -52,19 +137,19 @@ const CFB = (function () {
 
   function statusLabel(game) {
     if (!game || !game.status) return '';
-    if (game.status.state === 'in') return game.status.shortDetail || `Q${game.status.period} ${game.status.clock}`;
+    if (game.status.state === 'in') return game.status.shortDetail || `${sport().periodPrefix || 'Q'}${game.status.period} ${game.status.clock}`;
     if (game.status.state === 'post') return 'Final' + (game.status.detail && game.status.detail !== 'Final' ? ` (${game.status.detail})` : '');
     return fmtTime(game.date);
   }
 
   function teamLink(team) {
     if (!team || !team.id) return '';
-    return `/team.html?id=${encodeURIComponent(team.id)}&source=espn`;
+    return withSport(`/team.html?id=${encodeURIComponent(team.id)}&source=espn`);
   }
 
   function gameLink(id, source) {
     if (!id) return '';
-    return `/game.html?id=${encodeURIComponent(id)}&source=${encodeURIComponent(source || 'espn')}`;
+    return withSport(`/game.html?id=${encodeURIComponent(id)}&source=${encodeURIComponent(source || 'espn')}`);
   }
 
   function teamRowHtml(team, rowOpts) {
@@ -84,7 +169,7 @@ const CFB = (function () {
     return `
       <div class="team-row">
         <span class="rank">${team.curatedRank ? '#' + team.curatedRank : ''}</span>
-        ${team.logo ? `<img src="${safeUrl(team.logo)}" alt=""" onerror="this.style.display='none'">` : ''}
+        ${team.logo ? `<img src="${safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
         <a class="team-name team-link ${isWinner ? 'winner' : ''}" href="${teamLink(team)}" onclick="event.stopPropagation()">${esc(team.name || team.shortName || 'TBD')}</a>
         ${possessionIcon}
         <span class="score">${team.score !== null && team.score !== undefined ? esc(team.score) : ''}</span>
@@ -170,13 +255,13 @@ const CFB = (function () {
       ? `<section><h2 class="section-title">Play-by-Play</h2><div class="pbp-feed">
           ${detail.playByPlay.map((p) => `
             <div class="pbp-play ${p.scoringPlay ? 'scoring' : ''}">
-              <span class="pbp-meta">${[p.drive, p.period ? `Q${p.period}` : null, p.clock].filter(Boolean).map(esc).join(' &middot; ')}</span>
+              <span class="pbp-meta">${[p.drive, p.period ? `${sport().periodPrefix || 'Q'}${p.period}` : null, p.clock].filter(Boolean).map(esc).join(' &middot; ')}</span>
               <span class="pbp-text">${esc(p.text)}</span>
             </div>`).join('')}
         </div></section>`
       : '';
     const note = detail.status && detail.status.state === 'pre'
-      ? '<p class="empty-note">This game hasn\'t started yet &mdash; check back once it kicks off for live stats and play-by-play.</p>'
+      ? '<p class="empty-note">This game hasn\'t started yet &mdash; check back once it starts for live stats and play-by-play.</p>'
       : '';
     return `
       ${note}
@@ -199,32 +284,54 @@ const CFB = (function () {
     }
   }
 
-  // Shared FBS/FCS division toggle. Persists the choice in localStorage
-  // (this is a real self-hosted app running in the user's own browser,
-  // not a hosted preview, so localStorage is safe/appropriate here) and
-  // calls onChange('fbs' | 'fcs') whenever it changes, including once on
-  // init with the restored value.
+  // Shared division toggle (FBS/FCS for college football). Built from the
+  // current sport's groups and hidden when there's nothing to choose.
+  // Persists the choice per sport in localStorage and calls
+  // onChange(groupValue) whenever it changes, including once on init with
+  // the restored value (null when the sport has no divisions).
   function initDivisionToggle(onChange) {
     const container = el('divisionToggle');
-    if (!container) return;
-    let saved = 'fbs';
-    try { saved = localStorage.getItem('cfb-division') || 'fbs'; } catch (e) { /* ignore */ }
-    const buttons = container.querySelectorAll('button');
-    buttons.forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.division === saved);
+    const groups = sport().groups || [];
+    if (!container || groups.length < 2) {
+      if (container) container.style.display = 'none';
+      onChange(groups.length ? groups[0].value : null);
+      return;
+    }
+    const storageKey = `division:${sportKey}`;
+    let saved = groups[0].key;
+    try {
+      // Older versions stored the CFB choice under 'cfb-division'.
+      saved = localStorage.getItem(storageKey) || (sportKey === 'cfb' && localStorage.getItem('cfb-division')) || groups[0].key;
+    } catch (e) { /* ignore */ }
+    if (!groups.some((g) => g.key === saved)) saved = groups[0].key;
+    container.innerHTML = '';
+    groups.forEach((g) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.division = g.key;
+      btn.textContent = g.label;
+      btn.classList.toggle('active', g.key === saved);
       btn.addEventListener('click', () => {
-        buttons.forEach((b) => b.classList.remove('active'));
+        container.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
-        try { localStorage.setItem('cfb-division', btn.dataset.division); } catch (e) { /* ignore */ }
-        onChange(btn.dataset.division);
+        try { localStorage.setItem(storageKey, g.key); } catch (e) { /* ignore */ }
+        onChange(g.value);
       });
+      container.appendChild(btn);
     });
-    onChange(saved);
+    onChange(groups.find((g) => g.key === saved).value);
+  }
+
+  // YYYYMMDD for ESPN's `dates` parameter, in the viewer's local time.
+  function ymd(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
   }
 
   return {
     el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml,
-    applyTeamColor, initDivisionToggle,
+    applyTeamColor, initDivisionToggle, ymd,
+    loadSports, sport, withSport, initSportBar,
   };
 })();

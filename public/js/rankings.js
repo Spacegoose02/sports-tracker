@@ -56,13 +56,15 @@
     el('rankingsBody').innerHTML = '<tr><td colspan="6" class="empty-note">Loading&hellip;</td></tr>';
     try {
       if (!metaLoaded) {
-        const meta = await CFB.getJson('/api/meta');
+        const meta = await CFB.getJson(CFB.withSport('/api/meta'));
         state.favoriteTeamId = meta.favoriteTeamId;
-        el('sourceNote').textContent = `${meta.season} · Week ${meta.week}`;
+        el('sourceNote').textContent = meta.week
+          ? `${CFB.sport().label} · ${meta.season} · Week ${meta.week}`
+          : `${CFB.sport().label} · ${meta.season}`;
         metaLoaded = true;
       }
 
-      const data = await CFB.getJson('/api/rankings');
+      const data = await CFB.getJson(CFB.withSport('/api/rankings'));
       state.polls = data.polls || [];
 
       const pollSelect = el('pollSelect');
@@ -87,5 +89,13 @@
     }
   }
 
-  loadRankings();
+  CFB.loadSports().then((sport) => {
+    CFB.initSportBar();
+    if (!sport.rankings) {
+      el('sourceNote').textContent = sport.label;
+      el('rankingsBody').innerHTML = `<tr><td colspan="6" class="empty-note">${sport.label} doesn't have polls. Try Standings instead.</td></tr>`;
+      return;
+    }
+    loadRankings();
+  });
 })();

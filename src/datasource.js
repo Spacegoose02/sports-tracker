@@ -1,49 +1,51 @@
-// Combines espn.js (primary) and ncaa.js (fallback). Every function here
-// tries ESPN first; if that throws (network error, ESPN outage, etc.) it
-// falls back to the self-hosted ncaa-api instance and tags the result so
-// the UI can show a small "via ncaa-api" badge if it wants to.
+// Combines espn.js (primary) and ncaa.js (fallback). Every function takes an
+// optional `sport` key (see src/sports.js; default college football). The
+// self-hosted ncaa-api fallback only covers college football, so other
+// sports surface ESPN errors directly.
 
 const espn = require('./espn');
 const ncaa = require('./ncaa');
+const { DEFAULT_SPORT } = require('./sports');
 
-async function getScoreboard(opts) {
+function isCfb(sport) {
+  return !sport || sport === DEFAULT_SPORT;
+}
+
+async function getScoreboard(opts = {}) {
   try {
     const result = await espn.getScoreboard(opts);
     return { ...result, source: 'espn' };
   } catch (err) {
+    if (!isCfb(opts.sport)) throw err;
     console.error('[datasource] ESPN scoreboard failed, falling back to ncaa-api:', err.message);
     return ncaa.getScoreboard(opts);
   }
 }
 
-async function getTeamSchedule(teamId, season) {
-  // ncaa-api doesn't have a clean single-team-schedule endpoint, so the
-  // fallback here is best-effort: derive it by scanning weekly scoreboards
-  // is expensive, so we just surface the ESPN error if it fails. ESPN's
-  // team schedule endpoint is stable enough that this is acceptable.
-  return espn.getTeamSchedule(teamId, season);
+// ncaa-api doesn't have a clean single-team-schedule endpoint, so there's
+// no fallback here; ESPN's team schedule endpoint is stable enough.
+async function getTeamSchedule(teamId, season, sport) {
+  return espn.getTeamSchedule(teamId, season, sport);
 }
 
-async function getTeamInfo(teamId) {
-  return espn.getTeamInfo(teamId);
+async function getTeamInfo(teamId, sport) {
+  return espn.getTeamInfo(teamId, sport);
 }
 
-async function getGameSummary(eventId, source) {
-  if (source === 'ncaa-api') {
+async function getGameSummary(eventId, source, sport) {
+  if (source === 'ncaa-api' && isCfb(sport)) {
     return ncaa.getGameDetail(eventId);
   }
   try {
-    return await espn.getGameSummary(eventId);
+    return await espn.getGameSummary(eventId, sport);
   } catch (err) {
     console.error('[datasource] ESPN summary failed:', err.message);
     throw err;
   }
 }
 
-// Rankings and standings are ESPN-only for now: ncaa-api's shape for these
-// is different enough (and less complete for "others receiving votes")
-// that a faithful fallback isn't worth the complexity yet. If ESPN is down,
-// these simply surface an error to the UI rather than silently guessing.
+// Rankings and standings are ESPN-only: ncaa-api's shape for these is
+// different enough that a faithful fallback isn't worth the complexity.
 async function getRankings(opts) {
   return espn.getRankings(opts);
 }
@@ -52,11 +54,16 @@ async function getStandings(opts) {
   return espn.getStandings(opts);
 }
 
-async function getTeamStatistics(teamId, season) {
-  return espn.getTeamStatistics(teamId, season);
+async function getTeamStatistics(teamId, season, sport) {
+  return espn.getTeamStatistics(teamId, season, sport);
+}
+
+async function getNews(opts) {
+  return espn.getNews(opts);
 }
 
 module.exports = {
+  getNews,
   getScoreboard,
   getTeamSchedule,
   getTeamInfo,

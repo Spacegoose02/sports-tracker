@@ -5,6 +5,7 @@ const news = require('../news');
 const videos = require('../videos');
 const radio = require('../radio');
 const { isSafeId } = require('../security');
+const { getSport, DEFAULT_SPORT, publicSportList } = require('../sports');
 
 const router = express.Router();
 
@@ -13,6 +14,29 @@ const router = express.Router();
 router.param('id', (req, res, next, id) => {
   if (!isSafeId(id)) return res.status(400).json({ error: 'Invalid id' });
   return next();
+});
+
+// Every data route takes an optional ?sport= (see src/sports.js). Missing
+// means college football, so existing links and widgets keep working.
+router.use((req, res, next) => {
+  const key = req.query.sport || DEFAULT_SPORT;
+  const sport = getSport(String(key));
+  if (!sport) return res.status(400).json({ error: `Unknown sport: ${key}` });
+  req.sport = sport;
+  return next();
+});
+
+// The favorite team, Notable Games and the pinned "My Team" card are
+// college-football features; FAVORITE_TEAM_ID is an ESPN CFB team id.
+function isCfb(req) {
+  return req.sport.key === DEFAULT_SPORT;
+}
+
+// YYYYMMDD or YYYYMMDD-YYYYMMDD, for day-based sports.
+const DATES_RE = /^\d{8}(-\d{8})?$/;
+
+router.get('/sports', (req, res) => {
+  res.json({ defaultSport: DEFAULT_SPORT, sports: publicSportList() });
 });
 
 function favoriteTeamId() {
@@ -34,13 +58,15 @@ function pinFavorite(games) {
 
 router.get('/meta', async (req, res) => {
   try {
-    const current = await ds.getScoreboard({});
+    const current = await ds.getScoreboard({ sport: req.sport.key });
     res.json({
-      favoriteTeamId: favoriteTeamId(),
-      favoriteTeamName: favoriteTeamName(),
+      sport: req.sport.key,
+      favoriteTeamId: isCfb(req) ? favoriteTeamId() : null,
+      favoriteTeamName: isCfb(req) ? favoriteTeamName() : null,
       season: current.season,
       week: current.week,
       seasonType: current.seasonType,
+      day: current.day || null,
       source: current.source,
     });
   } catch (err) {
@@ -50,19 +76,22 @@ router.get('/meta', async (req, res) => {
 
 router.get('/scoreboard', async (req, res) => {
   try {
-    const { week, year, seasontype, groups } = req.query;
+    const { week, year, seasontype, groups, dates } = req.query;
+    if (dates && !DATES_RE.test(String(dates))) return res.status(400).json({ error: 'dates must be YYYYMMDD or YYYYMMDD-YYYYMMDD' });
     const result = await ds.getScoreboard({
+      sport: req.sport.key,
       week: week ? Number(week) : undefined,
       year: year ? Number(year) : undefined,
       seasontype: seasontype ? Number(seasontype) : undefined,
-      groups: groups ? Number(groups) : undefined, // 80 = FBS, 81 = FCS
+      groups: groups ? Number(groups) : undefined, // CFB: 80 = FBS, 81 = FCS
+      dates: dates ? String(dates) : undefined,
     });
     res.json({
       ...result,
-      favoriteTeamId: favoriteTeamId(),
+      favoriteTeamId: isCfb(req) ? favoriteTeamId() : null,
       // Only pin the favorite team to the top when it's actually in this
       // division's games (no-op harmlessly otherwise, e.g. while viewing FCS).
-      games: pinFavorite(result.games),
+      games: isCfb(req) ? pinFavorite(result.games) : result.games,
     });
   } catch (err) {
     res.status(502).json({ error: 'Could not load scoreboard', detail: err.message });
@@ -88,16 +117,18 @@ router.get('/team/favorite', async (req, res) => {
 router.get('/team/:id', async (req, res) => {
   try {
     const teamId = req.params.id;
+    const sport = req.sport.key;
     const [info, schedule, stats] = await Promise.all([
-      ds.getTeamInfo(teamId).catch(() => null),
-      ds.getTeamSchedule(teamId, req.query.season).catch(() => null),
-      ds.getTeamStatistics(teamId, req.query.season).catch(() => null),
+      ds.getTeamInfo(teamId, sport).catch(() => null),
+      ds.getTeamSchedule(teamId, req.query.season, sport).catch(() => null),
+      ds.getTeamStatistics(teamId, req.query.season, sport).catch(() => null),
     ]);
     res.json({
+      sport,
       team: info,
       schedule: schedule ? schedule.games : [],
       stats: stats ? stats.categories : [],
-      isFavorite: String(teamId) === String(favoriteTeamId()),
+      isFavorite: isCfb(req) && String(teamId) === String(favoriteTeamId()),
     });
   } catch (err) {
     res.status(502).json({ error: 'Could not load team', detail: err.message });
@@ -109,8 +140,10 @@ router.get('/team/:id', async (req, res) => {
 // response, and the front-end's poll picker is what narrows it down.
 router.get('/rankings', async (req, res) => {
   try {
+    if (!req.sport.rankings) return res.json({ polls: [] });
     const { week, year, seasontype } = req.query;
     const result = await ds.getRankings({
+      sport: req.sport.key,
       week: week ? Number(week) : undefined,
       year: year ? Number(year) : undefined,
       seasontype: seasontype ? Number(seasontype) : undefined,
@@ -125,6 +158,7 @@ router.get('/standings', async (req, res) => {
   try {
     const { year, group } = req.query;
     const result = await ds.getStandings({
+      sport: req.sport.key,
       year: year ? Number(year) : undefined,
       group: group ? Number(group) : undefined,
     });
@@ -137,7 +171,7 @@ router.get('/standings', async (req, res) => {
 router.get('/game/:id', async (req, res) => {
   try {
     const source = req.query.source === 'ncaa-api' ? 'ncaa-api' : 'espn';
-    const summary = await ds.getGameSummary(req.params.id, source);
+    const summary = await ds.getGameSummary(req.params.id, source, req.sport.key);
     res.json(summary);
   } catch (err) {
     res.status(502).json({ error: 'Could not load game detail', detail: err.message });
@@ -146,14 +180,10 @@ router.get('/game/:id', async (req, res) => {
 
 // Where to listen: radio stations, SiriusXM, and free audio links for one
 // game. Separate from /game/:id because it changes rarely and is cached
-// longer. ?sport= picks the league (default college-football).
+// longer. Uses the same ?sport= as every other route.
 router.get('/game/:id/radio', async (req, res) => {
-  const sport = req.query.sport || 'college-football';
-  if (!Object.prototype.hasOwnProperty.call(radio.SPORTS, sport)) {
-    return res.status(400).json({ error: 'Unknown sport' });
-  }
   try {
-    res.json(await radio.getGameRadio(req.params.id, sport));
+    res.json(await radio.getGameRadio(req.params.id, req.sport.key));
   } catch (err) {
     res.status(502).json({ error: 'Could not load radio info', detail: err.message });
   }
@@ -228,7 +258,9 @@ router.get('/notable/feed', async (req, res) => {
 // (see src/news.js). Meant for a "News" tab/section on the home page.
 router.get('/news', async (req, res) => {
   try {
-    const items = await news.getNews();
+    // College football keeps its configured RSS feeds; other sports use
+    // ESPN's league headlines.
+    const items = isCfb(req) ? await news.getNews() : await ds.getNews({ sport: req.sport.key });
     res.json({ items });
   } catch (err) {
     res.status(502).json({ error: 'Could not load news', detail: err.message });

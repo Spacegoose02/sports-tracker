@@ -21,19 +21,22 @@ const fetch = require('node-fetch');
 const cache = require('./cache');
 const networks = require('./radio-flagships.json');
 
+const { DEFAULT_SPORT, getSport } = require('./sports');
+
 const SITE_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 const CORE_BASE = 'https://sports.core.api.espn.com/v2/sports';
 
-// Sport paths this module knows. College football is the default; the
-// others are ready for the multi-sport pages.
-const SPORTS = {
-  'college-football': { site: 'football/college-football', core: 'football/leagues/college-football', siriusxm: 'https://www.siriusxm.com/sports/college-football' },
-  nfl: { site: 'football/nfl', core: 'football/leagues/nfl' },
-  nba: { site: 'basketball/nba', core: 'basketball/leagues/nba' },
-  mlb: { site: 'baseball/mlb', core: 'baseball/leagues/mlb' },
-  nhl: { site: 'hockey/nhl', core: 'hockey/leagues/nhl' },
-  'mens-college-basketball': { site: 'basketball/mens-college-basketball', core: 'basketball/leagues/mens-college-basketball' },
+// SiriusXM schedule pages we have confirmed exist, by sport key.
+const SIRIUSXM = {
+  cfb: 'https://www.siriusxm.com/sports/college-football',
 };
+
+// ESPN's core API puts "leagues/" between the sport and the league:
+// football/college-football -> football/leagues/college-football.
+function corePath(sitePath) {
+  const [sport, league] = sitePath.split('/');
+  return `${sport}/leagues/${league}`;
+}
 
 // Radio info changes rarely during a game, so cache it longer than scores.
 const CACHE_MS = 10 * 60 * 1000;
@@ -103,13 +106,12 @@ function tuneInSearch(teamName) {
 
 // Build the full listen info from already-fetched pieces. Pure, so it is
 // easy to test without the network.
-function buildRadioInfo({ sport = 'college-football', teams = [], broadcasts = [] }) {
-  const cfg = SPORTS[sport] || SPORTS['college-football'];
+function buildRadioInfo({ sport = DEFAULT_SPORT, teams = [], broadcasts = [] }) {
   const stations = parseEspnBroadcasts(broadcasts);
 
   const teamInfo = teams.filter((t) => t && t.id).map((t) => {
     const name = t.name || t.shortName || 'Team';
-    const net = sport === 'college-football' ? networks[String(t.id)] : null;
+    const net = sport === DEFAULT_SPORT ? networks[String(t.id)] : null;
     // Skip an ESPN station that is just the flagship we already show.
     const espnStations = stations.filter((s) => s.market === t.homeAway
       && !(net && net.flagship.toLowerCase().includes(s.name.toLowerCase())));
@@ -128,16 +130,16 @@ function buildRadioInfo({ sport = 'college-football', teams = [], broadcasts = [
     sport,
     national: stations.filter((s) => s.market !== 'home' && s.market !== 'away'),
     teams: teamInfo,
-    siriusxm: cfg.siriusxm || null,
+    siriusxm: SIRIUSXM[sport] || null,
   };
 }
 
-async function getGameRadio(eventId, sport = 'college-football') {
-  const cfg = SPORTS[sport];
+async function getGameRadio(eventId, sport = DEFAULT_SPORT) {
+  const cfg = getSport(sport);
   if (!cfg) throw new Error(`Unknown sport: ${sport}`);
   return cache.getOrFetch(`radio:${sport}:${eventId}`, async () => {
     const id = encodeURIComponent(eventId);
-    const summary = await fetchJson(`${SITE_BASE}/${cfg.site}/summary?event=${id}`);
+    const summary = await fetchJson(`${SITE_BASE}/${cfg.path}/summary?event=${id}`);
     const header = summary.header || {};
     const comp = (header.competitions && header.competitions[0]) || {};
     const teams = (comp.competitors || []).map((c) => ({
@@ -151,7 +153,7 @@ async function getGameRadio(eventId, sport = 'college-football') {
     // It is optional: if it fails we still return what we have.
     let core = [];
     try {
-      const json = await fetchJson(`${CORE_BASE}/${cfg.core}/events/${id}/competitions/${id}/broadcasts`);
+      const json = await fetchJson(`${CORE_BASE}/${corePath(cfg.path)}/events/${id}/competitions/${id}/broadcasts`);
       core = Array.isArray(json.items) ? json.items : [];
     } catch (err) {
       core = [];
@@ -165,4 +167,4 @@ async function getGameRadio(eventId, sport = 'college-football') {
   }, CACHE_MS);
 }
 
-module.exports = { getGameRadio, buildRadioInfo, parseEspnBroadcasts, SPORTS };
+module.exports = { getGameRadio, buildRadioInfo, parseEspnBroadcasts, corePath };
