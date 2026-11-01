@@ -8,8 +8,14 @@
 const fetch = require('node-fetch');
 const cache = require('./cache');
 
+// No default: the fallback is off unless NCAA_API_BASE points at your own
+// instance, so no one's private hostname ships in the source.
 function base() {
-  return (process.env.NCAA_API_BASE || 'https://ncaawidget.sgiu.net').replace(/\/$/, '');
+  return (process.env.NCAA_API_BASE || '').trim().replace(/\/$/, '');
+}
+
+function isConfigured() {
+  return Boolean(base());
 }
 
 function division() {
@@ -17,6 +23,9 @@ function division() {
 }
 
 async function fetchJson(path) {
+  if (!isConfigured()) {
+    throw new Error('ncaa-api fallback is off: set NCAA_API_BASE to your ncaa-api instance to turn it on');
+  }
   const url = `${base()}${path}`;
   const res = await fetch(url, { timeout: 10000 });
   if (!res.ok) {
@@ -100,4 +109,4 @@ async function getGameDetail(gameId) {
   }, 10 * 1000);
 }
 
-module.exports = { getScoreboard, getGameDetail };
+module.exports = { getScoreboard, getGameDetail, isConfigured };

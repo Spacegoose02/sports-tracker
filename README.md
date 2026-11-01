@@ -314,6 +314,19 @@ only. **Make a new key** on the account page revokes the old one (and
 changes the calendar link). Signed in on the site itself, the same
 endpoint works with the session cookie and no key.
 
+## Installing on your phone
+
+CFB Tracker is a Progressive Web App, so you can add it to your home screen and open it like a normal app:
+
+- **iPhone (Safari):** tap Share, then **Add to Home Screen**.
+- **Android (Chrome):** tap the menu, then **Install app** (or accept the install banner).
+
+Once installed it opens full screen, keeps the header pinned while you scroll, and remembers pages you've visited, so the last scores and rankings you loaded still show on a bad connection. When you're fully offline, pages you haven't opened yet show a friendly "You're offline" screen.
+
+Install and offline support need the site to be served over **HTTPS** (or opened on `localhost`). On a plain `http://192.168.x.x` LAN address the site still works, but phones won't offer to install it. Put it behind your reverse proxy with a certificate (Nginx Proxy Manager, Traefik, a Cloudflare tunnel...) to get the full app experience.
+
+The service worker lives in `public/sw.js`. If you change how it caches, bump its `VERSION` so every phone drops the old cache on its next visit.
+
 ## Pulling Notable Games into a Dynacat / Glance dashboard
 
 If you run a [Glance](https://github.com/glanceapp/glance)-based dashboard
@@ -362,7 +375,7 @@ docker run -d \
   -e SESSION_SECRET="a-long-random-string" \
   -e FAVORITE_TEAM_ID="259" \
   -e FAVORITE_TEAM_NAME="Virginia Tech Hokies" \
-  -e NCAA_API_BASE="https://ncaawidget.example.net" \
+  -e NCAA_API_BASE="https://ncaa-api.example.com" \
   -e NCAA_API_DIVISION="fbs" \
   -v /mnt/user/appdata/cfb-tracker:/app/data \
   cfb-tracker
@@ -410,7 +423,7 @@ If the tracker is down, BingeBandit reads ESPN directly until it's back.
 | `SESSION_SECRET` | *(placeholder)* | Cookie signing secret — **change this** |
 | `FAVORITE_TEAM_ID` | `259` | ESPN team ID pinned at the top (259 = Virginia Tech) |
 | `FAVORITE_TEAM_NAME` | `Virginia Tech Hokies` | Display name for the pinned team |
-| `NCAA_API_BASE` | `https://ncaawidget.exmple.net` | Your ncaa-api instance, used as fallback |
+| `NCAA_API_BASE` | *(unset: fallback off)* | Your ncaa-api instance, used as a fallback if ESPN is down |
 | `NCAA_API_DIVISION` | `fbs` | Division for ncaa-api fallback scoreboard calls |
 | `CACHE_TTL_SECONDS` | `20` | How long scoreboard responses are cached in memory |
 | `NEWS_FEEDS_JSON` | *(public ESPN / CBS Sports / Yahoo Sports CFB feeds)* | Optional JSON array of `{"name":"...","url":"..."}` to override the News tab's RSS feeds entirely |
