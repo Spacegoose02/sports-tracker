@@ -241,6 +241,19 @@ visitor's browser, so every person (and device) has their own list.
 - `FAVORITE_TEAM_ID` is still used as a starting point: a visitor's first
   visit follows that team automatically, and unfollowing it sticks.
 
+## Installing on your phone
+
+CFB Tracker is a Progressive Web App, so you can add it to your home screen and open it like a normal app:
+
+- **iPhone (Safari):** tap Share, then **Add to Home Screen**.
+- **Android (Chrome):** tap the menu, then **Install app** (or accept the install banner).
+
+Once installed it opens full screen, keeps the header pinned while you scroll, and remembers pages you've visited, so the last scores and rankings you loaded still show on a bad connection. When you're fully offline, pages you haven't opened yet show a friendly "You're offline" screen.
+
+Install and offline support need the site to be served over **HTTPS** (or opened on `localhost`). On a plain `http://192.168.x.x` LAN address the site still works, but phones won't offer to install it. Put it behind your reverse proxy with a certificate (Nginx Proxy Manager, Traefik, a Cloudflare tunnel...) to get the full app experience.
+
+The service worker lives in `public/sw.js`. If you change how it caches, bump its `VERSION` so every phone drops the old cache on its next visit.
+
 ## Pulling Notable Games into a Dynacat / Glance dashboard
 
 If you run a [Glance](https://github.com/glanceapp/glance)-based dashboard
