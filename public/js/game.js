@@ -246,6 +246,42 @@
     svg.addEventListener('touchend', hide);
   }
 
+  // Highlights are fetched once the game is final (clips show up over the
+  // following hours, so a page left open re-checks every 10 minutes until
+  // some arrive). A live poll never re-renders them, so a playing clip
+  // isn't interrupted.
+  const HIGHLIGHT_RETRY_MS = 10 * 60 * 1000;
+  let highlightClips = [];
+  let highlightsCheckedAt = 0;
+
+  async function loadHighlights() {
+    const box = el('gameHighlights');
+    if (!box || source !== 'espn') return;
+    if (highlightClips.length || Date.now() - highlightsCheckedAt < HIGHLIGHT_RETRY_MS - 5000) return;
+    highlightsCheckedAt = Date.now();
+    try {
+      const data = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}/highlights`));
+      highlightClips = data.clips || [];
+      box.innerHTML = CFBGame.highlightsHtml(data);
+    } catch (err) {
+      box.innerHTML = '';
+    }
+    if (!highlightClips.length) setTimeout(loadHighlights, HIGHLIGHT_RETRY_MS);
+  }
+
+  document.addEventListener('click', (e) => {
+    const card = e.target.closest && e.target.closest('[data-hl]');
+    if (!card) return;
+    const clip = highlightClips[Number(card.dataset.hl)];
+    const player = el('hlPlayer');
+    if (!clip || !player) return;
+    player.innerHTML = CFBGame.highlightPlayerHtml(clip);
+    player.hidden = false;
+    document.querySelectorAll('.hl-card.active').forEach((c) => c.classList.remove('active'));
+    card.classList.add('active');
+    player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
   async function loadMatchup() {
     const box = el('gameMatchup');
     if (!box || source !== 'espn') return;
@@ -364,6 +400,7 @@
       restoreUi(saved);
 
       if (!ui.matchupLoaded) loadMatchup();
+      if (detail.status && detail.status.state === 'post') loadHighlights();
       scheduleNext(detail);
     } catch (err) {
       // Keep showing the last good data during a live game; just retry.
