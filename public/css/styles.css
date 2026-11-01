@@ -1070,6 +1070,72 @@ footer.foot {
 .leader-value { white-space: nowrap; }
 .player-sub { color: var(--text-dim); font-size: 0.75rem; }
 .live-dot { color: var(--live); font-size: 0.7rem; }
+/* Betting Lines page */
+.lines-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.lines-summary { display: flex; gap: 16px; color: var(--text-dim); font-size: 0.85rem; margin-bottom: 14px; }
+.lines-summary strong { color: var(--text); }
+.lines-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 14px; }
+.lines-list > .empty-note { grid-column: 1 / -1; }
+.line-card {
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; cursor: pointer;
+}
+.line-card:hover { border-color: var(--accent); }
+.line-card.is-favorite { border-color: var(--favorite); box-shadow: 0 0 0 1px var(--favorite); }
+.line-card.is-live { border-color: var(--live); }
+.line-card .status-row { display: flex; justify-content: space-between; gap: 8px; color: var(--text-dim); font-size: 0.78rem; margin-bottom: 8px; }
+.line-card .status-row .live-dot { color: var(--live); font-weight: 700; }
+.line-grid { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 72px); gap: 6px 6px; align-items: center; }
+.line-head { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); text-align: center; }
+.line-team { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.line-team img, .line-team .logo-gap { width: 24px; height: 24px; object-fit: contain; flex: none; }
+.line-team .rank { color: var(--text-dim); font-size: 0.75rem; min-width: 22px; }
+.line-team-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); text-decoration: none; }
+.line-team-name:hover { color: var(--accent); }
+.line-team-name .abbr { display: none; }
+.line-score { margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; }
+.line-cell {
+  background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 5px 4px; text-align: center; font-size: 0.86rem; font-variant-numeric: tabular-nums;
+  display: flex; flex-direction: column; line-height: 1.2;
+}
+.line-cell.is-fav strong { color: var(--accent); }
+.line-cell.hit { border-color: var(--win); background: var(--win-soft); }
+.line-cell .price { color: var(--text-dim); font-size: 0.72rem; }
+.line-cell .dim, .dim { color: var(--text-dim); }
+.line-move { margin-top: 8px; font-size: 0.78rem; color: var(--text-dim); }
+.line-result { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.75rem; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--bg-elev-2); border: 1px solid var(--border); }
+.chip.good { color: var(--win); border-color: color-mix(in srgb, var(--win) 40%, transparent); }
+.lines-note { color: var(--text-dim); font-size: 0.75rem; margin-top: 18px; }
+@media (max-width: 560px) {
+  .line-grid { grid-template-columns: minmax(0, 1fr) repeat(3, 58px); gap: 6px 4px; }
+  .line-cell { font-size: 0.8rem; }
+  .line-team { gap: 6px; }
+  .line-team .rank { min-width: 0; }
+  .line-team-name .full { display: none; }
+  .line-team-name .abbr { display: inline; }
+}
+
+/* Recruiting page */
+.recruit-filters { flex-wrap: wrap; gap: 8px; }
+.recruit-filters input[type="search"] {
+  background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 10px; min-width: 180px; flex: 1 1 180px; max-width: 280px;
+}
+.recruit-filters .check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-dim); }
+.recruit-count { color: var(--text-dim); font-size: 0.8rem; margin: 4px 0 10px; }
+.recruit-table td { vertical-align: top; font-size: 0.88rem; }
+.recruit-table .to-team { color: var(--win); font-weight: 600; }
+.stars { color: var(--favorite); letter-spacing: -1px; margin-right: 4px; }
+.key-note {
+  background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 14px 16px; line-height: 1.5; font-size: 0.9rem;
+}
+.key-note a { color: var(--accent); }
+.key-note code { background: var(--bg-elev-2); padding: 1px 5px; border-radius: var(--radius-sm); }
+.foot a { color: inherit; }
+
 /* ---------------------------------------------------------------------
    Mobile / PWA
    Phone-size tweaks and installed-app (standalone) adjustments. Kept in

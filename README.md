@@ -48,6 +48,22 @@ always pinned at the top.
   `/api/player/:id`, `/api/leaders`, `/api/fantasy?week=&format=ppr|half|standard`.
   The code is in `src/players.js`, `src/leaders.js` and `src/routes/stats.js`.
 
+### Betting lines and recruiting
+
+- **Lines** (`/lines.html`): every game's spread, total and moneylines for
+  the week (or day, for daily sports), with each price, how the line moved
+  since it opened, and once a game is final, who covered and whether the
+  total went over. A week summary shows favorites against the spread and
+  overs/unders. Filter to ranked games or the teams you follow. Lines come
+  from ESPN's feed, so lower-profile games may have none.
+- **Recruiting** (`/recruiting.html`, college football): portal and
+  recruiting news from Google News plus matching stories from the News
+  feeds. The **Transfer Portal**, **Top Recruits** and **Class Rankings**
+  tabs use CollegeFootballData.com and need a free API key in
+  `CFBD_API_KEY` (get one at https://collegefootballdata.com/key). Without
+  a key those tabs explain how to add one. Rows for teams you follow are
+  highlighted, and each tab can be filtered to them.
+
 ### Also in this version
 
 - The `/admin` page is no longer linked from the site nav — it's still live
