@@ -66,6 +66,10 @@ const CFB = (function () {
     };
     sportKey = sportInfo.key;
     try { localStorage.setItem(SPORT_STORAGE_KEY, sportKey); } catch (e) { /* ignore */ }
+    // Every page loads sports first, so this is where a signed-in user's
+    // followed teams are pulled from their account.
+    await account.load();
+    initAccountLink();
     return sportInfo;
   }
 
@@ -149,6 +153,108 @@ const CFB = (function () {
     try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(list.slice(0, MAX_FOLLOWS))); } catch (e) { /* ignore */ }
   }
 
+  // ---- Account ----------------------------------------------------------
+  // Signed-in users keep their followed teams on the server. localStorage
+  // stays the working copy every page reads (so follows.* stays
+  // synchronous), refreshed from the account on each page load; changes are
+  // written to both. FOLLOW_OWNER_KEY records whose account the local list
+  // mirrors: the first sign-in on a device merges the teams followed there
+  // before signing in into the account, and later page loads just take the
+  // account's list.
+  const FOLLOW_OWNER_KEY = 'tracker-follows-owner';
+  let accountInfo = null;
+  let accountLoad = null;
+
+  function storageGet(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  function storageSet(key, value) {
+    try {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    } catch (e) { /* ignore */ }
+  }
+
+  function postJson(url, body, method) {
+    return getJson(url, { method: method || 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+  }
+
+  const account = {
+    // Resolves to the /api/account/me response ({ user: null } when signed
+    // out or the server can't be reached).
+    load(force) {
+      if (accountLoad && !force) return accountLoad;
+      accountLoad = (async () => {
+        let me;
+        try {
+          me = await getJson('/api/account/me');
+        } catch (e) {
+          accountInfo = { user: null, options: {} };
+          return accountInfo;
+        }
+        accountInfo = me;
+        const owner = storageGet(FOLLOW_OWNER_KEY);
+        if (me.user) {
+          let list = me.follows || [];
+          if (owner !== String(me.user.id)) {
+            const local = readFollows();
+            if (local.length) {
+              try { list = (await postJson('/api/account/follows/merge', { follows: local })).follows; } catch (e) { /* keep server list */ }
+            }
+            storageSet(FOLLOW_OWNER_KEY, String(me.user.id));
+            storageSet(FOLLOW_SEEDED_KEY, '1');
+          }
+          me.follows = list;
+          writeFollows(list.map((t) => ({ sport: t.sport, id: String(t.id), name: t.name || null, abbreviation: t.abbreviation || null, logo: t.logo || null })));
+        } else if (owner) {
+          // Signed out elsewhere or the session expired: keep showing the
+          // teams, and merge them back on the next sign-in.
+          storageSet(FOLLOW_OWNER_KEY, null);
+        }
+        return accountInfo;
+      })();
+      return accountLoad;
+    },
+    user() {
+      return accountInfo && accountInfo.user;
+    },
+    info() {
+      return accountInfo;
+    },
+    async logout() {
+      await postJson('/api/account/logout');
+      // Clear this device's copy so the next person to sign in here doesn't
+      // inherit these teams.
+      writeFollows([]);
+      storageSet(FOLLOW_OWNER_KEY, null);
+      storageSet(FOLLOW_SEEDED_KEY, '1');
+      accountInfo = { user: null, options: accountInfo ? accountInfo.options : {} };
+      accountLoad = Promise.resolve(accountInfo);
+    },
+    postJson,
+  };
+
+  // "Sign in" / your name, at the end of the top nav on every page.
+  function initAccountLink() {
+    const nav = document.querySelector('nav.top-nav');
+    if (!nav || nav.querySelector('.account-link')) return;
+    const a = document.createElement('a');
+    a.className = 'account-link';
+    a.href = '/account.html';
+    const user = account.user();
+    a.textContent = user ? user.displayName : 'Sign in';
+    if (user) a.title = 'Your account, alerts and calendar';
+    nav.appendChild(a);
+  }
+
+  function syncFollow(method, team, key) {
+    if (!account.user()) return;
+    const req = method === 'DELETE'
+      ? getJson(`/api/account/follows/${encodeURIComponent(key)}/${encodeURIComponent(team.id)}`, { method: 'DELETE' })
+      : postJson('/api/account/follows', { sport: key, id: String(team.id), name: team.name || null, abbreviation: team.abbreviation || null, logo: team.logo || null });
+    req.catch(() => { /* the next page load re-syncs from the account */ });
+  }
+
   const follows = {
     // Followed teams for one sport (default: the current sport).
     list(sportKeyArg) {
@@ -167,10 +273,16 @@ const CFB = (function () {
       const list = readFollows();
       list.push({ sport: key, id: String(team.id), name: team.name || null, abbreviation: team.abbreviation || null, logo: team.logo || null });
       writeFollows(list);
+      syncFollow('POST', team, key);
     },
     remove(teamId, sportKeyArg) {
       const key = sportKeyArg || sportKey;
       writeFollows(readFollows().filter((t) => !(t.sport === key && String(t.id) === String(teamId))));
+      syncFollow('DELETE', { id: teamId }, key);
+    },
+    // Every followed team in every sport.
+    all() {
+      return readFollows();
     },
     toggle(team, sportKeyArg) {
       if (follows.has(team.id, sportKeyArg)) { follows.remove(team.id, sportKeyArg); return false; }
@@ -434,6 +546,6 @@ const CFB = (function () {
     el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
-    loadSports, sport, withSport, initSportBar, follows,
+    loadSports, sport, withSport, initSportBar, follows, account,
   };
 })();

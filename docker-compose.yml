@@ -17,8 +17,13 @@ services:
       NCAA_API_DIVISION: "fbs"
       CACHE_TTL_SECONDS: "20"
       # RELAY_API_KEY: ""              # set to share ESPN data with BingeBandit
+      # PUBLIC_URL: "https://sports.example.com"   # needed for SSO + calendar links
+      # SSO_ISSUER: "https://auth.example.com"     # your Tinyauth
+      # SSO_CLIENT_ID: "cfb-tracker"
+      # SSO_CLIENT_SECRET: ""
+      # VAPID_SUBJECT: "mailto:you@example.com"    # contact for game alerts
     volumes:
-      # Persists the notable-games database across container
+      # Persists the database (notable games, accounts) across container
       # rebuilds/updates. On Unraid, point this at a path under
       # /mnt/user/appdata/cfb-tracker.
       - /mnt/user/appdata/cfb-tracker:/app/data

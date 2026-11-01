@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Account &middot; CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<script src="/js/theme-boot.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1 id="pageTitle">Your account</h1>
+      <div class="subtitle">Your teams, game alerts and calendar</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Back to site</a>
+  </nav>
+</header>
+
+<main>
+  <!-- Signed out -->
+  <div id="signedOut" hidden>
+    <div class="login-box account-box">
+      <h2 id="authTitle">Sign in</h2>
+      <p class="account-note">Sign in to keep the teams you follow on every device, get alerts when their games start and end, and add their schedules to your calendar.</p>
+      <a class="primary-btn sso-btn" id="ssoBtn" href="/auth/sso/login" hidden></a>
+      <div class="or-line" id="orLine" hidden><span>or</span></div>
+      <form id="authForm" novalidate>
+        <input type="text" id="nameInput" placeholder="Name (optional)" autocomplete="nickname" maxlength="60" hidden />
+        <input type="email" id="emailInput" placeholder="Email" autocomplete="email" required />
+        <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" required />
+        <button type="submit" id="authSubmit">Sign in</button>
+      </form>
+      <div class="error-text" id="authError" role="alert"></div>
+      <p class="account-switch" id="authSwitch"></p>
+    </div>
+    <section class="account-section" id="guestCalendar" hidden>
+      <h2 class="section-title">Calendar</h2>
+      <p class="account-note">Add the teams you follow on this device to your calendar, no account needed. Games and kickoff times update on their own.</p>
+      <div class="link-row">
+        <a class="primary-btn" id="guestWebcal" href="#">Add to calendar</a>
+        <a class="secondary-btn" id="guestIcs" href="#" download="my-teams.ics">Download .ics</a>
+      </div>
+    </section>
+  </div>
+
+  <!-- Signed in -->
+  <div id="signedIn" hidden>
+    <section class="account-section">
+      <div class="account-head">
+        <div>
+          <div class="account-name" id="accountName"></div>
+          <div class="account-note" id="accountEmail"></div>
+        </div>
+        <button type="button" class="secondary-btn" id="logoutBtn">Sign out</button>
+      </div>
+    </section>
+
+    <section class="account-section">
+      <h2 class="section-title">Teams you follow</h2>
+      <div id="followList"></div>
+      <p class="account-note">Follow more teams with the Follow button on any team's page.</p>
+    </section>
+
+    <section class="account-section">
+      <h2 class="section-title">Game alerts</h2>
+      <p class="account-note" id="pushStatus"></p>
+      <div class="link-row">
+        <button type="button" class="primary-btn" id="pushBtn">Turn on alerts on this device</button>
+        <button type="button" class="secondary-btn" id="pushTestBtn" hidden>Send a test alert</button>
+      </div>
+      <label class="check-row"><input type="checkbox" id="alertStart" /> When a game starts</label>
+      <label class="check-row"><input type="checkbox" id="alertEnd" /> Final score when a game ends</label>
+      <div class="error-text" id="pushError" role="alert"></div>
+    </section>
+
+    <section class="account-section">
+      <h2 class="section-title">Calendar</h2>
+      <p class="account-note">Subscribe once and every game for the teams you follow shows up in your phone's calendar. New games and time changes update on their own.</p>
+      <div class="link-row">
+        <a class="primary-btn" id="webcalLink" href="#">Add to calendar</a>
+        <button type="button" class="secondary-btn" id="copyCalBtn">Copy link</button>
+      </div>
+      <input type="text" class="copy-field" id="calendarUrl" readonly aria-label="Calendar link" />
+    </section>
+
+    <section class="account-section">
+      <h2 class="section-title">Connect other apps</h2>
+      <p class="account-note">Apps like Den Duty can show your teams. Give them this key; it only allows reading your teams and their games.</p>
+      <input type="text" class="copy-field" id="feedKey" readonly aria-label="Private key" />
+      <div class="link-row">
+        <button type="button" class="secondary-btn" id="copyKeyBtn">Copy key</button>
+        <button type="button" class="secondary-btn danger" id="resetKeyBtn">Make a new key</button>
+      </div>
+      <p class="account-note">A new key also changes your calendar link, so you'd need to subscribe again.</p>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">CFB Tracker</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/account.js"></script>
+</body>
+</html>

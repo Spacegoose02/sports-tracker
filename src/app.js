@@ -8,12 +8,13 @@ const cookieSession = require('cookie-session');
 const { resolveSecurityConfig, securityHeaders } = require('./security');
 const { createRelayRouter } = require('./relay');
 
-function createApp({ env = process.env, logger = console, relay = {} } = {}) {
+function createApp({ env = process.env, logger = console, relay = {}, sso = {} } = {}) {
   const security = resolveSecurityConfig(env);
   security.warnings.forEach((w) => logger.warn(`[security] ${w}`));
 
   const apiRoutes = require('./routes/api');
   const createAdminRouter = require('./routes/admin');
+  const { createAccountRouter, createAccountPublicRouter } = require('./routes/account');
 
   const app = express();
   app.disable('x-powered-by');
@@ -29,13 +30,15 @@ function createApp({ env = process.env, logger = console, relay = {} } = {}) {
     cookieSession({
       name: 'cfb_session',
       secret: security.sessionSecret,
-      maxAge: 12 * 60 * 60 * 1000, // 12 hours
+      maxAge: 12 * 60 * 60 * 1000, // 12 hours; account sign-ins extend it to 30 days
       httpOnly: true,
       sameSite: 'lax',
     })
   );
 
   app.use('/api/admin', createAdminRouter());
+  app.use('/api/account', createAccountRouter({ env }));
+  app.use(createAccountPublicRouter({ env, fetchImpl: sso.fetch }));
   app.use('/api', apiRoutes);
   // ESPN's site API, cached, for other apps such as BingeBandit (src/relay.js).
   app.use('/espn', createRelayRouter({ env, logger, ...relay }));
