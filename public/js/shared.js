@@ -127,6 +127,69 @@ const CFB = (function () {
     return res.json();
   }
 
+  // ---- Followed teams ----------------------------------------------------
+  // Each visitor follows their own teams, any number per sport, saved in
+  // their browser. Entries are { sport, id, name, abbreviation, logo }.
+  const FOLLOW_KEY = 'tracker-follows';
+  const FOLLOW_SEEDED_KEY = 'tracker-follows-seeded';
+  const MAX_FOLLOWS = 30;
+
+  function readFollows() {
+    try {
+      const list = JSON.parse(localStorage.getItem(FOLLOW_KEY) || '[]');
+      return Array.isArray(list) ? list.filter((t) => t && t.sport && t.id) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writeFollows(list) {
+    try { localStorage.setItem(FOLLOW_KEY, JSON.stringify(list.slice(0, MAX_FOLLOWS))); } catch (e) { /* ignore */ }
+  }
+
+  const follows = {
+    // Followed teams for one sport (default: the current sport).
+    list(sportKeyArg) {
+      const key = sportKeyArg || sportKey;
+      return readFollows().filter((t) => t.sport === key);
+    },
+    ids(sportKeyArg) {
+      return new Set(follows.list(sportKeyArg).map((t) => String(t.id)));
+    },
+    has(teamId, sportKeyArg) {
+      return follows.ids(sportKeyArg).has(String(teamId));
+    },
+    add(team, sportKeyArg) {
+      const key = sportKeyArg || sportKey;
+      if (!team || !team.id || follows.has(team.id, key)) return;
+      const list = readFollows();
+      list.push({ sport: key, id: String(team.id), name: team.name || null, abbreviation: team.abbreviation || null, logo: team.logo || null });
+      writeFollows(list);
+    },
+    remove(teamId, sportKeyArg) {
+      const key = sportKeyArg || sportKey;
+      writeFollows(readFollows().filter((t) => !(t.sport === key && String(t.id) === String(teamId))));
+    },
+    toggle(team, sportKeyArg) {
+      if (follows.has(team.id, sportKeyArg)) { follows.remove(team.id, sportKeyArg); return false; }
+      follows.add(team, sportKeyArg);
+      return true;
+    },
+    // The server's FAVORITE_TEAM_ID used to be the only "my team". Follow
+    // it once on a visitor's first visit so nothing disappears for them;
+    // if they unfollow it later it stays unfollowed.
+    seedDefault(teamId, name) {
+      if (!teamId) return;
+      try {
+        if (localStorage.getItem(FOLLOW_SEEDED_KEY)) return;
+        localStorage.setItem(FOLLOW_SEEDED_KEY, '1');
+      } catch (e) {
+        return;
+      }
+      follows.add({ id: teamId, name }, 'cfb');
+    },
+  };
+
   function fmtTime(iso) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -191,8 +254,9 @@ const CFB = (function () {
   // look and behave identically (channel, time, rank, live indicator).
   function gameCardHtml(game, opts) {
     opts = opts || {};
-    const isFav = opts.favoriteTeamId && ((game.home && String(game.home.id) === String(opts.favoriteTeamId)) ||
-      (game.away && String(game.away.id) === String(opts.favoriteTeamId)));
+    const followed = opts.followedIds || new Set();
+    const isFollowed = (team) => team && (followed.has(String(team.id)) || (opts.favoriteTeamId && String(team.id) === String(opts.favoriteTeamId)));
+    const isFav = isFollowed(game.home) || isFollowed(game.away);
     const isLive = game.status && game.status.state === 'in';
     const isCompleted = !!(game.status && game.status.completed);
     const possessionId = isLive && game.situation ? game.situation.possession : null;
@@ -332,6 +396,6 @@ const CFB = (function () {
     el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml,
     applyTeamColor, initDivisionToggle, ymd,
-    loadSports, sport, withSport, initSportBar,
+    loadSports, sport, withSport, initSportBar, follows,
   };
 })();

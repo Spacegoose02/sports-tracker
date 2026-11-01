@@ -29,7 +29,7 @@
             </thead>
             <tbody>
               ${conf.entries.map((e) => {
-                const isFav = e.team && String(e.team.id) === String(favoriteTeamId);
+                const isFav = e.team && (String(e.team.id) === String(favoriteTeamId) || CFB.follows.has(e.team.id));
                 return `
                   <tr class="${isFav ? 'is-favorite-row' : ''}">
                     <td>
