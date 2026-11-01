@@ -270,7 +270,7 @@ const CFB = (function () {
           <span class="${isLive ? 'live-dot' : ''}">${esc(statusLabel(game))}</span>
           <span style="display:flex;align-items:center;gap:6px;">
             ${opts.notable ? '<span class="notable-ribbon">Notable</span>' : ''}
-            ${game.broadcast ? `<span>${esc(game.broadcast)}</span>` : ''}
+            ${game.broadcast ? `<span class="card-tv" title="TV channel">&#128250; ${esc(game.broadcast)}</span>` : ''}
           </span>
         </div>
         ${teamRowHtml(game.away, { completed: isCompleted, hasPossession: awayHasBall })}
