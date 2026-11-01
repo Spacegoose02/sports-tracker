@@ -272,6 +272,10 @@
     el('sourceNote').textContent = `College Football · Class of ${state.status.defaultYear}`;
     ['portalYear', 'playersYear', 'teamsYear'].forEach((id) => fillYears(el(id), state.status.defaultYear));
     wire();
+    window.addEventListener('hashchange', () => {
+      const tab = location.hash.replace('#', '');
+      if (loaders[tab]) showTab(tab);
+    });
     const start = location.hash.replace('#', '');
     showTab(loaders[start] ? start : 'news');
   }

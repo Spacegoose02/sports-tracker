@@ -49,7 +49,7 @@
       <div class="line-team">
         <span class="rank">${team && team.curatedRank ? '#' + esc(team.curatedRank) : ''}</span>
         ${team && team.logo ? `<img src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : '<span class="logo-gap"></span>'}
-        ${team && team.id ? `<a class="team-link line-team-name" href="${CFB.teamLink(team)}" onclick="event.stopPropagation()">${esc(team.name || team.shortName)}</a>` : `<span class="line-team-name">${esc(teamLabel(team))}</span>`}
+        ${team && team.id ? `<a class="team-link line-team-name" href="${CFB.teamLink(team)}" onclick="event.stopPropagation()"><span class="full">${esc(team.name || team.shortName)}</span><span class="abbr">${esc(teamLabel(team))}</span></a>` : `<span class="line-team-name">${esc(teamLabel(team))}</span>`}
         <span class="line-score">${esc(score)}</span>
       </div>
       <div class="line-cell ${isFav ? 'is-fav' : ''} ${covered ? 'hit' : ''}">
