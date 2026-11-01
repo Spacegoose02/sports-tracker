@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/css/styles.css" />
 <link rel="stylesheet" href="/css/brand.css" />
 <link rel="stylesheet" href="/css/kids.css" />
+<link rel="stylesheet" href="/css/leagues.css" />
 <link rel="stylesheet" href="/css/themes.css" />
 <script src="/js/theme-boot.js"></script>
 <script src="/js/theme-picker.js" defer></script>
@@ -32,6 +33,7 @@
   <nav class="top-nav">
     <a href="/">&larr; Back to site</a>
     <a href="/countdown.html">&#9201; Countdown</a>
+    <a href="/brackets.html">&#127942; Bracket challenge</a>
   </nav>
 </header>
 
@@ -54,6 +56,8 @@
   </div>
 
   <div class="tab-panel active" id="tab-pickem">
+    <section class="league-box" id="leagueBox"></section>
+    <div class="league-board-wrap" id="leagueBoard"></div>
     <div class="pickem-board" id="leaderboard"></div>
     <div class="pickem-filter" id="pickemFilter">
       <button type="button" data-filter="top" class="active">Top games</button>
@@ -87,6 +91,7 @@
 <script src="/js/shared.js"></script>
 <script src="/js/kids-core.js"></script>
 <script src="/js/kids.js"></script>
+<script src="/js/leagues.js"></script>
 <script src="/js/kids-page.js"></script>
 </body>
 </html>

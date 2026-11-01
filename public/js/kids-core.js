@@ -260,6 +260,36 @@
       .sort((a, b) => b.stats.right - a.stats.right || a.stats.wrong - b.stats.wrong || String(a.player.name).localeCompare(String(b.player.name)));
   }
 
+  // ---- League weeks --------------------------------------------------------
+  // Pick'em labels each pick with its scoreboard: "cfb-2026-2-10" (week 10
+  // of the regular season) or "nba-20261101" (one day). Leagues rank by
+  // week, so a day label rolls up to the Monday-to-Sunday week it falls in.
+  // Returns { key, label, sport, kind: 'week', year, seasontype, week } or
+  // { key, label, sport, kind: 'day', days: ['YYYYMMDD' x7] }, or null.
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function weekGroup(label) {
+    const str = String(label || '');
+    let m = str.match(/^([a-z]+)-(\d{4})-(\d)-(\d{1,2})$/);
+    if (m) {
+      const [, sport, year, seasontype, week] = m;
+      const name = Number(seasontype) === 3 ? 'Postseason' : Number(seasontype) === 1 ? `Preseason week ${week}` : `Week ${week}`;
+      return { key: str, label: `${name}, ${year}`, sport, kind: 'week', year: Number(year), seasontype: Number(seasontype), week: Number(week) };
+    }
+    m = str.match(/^([a-z]+)-(?:wk-)?(\d{4})-?(\d{2})-?(\d{2})/);
+    if (!m) return null;
+    const [, sport, y, mo, d] = m;
+    const day = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
+    if (Number.isNaN(day.getTime())) return null;
+    const monday = new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * 86400000);
+    const ymd = (t) => `${t.getUTCFullYear()}${String(t.getUTCMonth() + 1).padStart(2, '0')}${String(t.getUTCDate()).padStart(2, '0')}`;
+    const days = Array.from({ length: 7 }, (_, i) => ymd(new Date(monday.getTime() + i * 86400000)));
+    return {
+      key: `${sport}-wk-${days[0]}`,
+      label: `Week of ${MONTHS[monday.getUTCMonth()]} ${monday.getUTCDate()}, ${monday.getUTCFullYear()}`,
+      sport, kind: 'day', days,
+    };
+  }
+
   // The result of a finished game as stored on a pick, or null if it
   // isn't over yet. Works with scoreboard games (away/home) and game
   // summaries (teams[]).
@@ -426,7 +456,7 @@
   return {
     family, explainPlay, celebrationLabel, celebratesEveryScore, scoreChanges,
     countdownParts, nextGame,
-    pickOutcome, playerStats, badgesFor, leaderboard, gameResult, BADGES,
+    pickOutcome, playerStats, badgesFor, leaderboard, gameResult, BADGES, weekGroup,
     buildQuiz, shuffle, FACTS,
     stickerKey, albumByTeam,
   };
