@@ -35,20 +35,25 @@
 
   <section>
     <div class="week-bar">
-      <div class="division-toggle" id="divisionToggle">
-        <button data-division="fbs" class="active">FBS</button>
-        <button data-division="fcs">FCS</button>
-      </div>
-      <label for="seasonSelect">Season</label>
-      <select id="seasonSelect"></select>
-      <label for="weekSelect">Week</label>
-      <select id="weekSelect"></select>
-      <label for="seasonTypeSelect">Type</label>
-      <select id="seasonTypeSelect">
-        <option value="2">Regular Season</option>
-        <option value="3">Postseason / Bowls</option>
-      </select>
-      <button id="goBtn">Go</button>
+      <div class="division-toggle" id="divisionToggle"></div>
+      <span class="week-controls" id="weekControls">
+        <label for="seasonSelect">Season</label>
+        <select id="seasonSelect"></select>
+        <label for="weekSelect">Week</label>
+        <select id="weekSelect"></select>
+        <label for="seasonTypeSelect">Type</label>
+        <select id="seasonTypeSelect">
+          <option value="2">Regular Season</option>
+          <option value="3">Postseason / Bowls</option>
+        </select>
+        <button id="goBtn">Go</button>
+      </span>
+      <span class="day-controls" id="dayControls" hidden>
+        <button id="prevDayBtn" aria-label="Previous day">&larr;</button>
+        <input type="date" id="dayInput" aria-label="Date" />
+        <button id="nextDayBtn" aria-label="Next day">&rarr;</button>
+        <button id="todayBtn">Today</button>
+      </span>
       <span class="refresh-note" id="refreshNote"></span>
     </div>
 

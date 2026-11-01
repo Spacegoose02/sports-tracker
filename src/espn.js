@@ -1,5 +1,7 @@
 // Thin client around ESPN's public (unofficial, undocumented but widely
-// used) college football APIs. No API key required.
+// used) sports APIs. No API key required. Every league uses the same
+// endpoint shapes under a different path (see src/sports.js); college
+// football is the default everywhere so existing callers keep working.
 //
 // Reference endpoints:
 //   Scoreboard (a week's games):
@@ -11,9 +13,20 @@
 
 const fetch = require('node-fetch');
 const cache = require('./cache');
+const { resolveSport } = require('./sports');
 
-const BASE = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football';
-const CORE_BASE = 'https://sports.core.api.espn.com/v2/sports/football/leagues/college-football';
+const SITE_ROOT = 'https://site.api.espn.com/apis/site/v2/sports';
+const STANDINGS_ROOT = 'https://site.api.espn.com/apis/v2/sports';
+
+function sportConfig(sportKey) {
+  const sport = resolveSport(sportKey);
+  if (!sport) throw new Error(`Unknown sport: ${sportKey}`);
+  return sport;
+}
+
+function baseFor(sportKey) {
+  return `${SITE_ROOT}/${sportConfig(sportKey).path}`;
+}
 
 async function fetchJson(url) {
   const res = await fetch(url, { timeout: 10000 });
@@ -125,6 +138,17 @@ function parseSituation(raw) {
     awayTimeouts: raw.awayTimeouts !== undefined ? raw.awayTimeouts : null,
     possession: raw.possession || null,
     lastPlay: raw.lastPlay && raw.lastPlay.text,
+    // Baseball: count, outs and runners. Null for other sports.
+    baseball: raw.outs !== undefined || raw.balls !== undefined
+      ? {
+        balls: raw.balls !== undefined ? Number(raw.balls) : null,
+        strikes: raw.strikes !== undefined ? Number(raw.strikes) : null,
+        outs: raw.outs !== undefined ? Number(raw.outs) : null,
+        onFirst: !!raw.onFirst,
+        onSecond: !!raw.onSecond,
+        onThird: !!raw.onThird,
+      }
+      : null,
   };
 }
 
@@ -179,24 +203,36 @@ function fillInWinner(game) {
   return game;
 }
 
-// Get the scoreboard for a given week/season. If week/season/seasontype are
-// omitted, ESPN returns whatever week is "current" on their end.
-async function getScoreboard({ year, week, seasontype = 2, groups = 80 } = {}) {
+// Get the scoreboard. Week-based sports (football) take year/week/
+// seasontype; day-based sports take `dates` (YYYYMMDD, or a
+// YYYYMMDD-YYYYMMDD range). With nothing given, ESPN returns whatever
+// week/day is "current" on their end.
+async function getScoreboard({ sport, year, week, seasontype, groups, dates } = {}) {
+  const cfg = sportConfig(sport);
   const params = new URLSearchParams();
-  if (year) params.set('year', year);
-  if (week) params.set('week', week);
-  if (seasontype) params.set('seasontype', seasontype);
-  if (groups) params.set('groups', groups); // 80 = FBS
+  if (cfg.schedule === 'week') {
+    if (year) params.set('year', year);
+    if (week) params.set('week', week);
+    params.set('seasontype', seasontype || 2);
+  } else if (dates) {
+    params.set('dates', dates);
+  }
+  // College leagues default to their first division (FBS / Division I);
+  // without a group ESPN only returns a handful of featured games.
+  const group = groups || (cfg.groups ? cfg.groups[0].value : null);
+  if (group) params.set('groups', group);
   params.set('limit', 400);
 
-  const key = `espn:scoreboard:${params.toString()}`;
+  const key = `espn:${cfg.key}:scoreboard:${params.toString()}`;
   return cache.getOrFetch(key, async () => {
-    const json = await fetchJson(`${BASE}/scoreboard?${params.toString()}`);
+    const json = await fetchJson(`${baseFor(cfg.key)}/scoreboard?${params.toString()}`);
     const events = json.events || [];
     return {
+      sport: cfg.key,
       season: json.season && json.season.year,
       week: json.week && json.week.number,
       seasonType: json.season && json.season.type,
+      day: (json.day && json.day.date) || null,
       games: events.map((e) => fillInWinner(normalizeGame(e))),
     };
   });
@@ -204,12 +240,13 @@ async function getScoreboard({ year, week, seasontype = 2, groups = 80 } = {}) {
 
 // Full-season schedule for one team (used for the pinned favorite team and
 // for the "jump to my team's next game" convenience).
-async function getTeamSchedule(teamId, season) {
+async function getTeamSchedule(teamId, season, sport) {
+  const cfg = sportConfig(sport);
   const params = new URLSearchParams();
   if (season) params.set('season', season);
-  const key = `espn:teamschedule:${teamId}:${season || 'current'}`;
+  const key = `espn:${cfg.key}:teamschedule:${teamId}:${season || 'current'}`;
   return cache.getOrFetch(key, async () => {
-    const json = await fetchJson(`${BASE}/teams/${teamId}/schedule?${params.toString()}`);
+    const json = await fetchJson(`${baseFor(cfg.key)}/teams/${teamId}/schedule?${params.toString()}`);
     const events = json.events || [];
     return {
       teamId,
@@ -229,10 +266,11 @@ async function getTeamSchedule(teamId, season) {
 }
 
 // Team header info: current record, rank, logo, colors.
-async function getTeamInfo(teamId) {
-  const key = `espn:teaminfo:${teamId}`;
+async function getTeamInfo(teamId, sport) {
+  const cfg = sportConfig(sport);
+  const key = `espn:${cfg.key}:teaminfo:${teamId}`;
   return cache.getOrFetch(key, async () => {
-    const json = await fetchJson(`${BASE}/teams/${teamId}`);
+    const json = await fetchJson(`${baseFor(cfg.key)}/teams/${teamId}`);
     const team = json.team || {};
     return {
       id: team.id,
@@ -250,16 +288,18 @@ async function getTeamInfo(teamId) {
 
 // Live/finished game detail: score by quarter, leaders, box score stats.
 // Cached for a very short time (or not at all) so "live" stays live.
-async function getGameSummary(eventId) {
-  const key = `espn:summary:${eventId}`;
+async function getGameSummary(eventId, sport) {
+  const cfg = sportConfig(sport);
+  const key = `espn:${cfg.key}:summary:${eventId}`;
   return cache.getOrFetch(key, async () => {
-    const json = await fetchJson(`${BASE}/summary?event=${encodeURIComponent(eventId)}`);
+    const json = await fetchJson(`${baseFor(cfg.key)}/summary?event=${encodeURIComponent(eventId)}`);
     const header = json.header || {};
     const comp = header.competitions && header.competitions[0];
     const competitors = (comp && comp.competitors) || [];
 
     return {
       id: header.id,
+      sport: cfg.key,
       date: (comp && comp.date) || header.date || null,
       venue: (comp && comp.venue && comp.venue.fullName) || null,
       broadcast: (comp && comp.broadcasts && comp.broadcasts[0] && comp.broadcasts[0].names && comp.broadcasts[0].names[0]) || null,
@@ -314,7 +354,9 @@ async function getGameSummary(eventId) {
       // plays `drives` above uses for the compact "latest drive" summary.
       // Returned newest-first so the game page can show it as a live feed.
       odds: parseOdds(json.pickcenter) || parseOdds(comp && comp.odds),
-      playByPlay: buildPlayByPlay(json.drives),
+      // Football groups plays into drives; every other sport returns a
+      // flat `plays` list instead.
+      playByPlay: json.drives ? buildPlayByPlay(json.drives) : buildFlatPlayByPlay(json.plays),
     };
   }, 10 * 1000); // 10s cache for in-game data
 }
@@ -339,10 +381,28 @@ function buildPlayByPlay(drivesJson) {
   return plays.reverse(); // newest first
 }
 
+// Basketball/baseball/hockey summaries: a flat, chronological `plays`
+// array (often 400+ entries for an NBA game), so keep the newest 250.
+function buildFlatPlayByPlay(plays) {
+  if (!Array.isArray(plays)) return [];
+  return plays
+    .filter((p) => p && p.text)
+    .map((p) => ({
+      text: p.text,
+      period: p.period && p.period.number,
+      clock: p.clock && p.clock.displayValue,
+      drive: null,
+      scoringPlay: !!p.scoringPlay,
+    }))
+    .reverse()
+    .slice(0, 250);
+}
+
 // Top 25 rankings (AP, Coaches, etc.), including "others receiving votes".
 // ESPN's rankings JSON shape has drifted a bit over the years, so this
 // reads several possible field names defensively rather than assuming one.
-async function getRankings({ year, week, seasontype = 2 } = {}) {
+async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
+  const cfg = sportConfig(sport);
   const params = new URLSearchParams();
   if (year) params.set('year', year);
   if (week) params.set('week', week);
@@ -353,9 +413,9 @@ async function getRankings({ year, week, seasontype = 2 } = {}) {
   // the UI is what narrows it down, so there's no need to ask ESPN to
   // pre-filter by division.
 
-  const key = `espn:rankings:${params.toString()}`;
+  const key = `espn:${cfg.key}:rankings:${params.toString()}`;
   return cache.getOrFetch(key, async () => {
-    const json = await fetchJson(`${BASE}/rankings?${params.toString()}`);
+    const json = await fetchJson(`${baseFor(cfg.key)}/rankings?${params.toString()}`);
     const pollsRaw = json.rankings || (json.sports && json.sports[0] && json.sports[0].leagues && json.sports[0].leagues[0] && json.sports[0].leagues[0].rankings) || [];
 
     const polls = pollsRaw.map((poll) => {
@@ -414,59 +474,93 @@ async function getRankings({ year, week, seasontype = 2 } = {}) {
   }, 60 * 1000); // rankings update ~weekly, but cache short so a same-day fix shows up fast
 }
 
-// Conference standings, grouped by conference. group=80 is FBS.
-async function getStandings({ year, group = 80 } = {}) {
+// Standings, grouped by conference (college) or conference/league (pros:
+// AFC/NFC, East/West, AL/NL). For college football group=80 is FBS.
+async function getStandings({ sport, year, group } = {}) {
+  const cfg = sportConfig(sport);
   const params = new URLSearchParams();
-  params.set('season', year || new Date().getFullYear());
-  params.set('group', group);
+  if (cfg.key === 'cfb') {
+    params.set('season', year || new Date().getFullYear());
+    params.set('group', group || 80);
+  } else {
+    // Pro and basketball seasons span two calendar years (ESPN labels the
+    // 2026-27 NBA season "2027"), so only pass a season when asked and
+    // otherwise let ESPN return the current one.
+    if (year) params.set('season', year);
+    if (group) params.set('group', group);
+  }
 
-  const key = `espn:standings:${params.toString()}`;
+  const key = `espn:${cfg.key}:standings:${params.toString()}`;
   return cache.getOrFetch(key, async () => {
     // This endpoint lives at a slightly different path than the others.
-    const url = `https://site.api.espn.com/apis/v2/sports/football/college-football/standings?${params.toString()}`;
+    const url = `${STANDINGS_ROOT}/${cfg.path}/standings?${params.toString()}`;
     const json = await fetchJson(url);
-    const children = json.children || [];
-
-    const conferences = children.map((conf) => {
-      const standings = (conf.standings && conf.standings.entries) || [];
-      const entries = standings.map((entry) => {
-        const team = entry.team || {};
-        const statByName = {};
-        (entry.stats || []).forEach((s) => {
-          statByName[s.name || s.shortDisplayName] = s.displayValue;
-        });
-        return {
-          team: {
-            id: team.id,
-            name: team.displayName || team.name,
-            shortName: team.shortDisplayName || team.abbreviation,
-            abbreviation: team.abbreviation,
-            logo: team.logos && team.logos[0] && team.logos[0].href,
-          },
-          overall: statByName.overall || statByName['overall record'] || null,
-          conference: statByName.vsConf || statByName.conferenceRecord || statByName['vs. Conf.'] || null,
-          streak: statByName.streak || null,
-          rank: statByName.rank || null,
-        };
-      });
-      return {
-        name: conf.name || (conf.abbreviation),
-        abbreviation: conf.abbreviation,
-        entries,
-      };
-    });
-
-    return { season: year, conferences };
+    return { season: year, conferences: parseStandings(json) };
   }, 5 * 60 * 1000); // standings change slowly, cache 5 min
 }
 
+// Some leagues nest one level deeper (conference -> division). Flatten to
+// the deepest groups that actually carry standings entries.
+function standingsGroups(node) {
+  if (node.standings && node.standings.entries && node.standings.entries.length) return [node];
+  return (node.children || []).flatMap(standingsGroups);
+}
+
+function parseStandings(json) {
+  const children = standingsGroups(json);
+  const conferences = children.map((conf) => {
+    const standings = (conf.standings && conf.standings.entries) || [];
+    const entries = standings.map((entry) => {
+      const team = entry.team || {};
+      const statByName = {};
+      (entry.stats || []).forEach((s) => {
+        if (s.name) statByName[s.name] = s.displayValue;
+        if (s.type) statByName[`type:${s.type}`] = s.summary || s.displayValue;
+        if (s.shortDisplayName && statByName[s.shortDisplayName] === undefined) statByName[s.shortDisplayName] = s.displayValue;
+      });
+      // Pro standings don't always carry a ready-made "overall" record;
+      // build one from wins/losses (and ties / OT losses) when needed.
+      let overall = statByName.overall || statByName['overall record'] || statByName['type:total'] || null;
+      if (!overall && statByName.wins !== undefined && statByName.losses !== undefined) {
+        const extra = statByName.ties && statByName.ties !== '0' ? `-${statByName.ties}`
+          : statByName.otLosses && statByName.otLosses !== '0' ? `-${statByName.otLosses}` : '';
+        overall = `${statByName.wins}-${statByName.losses}${extra}`;
+      }
+      return {
+        team: {
+          id: team.id,
+          name: team.displayName || team.name,
+          shortName: team.shortDisplayName || team.abbreviation,
+          abbreviation: team.abbreviation,
+          logo: team.logos && team.logos[0] && team.logos[0].href,
+        },
+        overall,
+        conference: statByName.vsConf || statByName.conferenceRecord || statByName['vs. Conf.'] || statByName['type:vsconf'] || null,
+        winPercent: statByName.winPercent || null,
+        gamesBehind: statByName.gamesBehind || null,
+        points: statByName.points || null,
+        streak: statByName.streak || null,
+        rank: statByName.rank || null,
+      };
+    });
+    return {
+      name: conf.name || (conf.abbreviation),
+      abbreviation: conf.abbreviation,
+      entries,
+    };
+  });
+
+  return conferences;
+}
+
 // Season-level team statistics (passing/rushing/defense totals, etc.)
-async function getTeamStatistics(teamId, season) {
+async function getTeamStatistics(teamId, season, sport) {
+  const cfg = sportConfig(sport);
   const params = new URLSearchParams();
   if (season) params.set('season', season);
-  const key = `espn:teamstats:${teamId}:${season || 'current'}`;
+  const key = `espn:${cfg.key}:teamstats:${teamId}:${season || 'current'}`;
   return cache.getOrFetch(key, async () => {
-    const json = await fetchJson(`${BASE}/teams/${teamId}/statistics?${params.toString()}`);
+    const json = await fetchJson(`${baseFor(cfg.key)}/teams/${teamId}/statistics?${params.toString()}`);
     const splits = (json.results && json.results.stats && json.results.stats.categories) || (json.splits && json.splits.categories) || [];
     return {
       teamId,
@@ -478,7 +572,42 @@ async function getTeamStatistics(teamId, season) {
   }, 5 * 60 * 1000);
 }
 
+// ESPN's own headlines for a league, optionally narrowed to one team.
+// Same item shape as src/news.js (title/link/source/pubDate/summary/image)
+// so the News tab can render either.
+async function getNews({ sport, team, limit = 30 } = {}) {
+  const cfg = sportConfig(sport);
+  const params = new URLSearchParams();
+  params.set('limit', limit);
+  if (team) params.set('team', team);
+  const key = `espn:${cfg.key}:news:${params.toString()}`;
+  return cache.getOrFetch(key, async () => {
+    const json = await fetchJson(`${baseFor(cfg.key)}/news?${params.toString()}`);
+    return parseNews(json);
+  }, 10 * 60 * 1000);
+}
+
+function parseNews(json) {
+  return (json.articles || [])
+    .map((a) => {
+      const link = a.links && a.links.web && a.links.web.href;
+      const image = (a.images || []).find((img) => img && img.url);
+      const published = a.published ? new Date(a.published) : null;
+      return {
+        title: a.headline || a.title || null,
+        link: link || null,
+        source: 'ESPN',
+        pubDate: published && !Number.isNaN(published.getTime()) ? published.toISOString() : null,
+        summary: (a.description || '').slice(0, 220),
+        image: image ? image.url : null,
+      };
+    })
+    .filter((item) => item.title && item.link);
+}
+
 module.exports = {
+  getNews,
+  parseNews,
   getScoreboard,
   getTeamSchedule,
   getTeamInfo,
@@ -486,4 +615,9 @@ module.exports = {
   getRankings,
   getStandings,
   getTeamStatistics,
+  // Exported for tests.
+  normalizeGame,
+  parseStandings,
+  buildFlatPlayByPlay,
+  parseSituation,
 };

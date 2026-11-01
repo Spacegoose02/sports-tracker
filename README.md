@@ -180,6 +180,28 @@ always pinned at the top.
   `NEWS_FEEDS_JSON` below if you ever need to change which feeds it pulls
   from.
 
+## Other sports
+
+A sport picker at the top of every page switches between **College
+Football** (the default), **NFL**, **NBA**, **men's college basketball**,
+**MLB** and **NHL**. Every page and API route takes `?sport=` (`cfb`, `nfl`,
+`nba`, `mcbb`, `mlb`, `nhl`), so links are shareable, and the last sport you
+picked is remembered in your browser. Leaving `sport` off means college
+football, so existing bookmarks and the Dynacat widget keep working.
+
+- Football (CFB, NFL) pages through weeks; the others page through days,
+  and Upcoming shows the next seven days.
+- Rankings only appear for leagues with polls (CFB and college hoops).
+- Standings show the columns each league uses (conference record for
+  college, win % and games back for the NBA/MLB, points for the NHL).
+- The live field diagram is football-only; live baseball games show the
+  count, outs and runners instead.
+- News for other sports comes from ESPN's league headlines. College
+  football keeps your RSS feeds and the Videos tab.
+- The pinned favorite team (`FAVORITE_TEAM_ID`) and Notable Games stay
+  college-football features.
+- To add a league ESPN covers, add one entry to `src/sports.js`.
+
 ## Pulling Notable Games into a Dynacat / Glance dashboard
 
 If you run a [Glance](https://github.com/glanceapp/glance)-based dashboard
