@@ -25,6 +25,8 @@ const PRECACHE = [
   '/js/shared.js',
   '/js/app.js',
   '/js/pwa.js',
+  '/js/theme-boot.js',
+  '/css/themes.css',
   '/img/favicon.svg',
   '/img/cfbtracker-icon.png',
   '/img/cfbtracker-icon-192.png',
