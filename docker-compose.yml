@@ -16,6 +16,7 @@ services:
       NCAA_API_BASE: "https://ncaawidget.sgiu.net"
       NCAA_API_DIVISION: "fbs"
       CACHE_TTL_SECONDS: "20"
+      # RELAY_API_KEY: ""              # set to share ESPN data with BingeBandit
     volumes:
       # Persists the notable-games database across container
       # rebuilds/updates. On Unraid, point this at a path under
