@@ -481,13 +481,21 @@ Pull the new image and recreate the container: Unraid's **Update** button,
 `docker compose pull && docker compose up -d`, or `docker pull` then re-run.
 Your data in `/mnt/user/appdata/cfb-tracker` is kept.
 
-### Publishing the image
+### Publishing the image and cutting releases
 
 `.github/workflows/docker.yml` builds the image on every pull request and
-pushes it to GHCR from `main` (`latest` plus a short commit tag) and from
-`v*` tags (`1.2.3`, `1.2`). The first time it publishes, open the package on
-GitHub (your profile, **Packages**, **sports-tracker**, **Package settings**)
-and set its visibility to **Public** so Unraid can pull it without logging in.
+pushes `latest` (plus a short commit tag) from `main`.
+
+To cut a release, open **Actions**, pick **Release**, click **Run workflow**
+and enter a version such as `1.1.0`. It runs the tests, publishes
+`ghcr.io/spacegoose02/sports-tracker:1.1.0` (and `1.1`, `latest`), tags
+`v1.1.0` and creates the GitHub release. Release notes come from
+`docs/releases/v1.1.0.md` if you write one, otherwise GitHub lists the merged
+pull requests. Pushing a `v*` tag yourself also publishes versioned images.
+
+The first time an image is published, open the package on GitHub (your
+profile, **Packages**, **sports-tracker**, **Package settings**) and set its
+visibility to **Public** so Unraid can pull it without logging in.
 
 ## Sharing ESPN data with BingeBandit (the ESPN relay)
 
