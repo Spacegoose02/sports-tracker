@@ -11,14 +11,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import TrackerClient, TrackerError
+from .api import TrackerAuthError, TrackerClient, TrackerError
 from .const import (
     CONF_FOLLOWS,
     DOMAIN,
+    EVENT_RECAP,
     EVENT_SCORE,
     EVENT_STATE,
     INTERVAL_IDLE,
     INTERVAL_LIVE,
+    INTERVAL_RECAP,
     INTERVAL_SOON,
     INTERVAL_TODAY,
     STATE_IN,
@@ -76,6 +78,7 @@ class SportsTrackerCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]])
             update_interval=INTERVAL_TODAY,
         )
         self.client = client
+        self.recap: RecapCoordinator | None = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         items = follow_items(self.config_entry)
@@ -135,3 +138,36 @@ class SportsTrackerCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]])
                         "opponent_score": (new.get("opponent") or {}).get("score"),
                     },
                 )
+
+
+class RecapCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    """Fetches Scrappy's daily recap for the account that owns the feed key."""
+
+    config_entry: ConfigEntry
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, client: TrackerClient, feed_key: str) -> None:
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=f"{DOMAIN}_recap",
+            config_entry=entry,
+            update_interval=INTERVAL_RECAP,
+        )
+        self.client = client
+        self._feed_key = feed_key
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        try:
+            data = await self.client.recap(self._feed_key)
+        except TrackerAuthError as err:
+            raise UpdateFailed("The tracker turned down the feed key; copy it again from My account") from err
+        except TrackerError as err:
+            raise UpdateFailed(f"Could not reach the Sports Tracker: {err}") from err
+        old = ((self.data or {}).get("recap") or {}).get("createdAt")
+        recap = data.get("recap") or {}
+        if self.data is not None and recap.get("createdAt") and recap.get("createdAt") != old:
+            self.hass.bus.async_fire(
+                EVENT_RECAP,
+                {"headline": recap.get("headline"), "text": recap.get("text"), "date": recap.get("date")},
+            )
+        return data

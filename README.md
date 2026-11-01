@@ -362,10 +362,59 @@ Authorization: Bearer <key>
 }
 ```
 
+The response also carries `recap`: Scrappy's latest morning recap (see
+below), or `null`.
+
 Games have the same shape as `/api/scoreboard` games. The key is read
 only. **Make a new key** on the account page revokes the old one (and
 changes the calendar link). Signed in on the site itself, the same
 endpoint works with the session cookie and no key.
+
+### Scrappy's morning recap
+
+On the account page, **Scrappy's morning recap** sends a short summary of
+your teams every morning at a time you pick: last night's results, anything
+live, the next game this week with kickoff time (in your time zone) and TV,
+and a headline when it matters. It's off until you turn it on, and each
+account picks its own time; the time zone comes from your browser when you
+turn it on or change the time.
+
+- It arrives as a notification on every device with alerts on. On days when
+  none of your teams has a result or a game this week, it's saved but
+  doesn't buzz you. **Send me one now** writes one on the spot (6 an hour).
+- With `ANTHROPIC_API_KEY` set, Scrappy (Claude) writes it from the live
+  data, with no tools and nothing from memory. Without a key, or if the call
+  fails, a plain recap is built from the same facts.
+- The latest recap is saved, so other apps can read it with the private key:
+
+```
+GET /api/account/recap
+Authorization: Bearer <key>
+```
+
+```json
+{
+  "user": { "displayName": "Sam" },
+  "enabled": true, "time": "07:30", "timeZone": "America/New_York",
+  "recap": {
+    "date": "2026-11-02",
+    "headline": "Hokies hold off FSU 31-24",
+    "text": "Big night in Blacksburg! ...",
+    "source": "scrappy",
+    "createdAt": "2026-11-02T12:30:04Z",
+    "teams": [{ "sport": "cfb", "id": "259", "name": "Virginia Tech Hokies", "record": "7-2", "rank": 22,
+                "result": { "opponent": "Florida State", "teamScore": 31, "opponentScore": 24, "outcome": "W", ... },
+                "live": null,
+                "next": { "opponent": "Miami", "when": "Sat, Nov 7 3:30 PM", "tv": "ACC Network", ... } }]
+  }
+}
+```
+
+Den Duty gets the same `recap` in `/api/account/teams`. Home Assistant has
+a recap sensor; see [the Home Assistant guide](docs/home-assistant.md#scrappys-daily-recap).
+The schedule checks once a minute (`DAILY_RECAP=false` turns it off). If
+the server is down at someone's time, their recap still goes out when it
+comes back, up to three hours late; after that, that day is skipped.
 
 ## Installing on your phone
 
@@ -651,6 +700,8 @@ BingeBandit's Sports data settings instead.
 | `ANTHROPIC_API_KEY` | *(unset: Scrappy off)* | Turns on Scrappy, the AI sports chat bubble (see [Ask Scrappy](#ask-scrappy-ai-chat)) |
 | `SCRAPPY_MODEL` | `claude-opus-5-5` | Claude model Scrappy uses |
 | `SCRAPPY_RATE_PER_MINUTE` / `SCRAPPY_RATE_PER_DAY` | `8` / `100` | Scrappy messages allowed per visitor IP |
+| `DAILY_RECAP` | *(on)* | Set to `false` to stop sending Scrappy's morning recaps |
+| `RECAP_NOW_PER_HOUR` | `6` | "Send me one now" recaps allowed per IP per hour |
 
 To find a different team's ESPN ID, visit
 `https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams`

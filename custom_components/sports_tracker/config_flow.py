@@ -24,8 +24,8 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .api import TrackerClient, TrackerError, normalize_url
-from .const import CONF_FOLLOWS, CONF_URL, DOMAIN
+from .api import TrackerAuthError, TrackerClient, TrackerError, normalize_url
+from .const import CONF_FEED_KEY, CONF_FOLLOWS, CONF_URL, DOMAIN
 
 MAX_FOLLOWS = 20  # the tracker's /api/ha/scorecards limit
 
@@ -91,6 +91,7 @@ class SportsTrackerOptionsFlow(OptionsFlow):
         menu = ["add_team", "add_event"]
         if self._follows:
             menu.append("remove")
+        menu.append("recap")
         return self.async_show_menu(step_id="init", menu_options=menu)
 
     async def _load_sports(self) -> bool:
@@ -186,4 +187,33 @@ class SportsTrackerOptionsFlow(OptionsFlow):
                     mode=SelectSelectorMode.LIST,
                 )
             )}),
+        )
+
+    async def async_step_recap(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Add (or remove) the Scrappy recap sensor with the account's feed key."""
+        errors: dict[str, str] = {}
+        current = self.config_entry.options.get(CONF_FEED_KEY, "")
+        if user_input is not None:
+            key = str(user_input.get(CONF_FEED_KEY) or "").strip()
+            if not key:
+                options = {k: v for k, v in self.config_entry.options.items() if k != CONF_FEED_KEY}
+                return self.async_create_entry(data=options)
+            try:
+                await self._client().recap(key)
+            except TrackerAuthError:
+                errors["base"] = "invalid_key"
+            except TrackerError:
+                errors["base"] = "cannot_connect"
+            else:
+                return self.async_create_entry(data={**self.config_entry.options, CONF_FEED_KEY: key})
+        return self.async_show_form(
+            step_id="recap",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_FEED_KEY, default=(user_input or {}).get(CONF_FEED_KEY, current)): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                    )
+                }
+            ),
+            errors=errors,
         )

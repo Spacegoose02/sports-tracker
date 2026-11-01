@@ -13,6 +13,10 @@ class TrackerError(Exception):
     """The tracker could not be reached or returned an error."""
 
 
+class TrackerAuthError(TrackerError):
+    """The tracker turned down the feed key."""
+
+
 class TrackerClient:
     """Talks to a self-hosted Sports Tracker (the Express app in this repo)."""
 
@@ -20,11 +24,15 @@ class TrackerClient:
         self._session = session
         self.url = normalize_url(url)
 
-    async def _get(self, path: str, params: dict[str, str] | None = None) -> Any:
+    async def _get(
+        self, path: str, params: dict[str, str] | None = None, headers: dict[str, str] | None = None
+    ) -> Any:
         try:
             async with self._session.get(
-                f"{self.url}{path}", params=params, timeout=TIMEOUT
+                f"{self.url}{path}", params=params, headers=headers, timeout=TIMEOUT
             ) as resp:
+                if resp.status == 401:
+                    raise TrackerAuthError(f"{path} turned down the key")
                 if resp.status != 200:
                     raise TrackerError(f"{path} returned HTTP {resp.status}")
                 return await resp.json(content_type=None)
@@ -52,6 +60,13 @@ class TrackerClient:
         if not isinstance(cards, dict):
             raise TrackerError("Unexpected scorecards response")
         return cards
+
+    async def recap(self, feed_key: str) -> dict[str, Any]:
+        """Scrappy's latest daily recap for the account that owns the key."""
+        data = await self._get("/api/account/recap", headers={"Authorization": f"Bearer {feed_key}"})
+        if not isinstance(data, dict) or "enabled" not in data:
+            raise TrackerError("Unexpected recap response")
+        return data
 
 
 def normalize_url(url: str) -> str:

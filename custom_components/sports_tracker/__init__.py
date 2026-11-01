@@ -15,8 +15,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
 from .api import TrackerClient
-from .const import CARD_FILENAME, CARD_URL, CONF_URL, DOMAIN
-from .coordinator import SportsTrackerCoordinator
+from .const import CARD_FILENAME, CARD_URL, CONF_FEED_KEY, CONF_URL, DOMAIN
+from .coordinator import RecapCoordinator, SportsTrackerCoordinator
 
 PLATFORMS = [Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -43,6 +43,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: SportsTrackerConfigEntry
     client = TrackerClient(async_get_clientsession(hass), entry.data[CONF_URL])
     coordinator = SportsTrackerCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
+    # Scrappy's daily recap, when the account's feed key is set. A bad key
+    # or a hiccup only makes the recap sensor unavailable, never the
+    # scorecards.
+    if feed_key := entry.options.get(CONF_FEED_KEY):
+        coordinator.recap = RecapCoordinator(hass, entry, client, feed_key)
+        await coordinator.recap.async_refresh()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload))

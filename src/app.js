@@ -10,9 +10,10 @@ const { resolveSecurityConfig, securityHeaders } = require('./security');
 const { createRelayRouter } = require('./relay');
 const { createBingeBanditRouter } = require('./bingebandit');
 const { createScrappyRouter } = require('./routes/scrappy');
+const { createRecapper } = require('./recap');
 const { createFamilyRouter, createBracketsRouter } = require('./routes/family');
 
-function createApp({ env = process.env, logger = console, relay = {}, sso = {}, scrappy = {}, bingebandit = {}, family = {} } = {}) {
+function createApp({ env = process.env, logger = console, relay = {}, sso = {}, scrappy = {}, bingebandit = {}, recap = {}, family = {} } = {}) {
   const security = resolveSecurityConfig(env);
   security.warnings.forEach((w) => logger.warn(`[security] ${w}`));
 
@@ -64,7 +65,11 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {}, 
   );
 
   app.use('/api/admin', createAdminRouter());
-  app.use('/api/account', createAccountRouter({ env }));
+  // Scrappy's daily recap. server.js starts its schedule; the account
+  // routes use it for "Send me one now".
+  const recapper = createRecapper({ env, logger, client: scrappy.client, ...recap });
+  app.locals.recapper = recapper;
+  app.use('/api/account', createAccountRouter({ env, recapper }));
   app.use(createAccountPublicRouter({ env, fetchImpl: sso.fetch }));
   // Family leagues and the playoff hub (src/family.js, src/brackets.js).
   app.use('/api/family', createFamilyRouter({ deps: family.deps }));

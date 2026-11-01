@@ -90,8 +90,76 @@
     el('alertStart').checked = info.user.alertStart;
     el('alertEnd').checked = info.user.alertEnd;
     renderFeed(info.feed);
+    renderRecapSettings(info.user);
+    loadRecap();
     refreshPushState();
   }
+
+  // ---- Scrappy's morning recap --------------------------------------------
+
+  const browserZone = (() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (e) { return null; }
+  })();
+
+  function renderRecapSettings(user) {
+    el('recapEnabled').checked = user.recapEnabled;
+    el('recapTime').value = user.recapTime || '07:30';
+    el('recapTime').disabled = !user.recapEnabled;
+    el('recapZone').textContent = (user.recapTimeZone || '').replace(/_/g, ' ');
+  }
+
+  function renderRecap(recap) {
+    el('recapCard').hidden = !recap;
+    if (!recap) return;
+    el('recapHeadline').textContent = recap.headline;
+    el('recapText').textContent = recap.text;
+    const when = new Date(recap.createdAt);
+    el('recapMeta').textContent = `${recap.source === 'scrappy' ? 'Written by Scrappy' : 'Your recap'} · ${Number.isNaN(when.getTime()) ? recap.date : when.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`;
+  }
+
+  async function loadRecap() {
+    try {
+      renderRecap((await CFB.getJson('/api/account/recap')).recap);
+    } catch (e) { /* the settings still work */ }
+  }
+
+  async function saveRecapSettings(changes) {
+    showError('recapError', '');
+    try {
+      const data = await CFB.account.postJson('/api/account/me', changes, 'PATCH');
+      renderRecapSettings(data.user);
+    } catch (err) {
+      showError('recapError', err.message);
+    }
+  }
+
+  el('recapEnabled').addEventListener('change', () => {
+    const changes = { recapEnabled: el('recapEnabled').checked, recapTime: el('recapTime').value || '07:30' };
+    // Recaps go out on this browser's clock.
+    if (changes.recapEnabled && browserZone) changes.recapTimeZone = browserZone;
+    saveRecapSettings(changes);
+  });
+  el('recapTime').addEventListener('change', () => {
+    if (!el('recapTime').value) return;
+    const changes = { recapTime: el('recapTime').value };
+    if (browserZone) changes.recapTimeZone = browserZone;
+    saveRecapSettings(changes);
+  });
+  el('recapNowBtn').addEventListener('click', async () => {
+    const btn = el('recapNowBtn');
+    showError('recapError', '');
+    btn.disabled = true;
+    btn.textContent = 'Scrappy is writing…';
+    try {
+      const data = await CFB.account.postJson('/api/account/recap/now');
+      renderRecap(data.recap);
+    } catch (err) {
+      showError('recapError', err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send me one now';
+    }
+  });
 
   function renderFollows() {
     const list = el('followList');

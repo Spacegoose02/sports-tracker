@@ -38,3 +38,21 @@
   border-radius: 999px; padding: 4px 10px; font-size: 0.78rem; cursor: pointer;
 }
 .unfollow-inline:hover { color: var(--loss); border-color: var(--loss); }
+
+/* Scrappy's morning recap */
+.recap-intro { display: flex; gap: 12px; align-items: flex-start; }
+.recap-avatar { width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; }
+.recap-intro .account-note { margin: 0; }
+.recap-settings { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px 26px; font-size: 0.92rem; }
+.recap-settings input[type="time"] {
+  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-elev-2); color: var(--text); font: inherit;
+}
+.recap-settings input:disabled { opacity: 0.5; }
+.recap-card {
+  margin-top: 12px; padding: 12px 14px; border-radius: var(--radius);
+  background: var(--bg-elev-2); border-left: 3px solid var(--accent);
+}
+.recap-headline { font-weight: 700; margin-bottom: 6px; }
+.recap-text { white-space: pre-line; line-height: 1.5; font-size: 0.92rem; }
+.recap-meta { color: var(--text-dim); font-size: 0.75rem; margin-top: 8px; }

@@ -9,6 +9,8 @@ CONF_URL = "url"
 # "name": "Virginia Tech Hokies", "sport": "cfb"}; UFC and NASCAR items
 # have no team ("nascar", "ufc").
 CONF_FOLLOWS = "follows"
+# Options: the account's private feed key, for Scrappy's daily recap sensor.
+CONF_FEED_KEY = "feed_key"
 
 # The custom card ships inside the integration and is served from here.
 CARD_URL = "/sports_tracker/sports-tracker-card.js"
@@ -20,11 +22,16 @@ INTERVAL_LIVE = timedelta(seconds=15)
 INTERVAL_SOON = timedelta(minutes=1)  # a game starts within the hour
 INTERVAL_TODAY = timedelta(minutes=5)  # a game today, or one just ended
 INTERVAL_IDLE = timedelta(minutes=30)
+# The recap changes once a day; check every 15 minutes.
+INTERVAL_RECAP = timedelta(minutes=15)
 
 # Fired on Home Assistant's event bus for automations: flash the lights in
 # team colors on a score, play a fight song at kickoff...
 EVENT_SCORE = "sports_tracker_score"
 EVENT_STATE = "sports_tracker_game_state"
+# A new daily recap from Scrappy (read it out on a speaker, show it on a
+# tablet...).
+EVENT_RECAP = "sports_tracker_recap"
 
 STATE_PRE = "PRE"
 STATE_IN = "IN"

@@ -4,8 +4,12 @@
       "user": {
         "title": "Connect to your Sports Tracker",
         "description": "The address of your self-hosted Sports Tracker, the same one you open in a browser.",
-        "data": { "url": "Tracker address" },
-        "data_description": { "url": "For example http://192.168.1.50:3000" }
+        "data": {
+          "url": "Tracker address"
+        },
+        "data_description": {
+          "url": "For example http://192.168.1.50:3000"
+        }
       }
     },
     "error": {
@@ -23,30 +27,48 @@
         "menu_options": {
           "add_team": "Follow a team",
           "add_event": "Follow UFC or NASCAR",
-          "remove": "Stop following"
+          "remove": "Stop following",
+          "recap": "Scrappy's daily recap"
         }
       },
       "add_team": {
         "title": "Follow a team",
-        "data": { "sport": "Sport" }
+        "data": {
+          "sport": "Sport"
+        }
       },
       "team": {
         "title": "Pick the team",
         "description": "Type to search. You can also type an ESPN team id.",
-        "data": { "team": "Team" }
+        "data": {
+          "team": "Team"
+        }
       },
       "add_event": {
         "title": "Follow UFC or NASCAR",
         "description": "The sensor always shows the current or next fight night or race.",
-        "data": { "sport": "Series" }
+        "data": {
+          "sport": "Series"
+        }
       },
       "remove": {
         "title": "Stop following",
-        "data": { "items": "Remove these" }
+        "data": {
+          "items": "Remove these"
+        }
+      },
+      "recap": {
+        "title": "Scrappy's daily recap",
+        "description": "Adds a sensor with your account's morning recap. On the Stat Scraps site, open My account, turn on Scrappy's morning recap, and copy the key under Connect other apps. Leave the box empty to remove the sensor.",
+        "data": {
+          "feed_key": "Private key"
+        }
       }
     },
     "error": {
-      "invalid_team": "That doesn't look like a team id."
+      "invalid_team": "That doesn't look like a team id.",
+      "invalid_key": "The tracker didn't accept that key. Copy it again from My account.",
+      "cannot_connect": "Couldn't reach the Sports Tracker."
     },
     "abort": {
       "cannot_connect": "Couldn't reach the Sports Tracker.",

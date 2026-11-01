@@ -95,6 +95,29 @@
       <div class="error-text" id="pushError" role="alert"></div>
     </section>
 
+    <section class="account-section" id="recap">
+      <h2 class="section-title">Scrappy's morning recap</h2>
+      <div class="recap-intro">
+        <img src="/img/scrappy-head.png" alt="" class="recap-avatar" />
+        <p class="account-note">Every morning Scrappy sums up your teams: last night's scores, what's on today, and the next game with kickoff time and TV. It comes as a notification on devices with alerts on, and shows up in Home Assistant and Den Duty too. On days with nothing to report, it stays quiet.</p>
+      </div>
+      <label class="check-row"><input type="checkbox" id="recapEnabled" /> Send me a recap every morning</label>
+      <div class="recap-settings">
+        <label for="recapTime">At</label>
+        <input type="time" id="recapTime" value="07:30" step="300" />
+        <span class="account-note" id="recapZone"></span>
+      </div>
+      <div class="link-row">
+        <button type="button" class="secondary-btn" id="recapNowBtn">Send me one now</button>
+      </div>
+      <div class="error-text" id="recapError" role="alert"></div>
+      <div class="recap-card" id="recapCard" hidden>
+        <div class="recap-headline" id="recapHeadline"></div>
+        <div class="recap-text" id="recapText"></div>
+        <div class="recap-meta" id="recapMeta"></div>
+      </div>
+    </section>
+
     <section class="account-section">
       <h2 class="section-title">Calendar</h2>
       <p class="account-note">Subscribe once and every game for the teams you follow shows up in your phone's calendar. New games and time changes update on their own.</p>
@@ -107,7 +130,7 @@
 
     <section class="account-section">
       <h2 class="section-title">Connect other apps</h2>
-      <p class="account-note">Apps like Den Duty can show your teams. Give them this key; it only allows reading your teams and their games.</p>
+      <p class="account-note">Apps like Den Duty and Home Assistant can show your teams and Scrappy's recap. Give them this key; it only allows reading your teams, their games and your recap.</p>
       <input type="text" class="copy-field" id="feedKey" readonly aria-label="Private key" />
       <div class="link-row">
         <button type="button" class="secondary-btn" id="copyKeyBtn">Copy key</button>
