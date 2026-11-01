@@ -1,4 +1,4 @@
-/* CFB Tracker service worker.
+/* Stat Scraps service worker.
  *
  * Strategy, by request type:
  *   - Pages (navigations): network first, falling back to the last cached
@@ -12,7 +12,7 @@
  *
  * Bump VERSION to throw away every old cache on the next visit.
  */
-const VERSION = 'v2';
+const VERSION = 'v3';
 const STATIC_CACHE = `cfb-static-${VERSION}`;
 const PAGE_CACHE = `cfb-pages-${VERSION}`;
 const API_CACHE = `cfb-api-${VERSION}`;
@@ -31,9 +31,10 @@ const PRECACHE = [
   '/js/theme-boot.js',
   '/css/themes.css',
   '/js/theme-picker.js',
-  '/img/favicon.svg',
-  '/img/cfbtracker-icon.png',
-  '/img/cfbtracker-icon-192.png',
+  '/css/brand.css',
+  '/img/scrappy-head.png',
+  '/img/statscraps-icon-512.png',
+  '/img/statscraps-icon-192.png',
   '/manifest.webmanifest',
 ];
 
@@ -157,10 +158,10 @@ async function trim(cache, max) {
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { data = { title: event.data && event.data.text() }; }
-  event.waitUntil(self.registration.showNotification(data.title || 'CFB Tracker', {
+  event.waitUntil(self.registration.showNotification(data.title || 'Stat Scraps', {
     body: data.body || '',
-    icon: '/img/cfbtracker-icon-180.png',
-    badge: '/img/cfbtracker-icon-32.png',
+    icon: '/img/statscraps-icon-180.png',
+    badge: '/img/statscraps-icon-32.png',
     tag: data.tag || undefined,
     data: { url: data.url || '/' },
   }));

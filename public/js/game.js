@@ -294,7 +294,7 @@
       const detail = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}?source=${encodeURIComponent(source)}`));
       ui.lastLoaded = detail;
       const saved = captureUi();
-      document.title = `${(detail.teams || []).map((t) => t.abbreviation || t.shortName || t.name).join(' @ ')} · CFB Tracker`;
+      document.title = `${(detail.teams || []).map((t) => t.abbreviation || t.shortName || t.name).join(' @ ')} · Stat Scraps`;
 
       const away = (detail.teams || []).find((t) => t.homeAway === 'away');
       const home = (detail.teams || []).find((t) => t.homeAway === 'home');

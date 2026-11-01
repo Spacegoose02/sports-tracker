@@ -80,7 +80,7 @@ function buildIcs(schedules, { name = 'My teams', baseUrl = '', now = new Date()
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//CFB Tracker//Followed teams//EN',
+    'PRODID:-//Stat Scraps//Followed teams//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${icsEscape(name)}`,

@@ -61,7 +61,7 @@ test('text responses are gzip compressed and images are cached', async () => {
     const css = await fetch(`${app.url}/css/styles.css`, { headers: { 'Accept-Encoding': 'gzip' } });
     assert.strictEqual(css.headers.get('content-encoding'), 'gzip');
     assert.strictEqual(css.headers.get('cache-control'), 'no-cache');
-    const img = await fetch(`${app.url}/img/cfbtracker-icon-192.png`);
+    const img = await fetch(`${app.url}/img/statscraps-icon-192.png`);
     assert.match(img.headers.get('cache-control'), /max-age=604800/);
   } finally {
     await app.close();
