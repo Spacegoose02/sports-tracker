@@ -260,6 +260,7 @@ survive rebuilds.
 | `NEWS_FEEDS_JSON` | *(public ESPN / CBS Sports / Yahoo Sports CFB feeds)* | Optional JSON array of `{"name":"...","url":"..."}` to override the News tab's RSS feeds entirely |
 | `NEWS_FETCH_OG_IMAGES` | `1` (on) | Set to `0` to stop fetching each article's `og:image` for the News tab — faster/fewer outbound requests, but back to whatever (if anything) the RSS feed itself embedded |
 | `YOUTUBE_CHANNELS_JSON` | *(your 7 Dynacat channels)* | Optional JSON array of `{"id":"UC...","name":"..."}` to override the Videos tab's channel list entirely |
+| `TRUST_PROXY` | *(unset)* | Set to `1` when the app sits behind a reverse proxy so the admin login rate limit sees each visitor's real IP |
 
 To find a different team's ESPN ID, visit
 `https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams`
@@ -280,6 +281,28 @@ and search for the team, or check the URL on ESPN's team page
 - If ESPN's API errors out, the app automatically retries the same request
   against your ncaa-api instance and tags the response so you know which
   source served it (shown in the small text under the page title).
+
+## Security
+
+- **Set real secrets.** When `NODE_ENV=production` (the Docker image sets
+  it), `/admin` stays locked until `ADMIN_PASSWORD` is something other than
+  the placeholder. A missing or placeholder `SESSION_SECRET` is replaced
+  with a random one at startup, which works but logs everyone out of
+  `/admin` on every restart. The server log says exactly what to change.
+- **Admin login is rate limited** to 10 attempts per 15 minutes per IP.
+- **Outside content is escaped.** News headlines, video titles, ESPN data
+  and admin notes are all escaped before they reach the page, and only
+  `http(s)` links and images are allowed through.
+- **Keep private feed URLs out of the code.** Put RSS-bridge URLs with
+  tokens in `NEWS_FEEDS_JSON` in your `.env` or container settings.
+
+## Tests
+
+```bash
+npm test
+```
+
+Runs on every pull request through GitHub Actions.
 
 ## Local development (without Docker)
 

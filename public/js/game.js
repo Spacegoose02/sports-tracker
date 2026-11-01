@@ -16,13 +16,13 @@
     const possessionIcon = hasPossession ? '<span class="possession-icon" title="Has possession">&#127944;</span>' : '';
     return `
       <div class="game-side game-side-${side}">
-        ${team.logo ? `<img class="logo" src="${team.logo}" alt="" onerror="this.style.display='none'">` : ''}
+        ${team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
         <div class="game-side-meta">
-          <a class="team-name team-link ${isWinner ? 'winner' : ''}" href="${CFB.teamLink(team)}">${team.rank ? '#' + team.rank + ' ' : ''}${team.name}</a>
+          <a class="team-name team-link ${isWinner ? 'winner' : ''}" href="${CFB.teamLink(team)}">${team.rank ? '#' + CFB.esc(team.rank) + ' ' : ''}${CFB.esc(team.name)}</a>
           ${possessionIcon}
-          ${team.record ? `<div class="record">${team.record}</div>` : ''}
+          ${team.record ? `<div class="record">${CFB.esc(team.record)}</div>` : ''}
         </div>
-        <div class="game-side-score ${isWinner ? 'winner' : ''}">${team.score !== null && team.score !== undefined ? team.score : ''}</div>
+        <div class="game-side-score ${isWinner ? 'winner' : ''}">${team.score !== null && team.score !== undefined ? CFB.esc(team.score) : ''}</div>
       </div>`;
   }
 
@@ -55,8 +55,9 @@
     const toX = (pct) => EZ + (pct / 100) * FIELD_W;
     const ballX = toX(fd.ballPercent);
     const fdX = fd.firstDownPercent !== null ? toX(fd.firstDownPercent) : null;
-    const awayColor = (away && away.color) || '#4f8dfd';
-    const homeColor = (home && home.color) || '#4f8dfd';
+    const hex = (c) => (c && /^#[0-9a-f]{3,8}$/i.test(c) ? c : null);
+    const awayColor = hex(away && away.color) || '#4f8dfd';
+    const homeColor = hex(home && home.color) || '#4f8dfd';
 
     const yardMarks = [10, 20, 30, 40, 50, 60, 70, 80, 90].map((y) => {
       const x = toX(y);
@@ -79,11 +80,11 @@
     const endzone = (side, color, team) => {
       const cx = side === 'left' ? EZ / 2 : VIEW_W - EZ / 2;
       const logo = team && team.logo
-        ? `<image href="${team.logo}" x="${cx - 20}" y="${MID - 42}" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>`
+        ? `<image href="${CFB.safeUrl(team.logo)}" x="${cx - 20}" y="${MID - 42}" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>`
         : '';
       return `
         ${logo}
-        <text x="${cx}" y="${MID + (team && team.logo ? 32 : 8)}" text-anchor="middle" font-size="22" fill="#fff" font-weight="800" style="text-shadow:0 1px 3px rgba(0,0,0,0.6)">${team ? (team.abbreviation || '') : ''}</text>`;
+        <text x="${cx}" y="${MID + (team && team.logo ? 32 : 8)}" text-anchor="middle" font-size="22" fill="#fff" font-weight="800" style="text-shadow:0 1px 3px rgba(0,0,0,0.6)">${team ? CFB.esc(team.abbreviation || '') : ''}</text>`;
     };
 
     return `
@@ -117,8 +118,8 @@
 
     const timeoutsRow = (detail.situation.homeTimeouts !== null || detail.situation.awayTimeouts !== null)
       ? `<div class="field-timeouts">
-          <span>${away ? (away.abbreviation || '') : ''} timeouts: ${detail.situation.awayTimeouts !== null ? '&#9679;'.repeat(detail.situation.awayTimeouts) + '&#9675;'.repeat(Math.max(0, 3 - detail.situation.awayTimeouts)) : '&mdash;'}</span>
-          <span>${home ? (home.abbreviation || '') : ''} timeouts: ${detail.situation.homeTimeouts !== null ? '&#9679;'.repeat(detail.situation.homeTimeouts) + '&#9675;'.repeat(Math.max(0, 3 - detail.situation.homeTimeouts)) : '&mdash;'}</span>
+          <span>${away ? CFB.esc(away.abbreviation || '') : ''} timeouts: ${detail.situation.awayTimeouts !== null ? '&#9679;'.repeat(detail.situation.awayTimeouts) + '&#9675;'.repeat(Math.max(0, 3 - detail.situation.awayTimeouts)) : '&mdash;'}</span>
+          <span>${home ? CFB.esc(home.abbreviation || '') : ''} timeouts: ${detail.situation.homeTimeouts !== null ? '&#9679;'.repeat(detail.situation.homeTimeouts) + '&#9675;'.repeat(Math.max(0, 3 - detail.situation.homeTimeouts)) : '&mdash;'}</span>
         </div>`
       : '';
 
@@ -156,7 +157,7 @@
       el('gameScorebug').innerHTML = `
         <div class="game-status-row">
           ${isLive ? '<span class="live-dot">&#9679; LIVE</span>' : ''}
-          <span>${statusLine(detail)}</span>
+          <span>${CFB.esc(statusLine(detail))}</span>
         </div>
         <div class="game-sides">
           ${teamSideHtml(away, 'away', awayHasBall)}
@@ -170,8 +171,8 @@
       if (detail.situation && (detail.situation.down || detail.situation.lastPlay)) {
         situationEl.classList.remove('empty-note');
         situationEl.innerHTML = `
-          ${detail.situation.down ? `<div><strong>${detail.situation.down}</strong></div>` : ''}
-          ${detail.situation.lastPlay ? `<div>${detail.situation.lastPlay}</div>` : ''}`;
+          ${detail.situation.down ? `<div><strong>${CFB.esc(detail.situation.down)}</strong></div>` : ''}
+          ${detail.situation.lastPlay ? `<div>${CFB.esc(detail.situation.lastPlay)}</div>` : ''}`;
       } else {
         situationEl.classList.add('empty-note');
         situationEl.textContent = '';

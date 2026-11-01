@@ -4,6 +4,7 @@
 
 const fetch = require('node-fetch');
 const cache = require('./cache');
+const { safeHttpUrl } = require('./security');
 
 // Defaults are public college football RSS feeds. Override entirely via the
 // NEWS_FEEDS_JSON env var (a JSON array of { "name": "...", "url": "..." }),
@@ -121,18 +122,20 @@ function parseRss(xml, sourceName) {
   const itemBlocks = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
   for (const block of itemBlocks) {
     const title = extractTag(block, 'title');
-    const link = extractTag(block, 'link');
+    // Feeds are outside content: only keep http(s) links so a hostile or
+    // broken feed can't hand the browser a javascript: URL.
+    const link = safeHttpUrl(extractTag(block, 'link'));
     if (!title || !link) continue;
     const pubDateRaw = extractTag(block, 'pubDate') || extractTag(block, 'dc:date') || extractTag(block, 'published');
     const description = extractTag(block, 'description') || extractTag(block, 'summary');
     const parsedDate = pubDateRaw ? new Date(pubDateRaw) : null;
     items.push({
       title: stripHtml(title),
-      link: link.trim(),
+      link,
       source: sourceName,
       pubDate: parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : null,
       summary: stripHtml(description).slice(0, 220),
-      image: extractImage(block),
+      image: safeHttpUrl(extractImage(block)),
     });
   }
   return items;
@@ -208,7 +211,7 @@ async function fetchOgImageCached(link) {
   return cache.getOrFetch(key, async () => {
     try {
       const html = await fetchPartialHtml(link);
-      return extractOgImage(html);
+      return safeHttpUrl(extractOgImage(html));
     } catch (err) {
       return null;
     }
@@ -246,4 +249,4 @@ async function getNews() {
   }, 10 * 60 * 1000);
 }
 
-module.exports = { getNews };
+module.exports = { getNews, parseRss };

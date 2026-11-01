@@ -25,10 +25,10 @@
     el('pageTitle').textContent = team ? team.name : 'Team';
     const hero = el('teamHero');
     hero.innerHTML = `
-      ${team && team.logo ? `<img class="logo" src="${team.logo}" alt="" onerror="this.style.display='none'">` : ''}
+      ${team && team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
       <div>
-        <div class="name">${team ? team.name : 'Unknown team'} ${data.isFavorite ? '<span class="fav-badge">My Team</span>' : ''}</div>
-        <div class="meta">${team && team.record ? team.record + ' overall' : ''} ${team && team.rank ? '&middot; Rank #' + team.rank : ''} ${team && team.standingSummary ? '&middot; ' + team.standingSummary : ''}</div>
+        <div class="name">${CFB.esc(team ? team.name : 'Unknown team')} ${data.isFavorite ? '<span class="fav-badge">My Team</span>' : ''}</div>
+        <div class="meta">${team && team.record ? CFB.esc(team.record) + ' overall' : ''} ${team && team.rank ? '&middot; Rank #' + CFB.esc(team.rank) : ''} ${team && team.standingSummary ? '&middot; ' + CFB.esc(team.standingSummary) : ''}</div>
       </div>
     `;
     // Brand this page with the team's own color rather than a hardcoded
@@ -59,8 +59,8 @@
     }
     grid.innerHTML = categories.map((cat) => `
       <div class="stat-category">
-        <h4>${cat.name}</h4>
-        ${(cat.stats || []).slice(0, 8).map((s) => `<div class="stat-row"><span>${s.name}</span><span>${s.value}</span></div>`).join('')}
+        <h4>${CFB.esc(cat.name)}</h4>
+        ${(cat.stats || []).slice(0, 8).map((s) => `<div class="stat-row"><span>${CFB.esc(s.name)}</span><span>${CFB.esc(s.value)}</span></div>`).join('')}
       </div>
     `).join('');
   }

@@ -1,6 +1,10 @@
 (function () {
   const state = { season: null, week: null, seasonType: 2, games: [], picked: [] };
   const el = (id) => document.getElementById(id);
+  // admin.html doesn't load shared.js, so it keeps its own escaper.
+  const esc = (value) => (value === null || value === undefined ? '' : String(value))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   async function getJson(url, opts) {
     const res = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
@@ -35,7 +39,7 @@
       el('adminPanel').style.display = 'block';
       await initPanel();
     } catch (err) {
-      el('loginError').textContent = 'Incorrect password.';
+      el('loginError').textContent = err.message === 'Incorrect password' ? 'Incorrect password.' : err.message;
     }
   });
   el('passwordInput').addEventListener('keydown', (e) => {
@@ -111,9 +115,9 @@
       const game = state.games.find((g) => String(g.id) === String(row.event_id));
       const title = game ? (game.shortName || game.name) : (row.game_name || row.event_id);
       return `
-        <div class="admin-game-row picked" data-row-id="${row.id}">
-          <span class="matchup">${title}</span>
-          <input class="note-input" placeholder="Optional note (e.g. 'ACC opener')" value="${row.label ? row.label.replace(/"/g, '&quot;') : ''}" />
+        <div class="admin-game-row picked" data-row-id="${esc(row.id)}">
+          <span class="matchup">${esc(title)}</span>
+          <input class="note-input" placeholder="Optional note (e.g. 'ACC opener')" value="${esc(row.label || '')}" />
           <button class="save">Save note</button>
           <button class="remove">Remove</button>
         </div>`;
@@ -155,8 +159,8 @@
       const isPicked = pickedIds.has(String(game.id));
       const title = `${game.away ? game.away.shortName : 'TBD'} @ ${game.home ? game.home.shortName : 'TBD'}`;
       return `
-        <div class="admin-game-row ${isPicked ? 'picked' : ''}" data-id="${game.id}" data-source="${game.source || 'espn'}">
-          <span class="matchup">${title} &middot; ${statusLabel(game)}</span>
+        <div class="admin-game-row ${isPicked ? 'picked' : ''}" data-id="${esc(game.id)}" data-source="${esc(game.source || 'espn')}">
+          <span class="matchup">${esc(title)} &middot; ${esc(statusLabel(game))}</span>
           <button class="${isPicked ? 'remove' : 'add'}">${isPicked ? 'Remove notable' : 'Mark notable'}</button>
         </div>`;
     }).join('');
