@@ -5,6 +5,8 @@ const news = require('../news');
 const videos = require('../videos');
 const radio = require('../radio');
 const matchup = require('../matchup');
+const lines = require('../lines');
+const recruiting = require('../recruiting');
 const { isSafeId } = require('../security');
 const { getSport, DEFAULT_SPORT, publicSportList } = require('../sports');
 
@@ -324,5 +326,76 @@ router.get('/videos', async (req, res) => {
     res.status(502).json({ error: 'Could not load videos', detail: err.message });
   }
 });
+
+// Betting lines for a week (or a day/date range for daily sports): spread,
+// total and moneylines per game, graded against the final score once a
+// game ends. Same query params as /scoreboard.
+router.get('/lines', async (req, res) => {
+  try {
+    const { week, year, seasontype, groups, dates } = req.query;
+    if (dates && !DATES_RE.test(String(dates))) return res.status(400).json({ error: 'dates must be YYYYMMDD or YYYYMMDD-YYYYMMDD' });
+    const result = await ds.getScoreboard({
+      sport: req.sport.key,
+      week: week ? Number(week) : undefined,
+      year: year ? Number(year) : undefined,
+      seasontype: seasontype ? Number(seasontype) : undefined,
+      groups: groups ? Number(groups) : undefined,
+      dates: dates ? String(dates) : undefined,
+    });
+    res.json({
+      sport: req.sport.key,
+      season: result.season,
+      week: result.week,
+      seasonType: result.seasonType,
+      source: result.source,
+      ...lines.buildLines(result.games || []),
+    });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load betting lines', detail: err.message });
+  }
+});
+
+// ---- Recruiting and transfer portal (college football) -----------------
+// News works out of the box. The portal, top recruits and class rankings
+// come from CollegeFootballData.com and need CFBD_API_KEY (free).
+
+router.get('/recruiting/status', (req, res) => {
+  res.json({ cfbd: recruiting.hasCfbd(), defaultYear: recruiting.defaultYear() });
+});
+
+router.get('/recruiting/news', async (req, res) => {
+  try {
+    res.json({ items: await recruiting.getRecruitingNews() });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load recruiting news', detail: err.message });
+  }
+});
+
+function recruitingRoute(path, loader, label) {
+  router.get(path, async (req, res) => {
+    if (!recruiting.hasCfbd()) {
+      return res.status(503).json({ error: 'Add a free CollegeFootballData.com API key as CFBD_API_KEY to turn this on.', needsKey: true });
+    }
+    const year = req.query.year === undefined ? recruiting.defaultYear() : recruiting.validYear(req.query.year);
+    if (!year) return res.status(400).json({ error: 'Invalid year' });
+    try {
+      let items = await loader(year);
+      let usedYear = year;
+      // Early in a cycle the new year can be empty; fall back a year so the
+      // page isn't blank, unless the visitor picked the year themselves.
+      if (!items.length && req.query.year === undefined) {
+        usedYear = year - 1;
+        items = await loader(usedYear);
+      }
+      return res.json({ year: usedYear, items });
+    } catch (err) {
+      return res.status(502).json({ error: `Could not load ${label}`, detail: err.message });
+    }
+  });
+}
+
+recruitingRoute('/recruiting/portal', recruiting.getPortal, 'the transfer portal');
+recruitingRoute('/recruiting/players', recruiting.getRecruits, 'recruits');
+recruitingRoute('/recruiting/teams', recruiting.getClassRankings, 'class rankings');
 
 module.exports = router;
