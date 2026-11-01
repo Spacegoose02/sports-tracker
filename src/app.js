@@ -6,8 +6,9 @@ const express = require('express');
 const cookieSession = require('cookie-session');
 
 const { resolveSecurityConfig, securityHeaders } = require('./security');
+const { createRelayRouter } = require('./relay');
 
-function createApp({ env = process.env, logger = console } = {}) {
+function createApp({ env = process.env, logger = console, relay = {} } = {}) {
   const security = resolveSecurityConfig(env);
   security.warnings.forEach((w) => logger.warn(`[security] ${w}`));
 
@@ -36,6 +37,8 @@ function createApp({ env = process.env, logger = console } = {}) {
 
   app.use('/api/admin', createAdminRouter());
   app.use('/api', apiRoutes);
+  // ESPN's site API, cached, for other apps such as BingeBandit (src/relay.js).
+  app.use('/espn', createRelayRouter({ env, logger, ...relay }));
 
   const publicDir = path.join(__dirname, '..', 'public');
   app.use(express.static(publicDir));
