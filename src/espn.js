@@ -507,6 +507,9 @@ async function getGameSummary(eventId, sport) {
         id: c.team && c.team.id,
         name: c.team && c.team.displayName,
         shortName: c.team && (c.team.shortDisplayName || c.team.abbreviation),
+        // "Virginia Tech" / "Hokies", used to match highlight video titles.
+        location: (c.team && c.team.location) || null,
+        nickname: (c.team && c.team.name) || null,
         abbreviation: c.team && c.team.abbreviation,
         logo: (c.team && (c.team.logo || (c.team.logos && c.team.logos[0] && c.team.logos[0].href))) || null,
         color: c.team && c.team.color ? `#${c.team.color}` : null,

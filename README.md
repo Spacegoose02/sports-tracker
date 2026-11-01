@@ -402,6 +402,18 @@ window.addEventListener('tracker:score', (e) => {
 
 The saved data goes through `Kids.store` (see `public/js/kids.js`). When accounts arrive, a sync layer can call `Kids.store.setBackend({ get(key), set(key, value) })` to keep it on the server, and listen for `tracker:kids-data` to know when something changed.
 
+## TV wall mode
+
+`/wall.html` (the **TV Wall** link on the home page) is a full-screen scoreboard for a TV or a tablet on the wall. It rotates through live games first, then games about to start and fresh finals, with your followed teams always ahead of the rest. Football games show the live field with the ball, first-down line and red zone (the same drawing as the Home Assistant card), baseball shows the diamond and count, and everything else shows the score by period. When a live game's score changes, the wall jumps to it with a "Score!" banner.
+
+- Options in the URL: `?sports=cfb,nfl` (default: every sport you follow a team in), `?every=15` (seconds per game, 5 to 120, default 12) and `?mine=1` (only your teams' games).
+- Keys: Left and Right step through games, Space pauses, F goes full screen. The controls and cursor hide after a few seconds.
+- The page asks the browser to keep the screen awake while it's open.
+
+## Highlights
+
+A finished game's page shows highlight clips above the box score: ESPN's own clips (they play right on the page) plus uploads from the Videos tab's YouTube channels whose title names both teams. Clips often show up an hour or two after the final, so an open page checks again every 10 minutes until some arrive.
+
 ## Ask Scrappy (AI chat)
 
 Scrappy is the site's raccoon mascot and sports guru, living in a chat bubble in the bottom corner of every page. Ask him things like "When do the Hokies play next and what channel?", "Who's in the AP Top 10?", "What do the ACC standings look like?" or "Who leads the NFL in passing yards?" and he answers from the same live data the site shows: scores, schedules, TV and radio, rankings, standings, team and player stats, stat leaders and news, for every sport on the site.
