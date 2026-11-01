@@ -548,6 +548,30 @@ start, 5 to 10 minutes otherwise, and 12 hours for team lists. If ESPN
 fails, the last copy (up to a day old) is served with `X-Cache: STALE`.
 If the tracker is down, BingeBandit reads ESPN directly until it's back.
 
+### Watch on BingeBandit
+
+The game page's **Where to watch** box can link straight to the BingeBandit
+Live TV channel that shows the game ("Watch on BingeBandit · Channel 206 ·
+for ESPN2"). It uses the same pairing as the relay, in the other direction:
+
+1. Pair the apps as above (`RELAY_API_KEY` here, the same key in
+   BingeBandit's **Sports data** settings).
+2. Set `BINGEBANDIT_URL` to BingeBandit's address (e.g.
+   `http://192.168.1.10:8484`) and restart.
+
+For each of a game's TV networks, BingeBandit picks the channel an admin tied
+to it under **Admin → Live TV → Networks**, or else a channel named for it
+("US: ESPN 2 HD" for ESPN2). Networks with no channel get no link, and the
+link isn't shown once the game is over. The tracker only learns channel
+names and numbers; opening the link still needs a BingeBandit sign-in.
+Answers are cached for 5 minutes, and if BingeBandit is down the links just
+don't appear.
+
+If browsers should open BingeBandit at a different address than this server
+uses to reach it (say, its public URL), set `BINGEBANDIT_LINK_URL`. To use a
+different key than the relay's, set `BINGEBANDIT_API_KEY` and put that key in
+BingeBandit's Sports data settings instead.
+
 ## Configuration (environment variables)
 
 | Variable | Default | Purpose |
@@ -564,6 +588,9 @@ If the tracker is down, BingeBandit reads ESPN directly until it's back.
 | `NEWS_FETCH_OG_IMAGES` | `1` (on) | Set to `0` to stop fetching each article's `og:image` for the News tab — faster/fewer outbound requests, but back to whatever (if anything) the RSS feed itself embedded |
 | `YOUTUBE_CHANNELS_JSON` | *(your 7 Dynacat channels)* | Optional JSON array of `{"id":"UC...","name":"..."}` to override the Videos tab's channel list entirely |
 | `RELAY_API_KEY` | *(unset: relay off)* | Turns on the ESPN relay at `/espn/...` for BingeBandit and other apps; they send it as `X-Api-Key` |
+| `BINGEBANDIT_URL` | *(unset: off)* | BingeBandit's address, e.g. `http://192.168.1.10:8484`. Adds **Watch on BingeBandit** channel links to game pages (see [Watch on BingeBandit](#watch-on-bingebandit)) |
+| `BINGEBANDIT_LINK_URL` | *(`BINGEBANDIT_URL`)* | Address browsers open the links at, when it differs (e.g. BingeBandit's public URL) |
+| `BINGEBANDIT_API_KEY` | *(`RELAY_API_KEY`)* | Key sent to BingeBandit; must match its **Sports data** key |
 | `TRUST_PROXY` | *(unset)* | Set to `1` when the app sits behind a reverse proxy so the admin login rate limit sees each visitor's real IP |
 | `PUBLIC_URL` | *(from the request)* | The site's public address, e.g. `https://sports.example.com`. Used for the SSO callback and calendar links; set it when behind a reverse proxy |
 | `ALLOW_SIGNUP` | `true` | Set to `false` to stop new email/password sign-ups |
