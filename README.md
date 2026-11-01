@@ -264,6 +264,17 @@ Picking notable games then happens in `/admin` here instead of editing your
 dashboard's YAML every week. Open that file for the full widget block and
 setup notes — you just need to point it at this container's host:port.
 
+## Home Assistant scorecards
+
+`custom_components/sports_tracker` is a Home Assistant integration (HACS
+custom repository: this repo) that turns the teams you follow into sensors
+and ships a dashboard card with a live football field, NASCAR track outline,
+baseball diamond, hockey rink, basketball court and UFC octagon, plus score
+events for automations like flashing the lights on a touchdown. See
+[docs/home-assistant.md](docs/home-assistant.md).
+
+![Home Assistant scorecards](docs/img/ha-scorecards.png)
+
 ## Running on Unraid
 
 You have two straightforward options. Either way, the app needs one
@@ -399,7 +410,9 @@ and search for the team, or check the URL on ESPN's team page
 npm test
 ```
 
-Runs on every pull request through GitHub Actions.
+The Home Assistant integration has its own Python tests
+(`tests/home_assistant`, see [docs/home-assistant.md](docs/home-assistant.md)).
+Both run on every pull request through GitHub Actions.
 
 ## Local development (without Docker)
 

@@ -136,7 +136,7 @@ for (const sport of Object.values(SPORTS)) {
 const DEFAULT_SPORT = 'cfb';
 
 function getSport(key) {
-  return SPORTS[key] || null;
+  return Object.prototype.hasOwnProperty.call(SPORTS, key) ? SPORTS[key] : null;
 }
 
 // Resolves a ?sport= value to a sport config, falling back to college

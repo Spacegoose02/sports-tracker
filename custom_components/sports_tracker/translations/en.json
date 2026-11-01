@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to your Sports Tracker",
+        "description": "The address of your self-hosted Sports Tracker, the same one you open in a browser.",
+        "data": { "url": "Tracker address" },
+        "data_description": { "url": "For example http://192.168.1.50:3000" }
+      }
+    },
+    "error": {
+      "cannot_connect": "Couldn't reach a Sports Tracker at that address. Check that it's running and that Home Assistant can reach it."
+    },
+    "abort": {
+      "already_configured": "This tracker is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sports Tracker",
+        "description": "Each team or event you follow gets a scorecard sensor.",
+        "menu_options": {
+          "add_team": "Follow a team",
+          "add_event": "Follow UFC or NASCAR",
+          "remove": "Stop following"
+        }
+      },
+      "add_team": {
+        "title": "Follow a team",
+        "data": { "sport": "Sport" }
+      },
+      "team": {
+        "title": "Pick the team",
+        "description": "Type to search. You can also type an ESPN team id.",
+        "data": { "team": "Team" }
+      },
+      "add_event": {
+        "title": "Follow UFC or NASCAR",
+        "description": "The sensor always shows the current or next fight night or race.",
+        "data": { "sport": "Series" }
+      },
+      "remove": {
+        "title": "Stop following",
+        "data": { "items": "Remove these" }
+      }
+    },
+    "error": {
+      "invalid_team": "That doesn't look like a team id."
+    },
+    "abort": {
+      "cannot_connect": "Couldn't reach the Sports Tracker.",
+      "already_following": "You already follow that.",
+      "too_many": "You can follow up to 20 teams and events per tracker."
+    }
+  }
+}
