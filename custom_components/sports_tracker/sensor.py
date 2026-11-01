@@ -1,4 +1,5 @@
-"""One sensor per followed team, UFC card or NASCAR race.
+"""One sensor per followed team, UFC card or NASCAR race, plus Scrappy's
+daily recap when the account's feed key is set.
 
 State is PRE, IN, POST or NOT_FOUND (the same states the popular Team
 Tracker card uses). The attributes are the full scorecard, which is what
@@ -18,7 +19,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SportsTrackerConfigEntry
 from .const import CONF_FOLLOWS, CONF_URL, DOMAIN, SPORT_ICONS
-from .coordinator import SportsTrackerCoordinator
+from .coordinator import RecapCoordinator, SportsTrackerCoordinator
 
 # Nested scorecard parts change every few seconds during a game; keep them
 # out of the recorder database. The flat attributes are still recorded.
@@ -32,8 +33,21 @@ async def async_setup_entry(
 ) -> None:
     """Add a sensor for each follow."""
     coordinator = entry.runtime_data
-    async_add_entities(
+    entities: list[SensorEntity] = [
         ScorecardSensor(coordinator, follow) for follow in entry.options.get(CONF_FOLLOWS, [])
+    ]
+    if coordinator.recap is not None:
+        entities.append(RecapSensor(coordinator.recap))
+    async_add_entities(entities)
+
+
+def _device_info(entry) -> DeviceInfo:
+    return DeviceInfo(
+        identifiers={(DOMAIN, entry.entry_id)},
+        name="Sports Tracker",
+        manufacturer="Sports Tracker",
+        entry_type=DeviceEntryType.SERVICE,
+        configuration_url=entry.data[CONF_URL],
     )
 
 
@@ -51,13 +65,7 @@ class ScorecardSensor(CoordinatorEntity[SportsTrackerCoordinator], SensorEntity)
         self._attr_name = follow.get("name") or self._item
         self._attr_unique_id = f"{entry.entry_id}_{self._item}"
         self._attr_icon = SPORT_ICONS.get(self._sport, "mdi:scoreboard")
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name="Sports Tracker",
-            manufacturer="Sports Tracker",
-            entry_type=DeviceEntryType.SERVICE,
-            configuration_url=entry.data[CONF_URL],
-        )
+        self._attr_device_info = _device_info(entry)
 
     @property
     def _card(self) -> dict[str, Any] | None:
@@ -114,5 +122,45 @@ class ScorecardSensor(CoordinatorEntity[SportsTrackerCoordinator], SensorEntity)
             "next_game": card.get("nextGame"),
             "race": card.get("race"),
             "card": card.get("card"),
+        }
+        return {k: v for k, v in attrs.items() if v is not None}
+
+
+class RecapSensor(CoordinatorEntity[RecapCoordinator], SensorEntity):
+    """Scrappy's daily recap. State is the headline; the full text is in `text`."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Scrappy recap"
+    _attr_icon = "mdi:newspaper-variant-outline"
+    _unrecorded_attributes = frozenset({"text", "teams"})
+
+    def __init__(self, coordinator: RecapCoordinator) -> None:
+        super().__init__(coordinator)
+        entry = coordinator.config_entry
+        self._attr_unique_id = f"{entry.entry_id}_recap"
+        self._attr_device_info = _device_info(entry)
+
+    @property
+    def _recap(self) -> dict[str, Any]:
+        return (self.coordinator.data or {}).get("recap") or {}
+
+    @property
+    def native_value(self) -> str | None:
+        headline = self._recap.get("headline")
+        return headline[:255] if headline else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self.coordinator.data or {}
+        recap = self._recap
+        attrs: dict[str, Any] = {
+            "text": recap.get("text"),
+            "date": recap.get("date"),
+            "created_at": recap.get("createdAt"),
+            "written_by": "Scrappy" if recap.get("source") == "scrappy" else "Stat Scraps",
+            "enabled": data.get("enabled"),
+            "time": data.get("time"),
+            "time_zone": data.get("timeZone"),
+            "teams": recap.get("teams"),
         }
         return {k: v for k, v in attrs.items() if v is not None}

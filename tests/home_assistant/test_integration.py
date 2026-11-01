@@ -9,8 +9,10 @@ from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events
 
 from custom_components.sports_tracker.const import (
+    CONF_FEED_KEY,
     CONF_FOLLOWS,
     DOMAIN,
+    EVENT_RECAP,
     EVENT_SCORE,
     EVENT_STATE,
     INTERVAL_IDLE,
@@ -162,6 +164,73 @@ async def test_sensors_events_and_card(hass: HomeAssistant, aioclient_mock, hass
     resp = await client.get("/sports_tracker/sports-tracker-card.js")
     assert resp.status == 200
     assert "customElements.define('sports-tracker-card'" in await resp.text()
+
+
+KEY = "k" * 32
+
+
+def recap_body(headline="Hokies hold off FSU 31-24", created="2026-11-02T13:30:00Z"):
+    return {
+        "user": {"displayName": "Sam"},
+        "enabled": True,
+        "time": "07:30",
+        "timeZone": "America/New_York",
+        "recap": {
+            "date": "2026-11-02",
+            "headline": headline,
+            "text": "Virginia Tech beat Florida State 31-24. Next up: at #9 Miami Saturday on ACC Network.",
+            "teams": [{"sport": "cfb", "id": "259", "name": "Virginia Tech Hokies"}],
+            "source": "scrappy",
+            "createdAt": created,
+        },
+    }
+
+
+async def test_recap_option_sensor_and_event(hass: HomeAssistant, aioclient_mock) -> None:
+    mock_tracker(aioclient_mock, {})
+    aioclient_mock.get(f"{URL}/api/account/recap", status=401)
+    entry = MockConfigEntry(domain=DOMAIN, data={"url": URL}, options={CONF_FOLLOWS: []})
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    # A wrong key is turned down.
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert "recap" in result["menu_options"]
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "recap"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {CONF_FEED_KEY: "wrong"})
+    assert result["errors"] == {"base": "invalid_key"}
+
+    mock_tracker(aioclient_mock, {})
+    aioclient_mock.get(f"{URL}/api/account/recap", json=recap_body())
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {CONF_FEED_KEY: KEY})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options[CONF_FEED_KEY] == KEY
+    assert aioclient_mock.mock_calls[-1][3]["Authorization"] == f"Bearer {KEY}"
+
+    state = hass.states.get("sensor.sports_tracker_scrappy_recap")
+    assert state.state == "Hokies hold off FSU 31-24"
+    assert state.attributes["text"].startswith("Virginia Tech beat Florida State")
+    assert state.attributes["written_by"] == "Scrappy"
+    assert state.attributes["time"] == "07:30"
+
+    # A new recap fires an event for automations.
+    recaps = async_capture_events(hass, EVENT_RECAP)
+    mock_tracker(aioclient_mock, {})
+    aioclient_mock.get(f"{URL}/api/account/recap", json=recap_body("Big game Saturday", "2026-11-03T13:30:00Z"))
+    await entry.runtime_data.recap.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.sports_tracker_scrappy_recap").state == "Big game Saturday"
+    assert [e.data["headline"] for e in recaps] == ["Big game Saturday"]
+
+    # Clearing the key removes the sensor.
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "recap"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {CONF_FEED_KEY: ""})
+    await hass.async_block_till_done()
+    assert CONF_FEED_KEY not in entry.options
+    assert entry.runtime_data.recap is None
 
 
 def test_poll_interval() -> None:

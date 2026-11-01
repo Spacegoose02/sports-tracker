@@ -144,6 +144,51 @@ actions:
         {{ trigger.event.data.opponent }} {{ trigger.event.data.opponent_score }}
 ```
 
+## Scrappy's daily recap
+
+If you have an account on your tracker, Home Assistant can also show
+Scrappy's morning recap of the teams on that account.
+
+1. On the tracker, open **My account**, turn on **Scrappy's morning recap**
+   and pick a time.
+2. Copy the key under **Connect other apps**.
+3. In Home Assistant, press **Configure** on the integration →
+   **Scrappy's daily recap**, and paste the key. (Clear the box later to
+   remove the sensor.)
+
+`sensor.sports_tracker_scrappy_recap` then holds the latest recap: the state
+is the headline, and the attributes are `text` (the whole recap), `date`,
+`created_at`, `written_by`, `time`, `time_zone` and `teams` (each team's
+result, live game and next game). It checks every 15 minutes.
+
+Each new recap also fires `sports_tracker_recap` (data: `headline`, `text`,
+`date`). Read it out on the kitchen speaker:
+
+```yaml
+alias: Scrappy's morning recap
+triggers:
+  - trigger: event
+    event_type: sports_tracker_recap
+actions:
+  - action: tts.speak
+    target:
+      entity_id: tts.home_assistant_cloud
+    data:
+      media_player_entity_id: media_player.kitchen
+      message: "{{ trigger.event.data.text }}"
+```
+
+Or show it on a dashboard with a Markdown card:
+
+```yaml
+type: markdown
+title: Scrappy says
+content: >
+  **{{ states('sensor.sports_tracker_scrappy_recap') }}**
+
+  {{ state_attr('sensor.sports_tracker_scrappy_recap', 'text') }}
+```
+
 ## Tracker endpoints it uses
 
 The integration only talks to your tracker, never to ESPN directly, so the
@@ -154,6 +199,8 @@ open.
   scorecards in one request, keyed by item.
 - `GET /api/ha/scorecard?sport=cfb&team=259` — one scorecard.
 - `GET /api/teams?sport=cfb` — every team in a league, for the team picker.
+- `GET /api/account/recap` with `Authorization: Bearer <key>` — Scrappy's
+  latest recap, only when you add the key.
 
 ## Development
 

@@ -15,6 +15,7 @@ const push = require('../push');
 const { buildIcs, loadSchedules, myTeamsSummary } = require('../calendar');
 const { rateLimit, isSafeId, safeHttpUrl } = require('../security');
 const { getSport } = require('../sports');
+const recapLib = require('../recap');
 
 const SESSION_DAYS = 30;
 const MIN_PASSWORD = 8;
@@ -37,7 +38,18 @@ function publicUser(user) {
     sso: !!user.oidc_sub,
     alertStart: !!user.alert_start,
     alertEnd: !!user.alert_end,
+    recapEnabled: !!user.recap_enabled,
+    recapTime: recapLib.cleanTime(user.recap_time) || '07:30',
+    recapTimeZone: recapLib.isValidTimeZone(user.recap_tz) ? user.recap_tz : 'America/New_York',
   };
+}
+
+// Signed-in user from the session, or from "Authorization: Bearer <feed
+// key>" so other apps (Den Duty, Home Assistant) can read without a cookie.
+function userFromKeyOrSession(req) {
+  const header = String(req.get('authorization') || '');
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
+  return token ? db.getUserByFeedToken(token) : currentUser(req);
 }
 
 function signIn(req, user) {
@@ -89,14 +101,17 @@ function feedLinks(req, env, user) {
     calendarUrl: ics,
     webcalUrl: ics.replace(/^https?:/, 'webcal:'),
     teamsApiUrl: `${base}/api/account/teams`,
+    recapApiUrl: `${base}/api/account/recap`,
     feedKey: user.feed_token,
   };
 }
 
-function createAccountRouter({ env = process.env } = {}) {
+function createAccountRouter({ env = process.env, recapper = null } = {}) {
   const router = express.Router();
   const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
   const allowSignup = String(env.ALLOW_SIGNUP || 'true').toLowerCase() !== 'false';
+  // Each "Send me one now" can cost a Claude call.
+  const recapNowLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: Number(env.RECAP_NOW_PER_HOUR) || 6 });
 
   router.get('/me', (req, res) => {
     const user = currentUser(req);
@@ -147,27 +162,39 @@ function createAccountRouter({ env = process.env } = {}) {
   // Everything below needs a signed-in user, except /teams, which also
   // takes the private feed key so another app (Den Duty) can read it.
   router.get('/teams', async (req, res) => {
-    const header = String(req.get('authorization') || '');
-    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
-    const user = token ? db.getUserByFeedToken(token) : currentUser(req);
+    const user = userFromKeyOrSession(req);
     if (!user) return res.status(401).json({ error: 'Sign in or send Authorization: Bearer <feed key>' });
     try {
       const teams = await myTeamsSummary(db.listFollows(user.id), { baseUrl: baseUrl(req, env) });
       res.set('Cache-Control', 'private, max-age=30');
-      return res.json({ user: { displayName: publicUser(user).displayName }, teams });
+      return res.json({ user: { displayName: publicUser(user).displayName }, teams, recap: db.getRecap(user.id) });
     } catch (err) {
       return res.status(502).json({ error: 'Could not load teams', detail: err.message });
     }
   });
 
+  // Scrappy's latest daily recap and the recap settings. Home Assistant's
+  // recap sensor and Den Duty read this with the feed key.
+  router.get('/recap', (req, res) => {
+    const user = userFromKeyOrSession(req);
+    if (!user) return res.status(401).json({ error: 'Sign in or send Authorization: Bearer <feed key>' });
+    res.set('Cache-Control', 'private, no-cache');
+    return res.json({ user: { displayName: publicUser(user).displayName }, ...recapLib.recapState(user) });
+  });
+
   router.use(requireUser);
 
   router.patch('/me', (req, res) => {
-    const { displayName, alertStart, alertEnd } = req.body || {};
+    const { displayName, alertStart, alertEnd, recapEnabled, recapTime, recapTimeZone } = req.body || {};
+    if (recapTime !== undefined && !recapLib.cleanTime(recapTime)) return res.status(400).json({ error: 'Pick a recap time like 07:30.' });
+    if (recapTimeZone !== undefined && !recapLib.isValidTimeZone(recapTimeZone)) return res.status(400).json({ error: 'Unknown time zone.' });
     const user = db.updateUser(req.user.id, {
       displayName: displayName !== undefined ? cleanText(displayName, 60) : undefined,
       alertStart: typeof alertStart === 'boolean' ? alertStart : undefined,
       alertEnd: typeof alertEnd === 'boolean' ? alertEnd : undefined,
+      recapEnabled: typeof recapEnabled === 'boolean' ? recapEnabled : undefined,
+      recapTime: recapTime !== undefined ? recapLib.cleanTime(recapTime) : undefined,
+      recapTz: recapTimeZone !== undefined ? recapTimeZone : undefined,
     });
     res.json({ user: publicUser(user) });
   });
@@ -228,6 +255,18 @@ function createAccountRouter({ env = process.env } = {}) {
       tag: 'test',
     });
     res.json({ delivered });
+  });
+
+  // Writes today's recap right now and pushes it to this account's devices.
+  router.post('/recap/now', recapNowLimiter, async (req, res) => {
+    if (!recapper) return res.status(503).json({ error: 'Recaps are off on this site.' });
+    if (!db.listFollows(req.user.id).length) return res.status(400).json({ error: 'Follow a team first.' });
+    try {
+      const out = await recapper.deliver(req.user, { force: true });
+      return res.set('Cache-Control', 'no-store').json({ recap: out.recap, delivered: out.delivered });
+    } catch (err) {
+      return res.status(502).json({ error: "Scrappy couldn't put the recap together. Try again in a minute.", detail: err.message });
+    }
   });
 
   // New private key: old calendar links and Den Duty keys stop working.

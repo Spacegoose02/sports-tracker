@@ -72,8 +72,30 @@ db.exec(`
     sent_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (sport, game_id, kind)
   );
+
+  -- Scrappy's daily recap: the latest one written for each user, so Home
+  -- Assistant and Den Duty can read it, and so a day is never sent twice.
+  CREATE TABLE IF NOT EXISTS recaps (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    local_date TEXT NOT NULL,
+    headline TEXT NOT NULL,
+    body TEXT NOT NULL,
+    teams TEXT NOT NULL DEFAULT '[]',
+    source TEXT NOT NULL DEFAULT 'basic',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 db.pragma('foreign_keys = ON');
+
+// Columns added after the first release. CREATE TABLE IF NOT EXISTS leaves
+// an existing table alone, so add them to older databases here.
+function addColumn(table, column, definition) {
+  const has = db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+  if (!has) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+addColumn('users', 'recap_enabled', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'recap_time', "TEXT NOT NULL DEFAULT '07:30'");
+addColumn('users', 'recap_tz', "TEXT NOT NULL DEFAULT 'America/New_York'");
 
 function listNotableGames(season, week) {
   return db
@@ -154,7 +176,14 @@ function linkOidc(userId, oidcSub) {
 }
 
 function updateUser(userId, fields) {
-  const allowed = { displayName: 'display_name', alertStart: 'alert_start', alertEnd: 'alert_end' };
+  const allowed = {
+    displayName: 'display_name',
+    alertStart: 'alert_start',
+    alertEnd: 'alert_end',
+    recapEnabled: 'recap_enabled',
+    recapTime: 'recap_time',
+    recapTz: 'recap_tz',
+  };
   const sets = [];
   const values = [];
   for (const [key, column] of Object.entries(allowed)) {
@@ -268,8 +297,42 @@ function markAlertSent(sport, gameId, kind) {
   return db.prepare('INSERT OR IGNORE INTO alerts_sent (sport, game_id, kind) VALUES (?, ?, ?)').run(sport, String(gameId), kind).changes === 1;
 }
 
+// ---- Daily recaps ----------------------------------------------------------
+
+function recapUsers() {
+  return db.prepare('SELECT * FROM users WHERE recap_enabled = 1').all();
+}
+
+function getRecap(userId) {
+  const row = db.prepare('SELECT * FROM recaps WHERE user_id = ?').get(userId);
+  if (!row) return null;
+  let teams = [];
+  try { teams = JSON.parse(row.teams); } catch (err) { teams = []; }
+  return {
+    date: row.local_date,
+    headline: row.headline,
+    text: row.body,
+    teams,
+    source: row.source,
+    createdAt: `${row.created_at.replace(' ', 'T')}Z`,
+  };
+}
+
+function saveRecap(userId, { date, headline, text, teams, source }) {
+  db.prepare(`
+    INSERT INTO recaps (user_id, local_date, headline, body, teams, source, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(user_id) DO UPDATE SET local_date = excluded.local_date, headline = excluded.headline,
+      body = excluded.body, teams = excluded.teams, source = excluded.source, created_at = excluded.created_at
+  `).run(userId, date, headline, text, JSON.stringify(teams || []), source || 'basic');
+  return getRecap(userId);
+}
+
 module.exports = {
   db,
+  recapUsers,
+  getRecap,
+  saveRecap,
   MAX_FOLLOWS,
   getUser,
   getUserByEmail,

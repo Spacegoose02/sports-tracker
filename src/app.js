@@ -9,8 +9,9 @@ const compression = require('compression');
 const { resolveSecurityConfig, securityHeaders } = require('./security');
 const { createRelayRouter } = require('./relay');
 const { createScrappyRouter } = require('./routes/scrappy');
+const { createRecapper } = require('./recap');
 
-function createApp({ env = process.env, logger = console, relay = {}, sso = {}, scrappy = {} } = {}) {
+function createApp({ env = process.env, logger = console, relay = {}, sso = {}, scrappy = {}, recap = {} } = {}) {
   const security = resolveSecurityConfig(env);
   security.warnings.forEach((w) => logger.warn(`[security] ${w}`));
 
@@ -59,7 +60,11 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {}, 
   );
 
   app.use('/api/admin', createAdminRouter());
-  app.use('/api/account', createAccountRouter({ env }));
+  // Scrappy's daily recap. server.js starts its schedule; the account
+  // routes use it for "Send me one now".
+  const recapper = createRecapper({ env, logger, client: scrappy.client, ...recap });
+  app.locals.recapper = recapper;
+  app.use('/api/account', createAccountRouter({ env, recapper }));
   app.use(createAccountPublicRouter({ env, fetchImpl: sso.fetch }));
   // Scrappy, the AI chat bubble. Off unless ANTHROPIC_API_KEY is set.
   app.use('/api', createScrappyRouter({ env, logger, ...scrappy }));
