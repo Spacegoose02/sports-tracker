@@ -1,0 +1,40 @@
+/* Account page (account.html): sign-in, followed teams, alerts, calendar. */
+.account-box { max-width: 420px; margin-top: 30px; }
+.account-note { color: var(--text-dim); font-size: 0.88rem; line-height: 1.45; }
+.sso-btn { display: block; text-align: center; text-decoration: none; margin: 14px 0 4px; }
+.or-line { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 0.8rem; margin: 10px 0 0; }
+.or-line::before, .or-line::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.account-box form button { width: 100%; margin-top: 4px; }
+.account-switch { font-size: 0.88rem; margin: 12px 0 0; }
+.account-switch a { color: var(--accent); }
+.account-section {
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 18px; margin: 0 auto 16px; max-width: 720px;
+}
+.account-section .section-title { margin-top: 0; }
+.account-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.account-name { font-size: 1.2rem; font-weight: 700; }
+.link-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.link-row .primary-btn { text-decoration: none; display: inline-block; }
+.secondary-btn {
+  background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border);
+  padding: 9px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-block;
+}
+.secondary-btn:hover { border-color: var(--accent); color: var(--accent); }
+.secondary-btn.danger:hover { border-color: var(--loss); color: var(--loss); }
+.copy-field {
+  width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-elev-2); color: var(--text-dim); font-family: ui-monospace, monospace; font-size: 0.8rem;
+}
+.check-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 0.92rem; }
+.follow-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.follow-row:last-child { border-bottom: none; }
+.follow-row img, .follow-logo-gap { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+.follow-row a { color: var(--text); text-decoration: none; font-weight: 600; flex: 1; min-width: 0; }
+.follow-row a:hover { color: var(--accent); }
+.follow-sport { color: var(--text-dim); font-size: 0.75rem; font-weight: 700; }
+.unfollow-inline {
+  background: none; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 999px; padding: 4px 10px; font-size: 0.78rem; cursor: pointer;
+}
+.unfollow-inline:hover { color: var(--loss); border-color: var(--loss); }

@@ -233,6 +233,9 @@ function normalizeGame(event) {
   return {
     id: event.id,
     date: event.date,
+    // false when ESPN only knows the day (kickoff "TBA"), so calendars can
+    // show an all-day entry instead of a made-up time.
+    timeValid: !(event.timeValid === false || (comp && comp.timeValid === false)),
     name: event.name,
     shortName: event.shortName,
     week: event.week && event.week.number,

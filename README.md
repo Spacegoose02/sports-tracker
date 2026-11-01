@@ -261,6 +261,95 @@ visitor's browser, so every person (and device) has their own list.
 - `FAVORITE_TEAM_ID` is still used as a starting point: a visitor's first
   visit follows that team automatically, and unfollowing it sticks.
 
+## Accounts, game alerts and calendar
+
+Following teams works without an account. Signing in (top-right link on
+every page, or `/account.html`) adds:
+
+- **Your teams on every device.** Followed teams are stored on the
+  account. The first time you sign in on a device, the teams you followed
+  there are added to your account; after that every device shows the same
+  list. Signing out clears the list from that device, so the next person
+  to sign in there starts fresh.
+- **Game alerts.** Tap **Turn on alerts on this device** to get a
+  notification when a team you follow kicks off and a final score when the
+  game ends. Each device opts in on its own, and each kind of alert can be
+  switched off. Alerts use the browser's own web push, so they need the
+  site on **HTTPS**; on iPhone, add the site to the Home Screen and open it
+  from there first. The server checks scores once a minute
+  (`GAME_ALERTS=false` turns the checker off).
+- **Calendar.** **Add to calendar** subscribes your phone's calendar to a
+  private feed of every game for every team you follow
+  (`/calendar/<key>.ics`). New games and kickoff changes update on their
+  own. Without an account, the account page still offers a feed for the
+  teams followed in that browser (`/calendar.ics?teams=cfb:259,nba:2`).
+
+### Signing in
+
+There are two ways, and they can be used together:
+
+- **Email and password.** On by default. Set `ALLOW_SIGNUP=false` to stop
+  new sign-ups (existing accounts and SSO keep working).
+- **Single sign-on with Tinyauth** (or any OpenID Connect provider:
+  Authentik, Authelia, Pocket ID, Keycloak...). Add a client to Tinyauth:
+
+  ```
+  TINYAUTH_OIDC_CLIENTS_tracker_CLIENTID=cfb-tracker
+  TINYAUTH_OIDC_CLIENTS_tracker_CLIENTSECRET=<a long random string>
+  TINYAUTH_OIDC_CLIENTS_tracker_TRUSTEDREDIRECTURIS=https://sports.example.com/auth/sso/callback
+  TINYAUTH_OIDC_CLIENTS_tracker_NAME=CFB Tracker
+  TINYAUTH_OIDC_CLIENTS_tracker_TRUSTED=true
+  ```
+
+  and give the tracker the matching values:
+
+  ```
+  PUBLIC_URL=https://sports.example.com
+  SSO_ISSUER=https://auth.example.com
+  SSO_CLIENT_ID=cfb-tracker
+  SSO_CLIENT_SECRET=<the same secret>
+  ```
+
+  A **Sign in with Tinyauth** button then appears on the account page. If
+  the SSO account's email matches an existing email/password account,
+  the two are joined, so a person has one account whichever way they sign
+  in. Don't put the whole site behind Tinyauth's forward auth: the public
+  pages should stay public, and sign-in happens through this button.
+
+`SESSION_SECRET` must be set to a real value for accounts: with a random
+one, everyone is signed out on every restart. Sign-ins last 30 days.
+
+### Your teams in other apps (Den Duty)
+
+The account page shows a private key under **Connect other apps**. Another
+app sends it to read that person's followed teams and their games:
+
+```
+GET /api/account/teams
+Authorization: Bearer <key>
+```
+
+```json
+{
+  "user": { "displayName": "Sam" },
+  "teams": [{
+    "sport": "cfb", "sportLabel": "College Football",
+    "id": "259", "name": "Virginia Tech Hokies", "abbreviation": "VT",
+    "logo": "https://...", "color": "#630031", "record": "6-3", "rank": null,
+    "url": "https://sports.example.com/team.html?id=259&source=espn&sport=cfb",
+    "liveGame": null,
+    "nextGame": { "id": "401...", "date": "2026-11-07T20:00Z", "status": { "state": "pre" }, "home": {...}, "away": {...}, "broadcast": "ACC Network" },
+    "lastGame": { ... },
+    "upcoming": [ ... next 3 games ... ]
+  }]
+}
+```
+
+Games have the same shape as `/api/scoreboard` games. The key is read
+only. **Make a new key** on the account page revokes the old one (and
+changes the calendar link). Signed in on the site itself, the same
+endpoint works with the session cookie and no key.
+
 ## Installing on your phone
 
 CFB Tracker is a Progressive Web App, so you can add it to your home screen and open it like a normal app:
@@ -389,6 +478,14 @@ If the tracker is down, BingeBandit reads ESPN directly until it's back.
 | `YOUTUBE_CHANNELS_JSON` | *(your 7 Dynacat channels)* | Optional JSON array of `{"id":"UC...","name":"..."}` to override the Videos tab's channel list entirely |
 | `RELAY_API_KEY` | *(unset: relay off)* | Turns on the ESPN relay at `/espn/...` for BingeBandit and other apps; they send it as `X-Api-Key` |
 | `TRUST_PROXY` | *(unset)* | Set to `1` when the app sits behind a reverse proxy so the admin login rate limit sees each visitor's real IP |
+| `PUBLIC_URL` | *(from the request)* | The site's public address, e.g. `https://sports.example.com`. Used for the SSO callback and calendar links; set it when behind a reverse proxy |
+| `ALLOW_SIGNUP` | `true` | Set to `false` to stop new email/password sign-ups |
+| `SSO_ISSUER` | *(unset: SSO off)* | Your Tinyauth (or other OpenID provider) address, e.g. `https://auth.example.com` |
+| `SSO_CLIENT_ID` / `SSO_CLIENT_SECRET` | *(unset)* | The OIDC client configured in Tinyauth |
+| `SSO_LABEL` | `Tinyauth` | Button text: "Sign in with ..." |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(generated)* | Web push keys. Left unset, a pair is generated once and saved as `vapid.json` in the data folder |
+| `VAPID_SUBJECT` | `mailto:admin@localhost` | Contact address push services see; use your email |
+| `GAME_ALERTS` | *(on)* | Set to `false` to stop checking scores for game alerts |
 
 To find a different team's ESPN ID, visit
 `https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams`

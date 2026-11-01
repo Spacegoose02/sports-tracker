@@ -90,3 +90,66 @@ test('team news merges followed teams, tags each item and drops duplicates', asy
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+// shared.js with storage and a fake account API.
+function loadSharedWithAccount(server) {
+  const store = new Map();
+  const calls = [];
+  const sandbox = {
+    document: { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [] },
+    location: { search: '', pathname: '/' },
+    localStorage: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    },
+    fetch: async (url, opts = {}) => {
+      const method = opts.method || 'GET';
+      calls.push(`${method} ${url}`);
+      const body = await server(method, url, opts.body ? JSON.parse(opts.body) : null);
+      return { ok: true, status: 200, json: async () => body };
+    },
+    URL,
+    URLSearchParams,
+    console,
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(`${fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'shared.js'), 'utf8')}\nthis.CFB = CFB;`, sandbox);
+  return { CFB: sandbox.CFB, store, calls };
+}
+
+test('first sign-in on a device merges local follows; later loads take the account list', async () => {
+  let serverList = [{ sport: 'nba', id: '2', name: 'Boston Celtics' }];
+  const server = async (method, url, body) => {
+    if (url === '/api/account/me') return { user: { id: 7, displayName: 'Sam' }, follows: serverList };
+    if (url === '/api/account/follows/merge') { serverList = [...serverList, ...body.follows]; return { follows: serverList }; }
+    if (method === 'POST' && url === '/api/account/follows') { serverList = [...serverList, body]; return { follows: serverList }; }
+    if (method === 'DELETE') { serverList = serverList.filter((t) => !url.endsWith(`/${t.sport}/${t.id}`)); return { follows: serverList }; }
+    if (url === '/api/account/logout') return { ok: true };
+    return {};
+  };
+  const { CFB, store, calls } = loadSharedWithAccount(server);
+  CFB.follows.add({ id: '259', name: 'Virginia Tech Hokies' }, 'cfb');
+  await CFB.account.load();
+  assert.ok(calls.includes('POST /api/account/follows/merge'));
+  assert.deepStrictEqual([...CFB.follows.all().map((t) => `${t.sport}:${t.id}`)], ['nba:2', 'cfb:259']);
+  assert.strictEqual(store.get('tracker-follows-owner'), '7');
+
+  // Removed on another device: the next load drops it here, no re-merge.
+  serverList = serverList.filter((t) => t.id !== '2');
+  calls.length = 0;
+  await CFB.account.load(true);
+  assert.ok(!calls.includes('POST /api/account/follows/merge'));
+  assert.deepStrictEqual([...CFB.follows.all().map((t) => t.id)], ['259']);
+
+  // Follow changes are sent to the account.
+  CFB.follows.add({ id: '52', name: 'Florida State' }, 'cfb');
+  CFB.follows.remove('259', 'cfb');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepStrictEqual(serverList.map((t) => t.id), ['52']);
+
+  // Signing out clears this device's copy.
+  await CFB.account.logout();
+  assert.strictEqual(CFB.follows.all().length, 0);
+  assert.strictEqual(store.has('tracker-follows-owner'), false);
+});
