@@ -972,3 +972,93 @@ footer.foot {
 .race-place { width: 1.6em; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .car-number { color: var(--text-dim); font-size: 0.8rem; min-width: 2.6em; }
 .list-divider { grid-column: 1 / -1; margin-top: 12px; }
+
+/* ---------------------------------------------------------------------
+   Mobile / PWA
+   Phone-size tweaks and installed-app (standalone) adjustments. Kept in
+   one block at the end so page-specific styles above stay untouched.
+   --------------------------------------------------------------------- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { -webkit-tap-highlight-color: transparent; }
+
+/* Respect the notch / home indicator when installed with viewport-fit=cover. */
+header.top {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+}
+main {
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+/* Card grids never force a column wider than the screen (e.g. 320px phones). */
+.game-list { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+.my-teams { grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }
+.news-list, .video-list { grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); }
+.stats-grid { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+.radio-teams { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+.favorite-card .team-meta, .favorite-card .next-game { min-width: min(200px, 100%); }
+
+@media (max-width: 560px) {
+  header.top { padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: 12px; gap: 10px; }
+  main {
+    padding: 14px max(12px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+
+  /* Top nav becomes one swipeable row instead of wrapping onto several. */
+  nav.top-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    width: 100%;
+  }
+  nav.top-nav::-webkit-scrollbar { display: none; }
+  nav.top-nav a { flex: 0 0 auto; }
+  .tab-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn { flex: 0 0 auto; white-space: nowrap; }
+
+  /* Comfortable tap targets, and 16px form text so iOS does not zoom in on focus. */
+  nav.top-nav a, .tab-btn, .week-bar button, .unfollow-btn { min-height: 40px; }
+  nav.top-nav a { display: inline-flex; align-items: center; }
+  .week-bar select, .week-bar input, .login-box input { font-size: 16px; }
+
+  .favorite-card { padding: 14px; gap: 12px; }
+  .week-bar .refresh-note { margin-left: 0; width: 100%; }
+  .upcoming-day { width: 100%; }
+}
+
+/* Installed app: no browser bar, so keep the header in view while scrolling. */
+.is-standalone header.top { position: sticky; top: 0; z-index: 20; }
+@media (display-mode: standalone) {
+  header.top { position: sticky; top: 0; z-index: 20; }
+  body { overscroll-behavior-y: none; }
+}
+
+/* Offline fallback page (offline.html). */
+.offline-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  max-width: 420px;
+}
+.offline-page img { border-radius: 16px; }
+.offline-page h1 { margin: 0; font-size: 1.4rem; }
+.offline-page p { margin: 0; color: var(--text-dim); line-height: 1.5; }
+.offline-page button {
+  margin-top: 8px;
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
