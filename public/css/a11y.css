@@ -1,0 +1,175 @@
+/* ==========================================================================
+   Accessibility layer
+   --------------------------------------------------------------------------
+   Loaded after themes.css on every page. Works only through tokens and
+   <html> attributes so it holds under every theme:
+     data-motion="reduce" | "full"       (js/i18n.js, Display panel)
+     data-contrast="more" | "standard"   (js/i18n.js, Display panel)
+   With no attribute the OS settings (prefers-reduced-motion,
+   prefers-contrast) decide.
+   ========================================================================== */
+
+/* ---- Screen-reader-only text and the skip link --------------------------- */
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -100px;
+  z-index: 2000;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus { top: 12px; }
+main:focus { outline: none; }
+
+/* ---- Focus ring -----------------------------------------------------------
+   A two-tone ring (accent outline over a page-colored halo) stays visible
+   on any theme background, light or dark, and on team-colored fills. */
+:root { --focus-ring: var(--accent); --focus-halo: var(--bg); }
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--focus-halo);
+}
+.game-card:focus-visible, .line-card:focus-visible, .upcoming-game:focus-visible, .video-thumb-wrap:focus-visible {
+  outline-offset: 3px;
+}
+.game-card:focus-visible { transform: translateY(-2px); }
+
+/* ---- Display settings panel (js/a11y.js) -------------------------------- */
+.display-toggle .display-icon { font-weight: 800; letter-spacing: -0.03em; }
+/* Phones: themes.css pins the Theme button to the header's top-right
+   corner; sit the Display button just left of it (or in the corner on
+   pages without a Theme button). */
+@media (max-width: 560px) {
+  .theme-toggle.display-toggle { right: calc(max(12px, env(safe-area-inset-right)) + 48px); }
+  header.top:not(:has(.theme-toggle:not(.display-toggle))) .theme-toggle.display-toggle { right: max(12px, env(safe-area-inset-right)); }
+}
+.display-group { border: 0; margin: 0 0 6px; padding: 0; min-width: 0; }
+.display-group legend {
+  padding: 0;
+  margin: 10px 0 8px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.display-group .mode-switch { display: flex; flex-wrap: wrap; gap: 6px; }
+.display-group .mode-switch button {
+  flex: 1 1 auto;
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.display-group .mode-switch button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+.display-note { margin: 4px 0 8px; font-size: 0.8rem; color: var(--text-dim); }
+
+/* ---- Reduced motion -------------------------------------------------------
+   Animations jump to their end state; the JS side (confetti, smooth
+   scrolling) checks I18n.reducedMotion(). */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+:root[data-motion="reduce"] .game-card:hover,
+:root[data-motion="reduce"] .news-item:hover,
+:root[data-motion="reduce"] .video-card:hover,
+:root[data-motion="reduce"] .game-card:focus-visible { transform: none; }
+:root[data-motion="reduce"] .confetti-canvas { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) *,
+  :root:not([data-motion="full"]) *::before,
+  :root:not([data-motion="full"]) *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  :root:not([data-motion="full"]) .game-card:hover,
+  :root:not([data-motion="full"]) .news-item:hover,
+  :root:not([data-motion="full"]) .video-card:hover,
+  :root:not([data-motion="full"]) .game-card:focus-visible { transform: none; }
+  :root:not([data-motion="full"]) .confetti-canvas { display: none; }
+}
+
+/* ---- High contrast ---------------------------------------------------------
+   Muted text moves most of the way to full text color, borders darken or
+   lighten, and links get underlines so they don't rely on color alone. */
+:root:root:root:root[data-contrast="more"] {
+  --text-dim: color-mix(in srgb, var(--text) 85%, var(--bg));
+  --border: color-mix(in srgb, var(--text) 55%, var(--bg));
+  --page-bg: none;
+}
+:root[data-contrast="more"] body { background-image: none; }
+:root[data-contrast="more"] main a:not(.tab-btn):not(.skip-link):not([role]),
+:root[data-contrast="more"] .team-link { text-decoration: underline; text-underline-offset: 2px; }
+:root[data-contrast="more"] :focus-visible { outline-width: 4px; }
+
+@media (prefers-contrast: more) {
+  :root:root:root:root:not([data-contrast="standard"]) {
+    --text-dim: color-mix(in srgb, var(--text) 85%, var(--bg));
+    --border: color-mix(in srgb, var(--text) 55%, var(--bg));
+    --page-bg: none;
+  }
+  :root:not([data-contrast="standard"]) body { background-image: none; }
+  :root:not([data-contrast="standard"]) main a:not(.tab-btn):not(.skip-link):not([role]),
+  :root:not([data-contrast="standard"]) .team-link { text-decoration: underline; text-underline-offset: 2px; }
+}
+
+/* Windows High Contrast / forced colors: keep the focus ring and the live
+   marker visible when the browser replaces our colors. */
+@media (forced-colors: active) {
+  :focus-visible { outline: 3px solid CanvasText; box-shadow: none; }
+  .live-dot { forced-color-adjust: none; }
+}
+
+/* ---- Contrast fixes for theme tokens --------------------------------------
+   Checked with WCAG 2 ratios against each theme's card and page colors
+   (4.5:1 for text and links, 3:1 for borders and badges). These use the
+   same selectors as the themes, so they win by loading later. */
+
+/* The favorite gold is used as text (Kids Zone titles, trivia score) and as
+   a badge fill; the light-mode gold was 2.7:1 on white. */
+:root[data-mode="light"] {
+  --favorite: #8a6100;
+  --on-favorite: #ffffff;
+}
+:root[data-mode="light"]:is([data-theme="stadium"]) { --accent: #0862be; }
+:root[data-mode="light"]:is([data-theme="hardwood"], [data-theme="auto"][data-sport="nba"], [data-theme="auto"][data-sport="mcbb"]) {
+  --accent: #a3400a;
+  --favorite: #7f5a00;
+}
+:root[data-mode="light"]:is([data-theme="diamond"], [data-theme="auto"][data-sport="mlb"]) { --favorite: #7f5a00; }
+/* White on fight-night red was 3.7:1; near-black reads at 5.3:1. */
+:root[data-mode="dark"]:is([data-theme="octagon"], [data-theme="auto"][data-sport="ufc"]) { --on-accent: #0b0b0c; }

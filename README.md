@@ -380,6 +380,18 @@ Install and offline support need the site to be served over **HTTPS** (or opened
 
 The service worker lives in `public/sw.js`. If you change how it caches, bump its `VERSION` so every phone drops the old cache on its next visit.
 
+## Español and accessibility
+
+The **Aa** button in the header opens the Display panel:
+
+- **Language / Idioma**: English or Español. Spanish is picked automatically when the browser's language is Spanish, and `?lang=es` or `?lang=en` on any link sets it. Scrappy answers in Spanish too.
+- **Motion**: follow the device, Reduce (no confetti, pulsing live dots or other animations) or Full.
+- **Contrast**: follow the device, Standard, or High (stronger muted text and borders, underlined links).
+
+Under the hood, `public/js/i18n.js` translates the rendered page from a dictionary of the English UI text (`public/js/i18n-es.js`), so page scripts keep writing English and nothing else has to change. To translate new UI text, add the exact English string and its Spanish version to that file; anything missing simply shows in English. Team names, headlines and Scrappy's replies are never run through the dictionary.
+
+`public/js/a11y.js` and `public/css/a11y.css` add a skip link, a visible focus ring, keyboard access (Enter or Space) for clickable game cards, lines and videos, `aria-pressed` on tab buttons, and a polite screen reader announcement when the score changes on a game page. Every theme's text, link and badge colors pass WCAG AA contrast in both light and dark mode.
+
 ## Kids Zone
 
 Things for kids watching with the family. Signed out, players, picks and stickers are saved in the browser. Signed in, they're saved to the account (see [Family leagues](#family-leagues) below), so they follow you to every phone and tablet.
