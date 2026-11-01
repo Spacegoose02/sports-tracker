@@ -267,6 +267,28 @@ Pull/copy the latest source, then either `docker compose up -d --build`
 Your notable-games picks live in `/mnt/user/appdata/cfb-tracker` and
 survive rebuilds.
 
+## Sharing ESPN data with BingeBandit (the ESPN relay)
+
+Other apps on your network can read ESPN through this tracker, so ESPN is
+asked once and everyone shares the cached answer. BingeBandit's Sports
+section uses this.
+
+1. Set `RELAY_API_KEY` to a long random string (for example the output of
+   `openssl rand -hex 24`) and restart the container. The relay stays off
+   while it's unset.
+2. In BingeBandit, open **Server → Settings → Sports data**, enter this
+   tracker's address (e.g. `http://192.168.1.10:3000`) and the same key.
+
+`GET /espn/site/v2/sports/{sport}/{league}/{endpoint}` with header
+`X-Api-Key: <key>` answers what ESPN's
+`https://site.api.espn.com/apis/site/v2/sports/...` would, for any league.
+Only the read endpoints apps need are relayed: `scoreboard`, `teams`,
+`teams/{id}`, `teams/{id}/schedule`, `summary`, `rankings` and `news`.
+Answers are kept 15 seconds while a game in them is live or about to
+start, 5 to 10 minutes otherwise, and 12 hours for team lists. If ESPN
+fails, the last copy (up to a day old) is served with `X-Cache: STALE`.
+If the tracker is down, BingeBandit reads ESPN directly until it's back.
+
 ## Configuration (environment variables)
 
 | Variable | Default | Purpose |
@@ -282,6 +304,7 @@ survive rebuilds.
 | `NEWS_FEEDS_JSON` | *(public ESPN / CBS Sports / Yahoo Sports CFB feeds)* | Optional JSON array of `{"name":"...","url":"..."}` to override the News tab's RSS feeds entirely |
 | `NEWS_FETCH_OG_IMAGES` | `1` (on) | Set to `0` to stop fetching each article's `og:image` for the News tab — faster/fewer outbound requests, but back to whatever (if anything) the RSS feed itself embedded |
 | `YOUTUBE_CHANNELS_JSON` | *(your 7 Dynacat channels)* | Optional JSON array of `{"id":"UC...","name":"..."}` to override the Videos tab's channel list entirely |
+| `RELAY_API_KEY` | *(unset: relay off)* | Turns on the ESPN relay at `/espn/...` for BingeBandit and other apps; they send it as `X-Api-Key` |
 | `TRUST_PROXY` | *(unset)* | Set to `1` when the app sits behind a reverse proxy so the admin login rate limit sees each visitor's real IP |
 
 To find a different team's ESPN ID, visit
