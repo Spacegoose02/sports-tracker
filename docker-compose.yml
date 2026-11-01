@@ -1,29 +1,52 @@
-version: "3.8"
+# Example stack. Works with Unraid's Docker Compose Manager plugin, Portainer,
+# or plain `docker compose up -d`.
+#
+# Uses the prebuilt image from GitHub Container Registry. To build from this
+# folder instead, comment out `image:` and uncomment `build: .`.
 
 services:
   cfb-tracker:
-    build: .
+    image: ghcr.io/spacegoose02/sports-tracker:latest
+    # build: .
     container_name: cfb-tracker
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      PORT: 3000
-      ADMIN_PASSWORD: "changeme"          # change this
-      SESSION_SECRET: "change-this-too"   # change this, use a long random string
-      FAVORITE_TEAM_ID: "259"             # Virginia Tech Hokies
+      # Unraid's default user/group (nobody:users). Use your own ids elsewhere.
+      PUID: "99"
+      PGID: "100"
+      TZ: "America/New_York"
+
+      # --- Required: change these ---
+      ADMIN_PASSWORD: "changeme"          # password for /admin
+      SESSION_SECRET: "change-this-too"   # long random string, e.g. `openssl rand -hex 32`
+
+      # --- Basics ---
+      FAVORITE_TEAM_ID: "259"             # ESPN team id (259 = Virginia Tech)
       FAVORITE_TEAM_NAME: "Virginia Tech Hokies"
-      # NCAA_API_BASE: "https://ncaa-api.example.com"  # optional: your ncaa-api instance, used if ESPN is down
-      NCAA_API_DIVISION: "fbs"
       CACHE_TTL_SECONDS: "20"
-      # RELAY_API_KEY: ""              # set to share ESPN data with BingeBandit
+      # TRUST_PROXY: "1"                  # set when behind a reverse proxy
+
+      # --- Accounts, sign-in, alerts ---
       # PUBLIC_URL: "https://sports.example.com"   # needed for SSO + calendar links
-      # SSO_ISSUER: "https://auth.example.com"     # your Tinyauth
+      # ALLOW_SIGNUP: "true"
+      # SSO_ISSUER: "https://auth.example.com"     # Tinyauth or any OIDC provider
       # SSO_CLIENT_ID: "cfb-tracker"
       # SSO_CLIENT_SECRET: ""
+      # SSO_LABEL: "Tinyauth"
       # VAPID_SUBJECT: "mailto:you@example.com"    # contact for game alerts
+      # GAME_ALERTS: "true"
+
+      # --- Optional data sources ---
+      # CFBD_API_KEY: ""                  # collegefootballdata.com key (recruiting tabs)
+      # NCAA_API_BASE: "https://ncaa-api.example.com"  # fallback if ESPN is down
+      # NCAA_API_DIVISION: "fbs"
+      # RELAY_API_KEY: ""                 # share ESPN data with BingeBandit
+      # NEWS_FEEDS_JSON: '[{"name":"ESPN","url":"https://example.com/feed.rss"}]'
+      # RECRUITING_FEEDS_JSON: '[{"name":"On3","url":"https://example.com/feed.rss"}]'
+      # YOUTUBE_CHANNELS_JSON: '[{"id":"UC...","name":"Channel"}]'
+      # NEWS_FETCH_OG_IMAGES: "1"
     volumes:
-      # Persists the database (notable games, accounts) across container
-      # rebuilds/updates. On Unraid, point this at a path under
-      # /mnt/user/appdata/cfb-tracker.
+      # Database (accounts, follows, notable games) and push keys live here.
       - /mnt/user/appdata/cfb-tracker:/app/data

@@ -26,6 +26,17 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {} }
   app.locals.adminEnabled = security.adminEnabled;
   app.locals.adminPassword = env.ADMIN_PASSWORD || 'changeme';
   app.use(securityHeaders);
+
+  // Liveness check for Docker's HEALTHCHECK and uptime monitors. Confirms
+  // the database opens and answers; does not call ESPN.
+  app.get('/healthz', (req, res) => {
+    try {
+      require('./db').db.prepare('SELECT 1').get();
+      res.set('Cache-Control', 'no-store').json({ ok: true });
+    } catch (err) {
+      res.status(503).json({ ok: false, error: 'database unavailable' });
+    }
+  });
   // Gzip responses (HTML, CSS, JS, JSON). Server-sent event streams are left
   // alone so live updates are not held in the compression buffer.
   app.use(compression({
