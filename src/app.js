@@ -8,8 +8,9 @@ const compression = require('compression');
 
 const { resolveSecurityConfig, securityHeaders } = require('./security');
 const { createRelayRouter } = require('./relay');
+const { createScrappyRouter } = require('./routes/scrappy');
 
-function createApp({ env = process.env, logger = console, relay = {}, sso = {} } = {}) {
+function createApp({ env = process.env, logger = console, relay = {}, sso = {}, scrappy = {} } = {}) {
   const security = resolveSecurityConfig(env);
   security.warnings.forEach((w) => logger.warn(`[security] ${w}`));
 
@@ -60,6 +61,8 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {} }
   app.use('/api/admin', createAdminRouter());
   app.use('/api/account', createAccountRouter({ env }));
   app.use(createAccountPublicRouter({ env, fetchImpl: sso.fetch }));
+  // Scrappy, the AI chat bubble. Off unless ANTHROPIC_API_KEY is set.
+  app.use('/api', createScrappyRouter({ env, logger, ...scrappy }));
   app.use('/api', require('./routes/stats'));
   app.use('/api', apiRoutes);
   // ESPN's site API, cached, for other apps such as BingeBandit (src/relay.js).

@@ -40,7 +40,7 @@ const PRECACHE = [
 const API_TIMEOUT_MS = 4000;
 const API_MAX_ENTRIES = 80;
 // API paths that are personal or privileged and must never be cached.
-const API_NO_CACHE = /^\/api\/(admin|auth|account|accounts|me|login|logout|session|follows?|alerts?|push)(\/|$)/;
+const API_NO_CACHE = /^\/api\/(admin|auth|account|accounts|me|login|logout|session|follows?|alerts?|push|scrappy)(\/|$)/;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
