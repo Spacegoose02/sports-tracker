@@ -14,7 +14,24 @@
     videosLoaded: false,
   };
 
+  // UFC / NASCAR: live and upcoming events (soonest first), then recent
+  // results (newest first).
+  function renderEvents() {
+    const list = el('gameList');
+    const events = state.events || [];
+    if (!events.length) {
+      list.innerHTML = '<div class="empty-note">No events scheduled right now.</div>';
+      return;
+    }
+    const ahead = events.filter((e) => !e.status || e.status.state !== 'post');
+    const past = events.filter((e) => e.status && e.status.state === 'post').reverse();
+    list.innerHTML = `
+      ${ahead.length ? ahead.map(CFB.eventCardHtml).join('') : '<div class="empty-note">No upcoming events in the next two months.</div>'}
+      ${past.length ? `<h2 class="section-title list-divider">Recent results</h2>${past.map(CFB.eventCardHtml).join('')}` : ''}`;
+  }
+
   function renderGames() {
+    if (state.events) { renderEvents(); return; }
     const list = el('gameList');
     if (!state.games.length) {
       list.innerHTML = '<div class="empty-note">No games found for this week.</div>';
@@ -184,7 +201,14 @@
   function scoreboardUrl() {
     const sport = CFB.sport();
     const params = new URLSearchParams();
-    if (sport.schedule === 'day') {
+    if (sport.schedule === 'event') {
+      // UFC / NASCAR: the last month of results and the next two months.
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      const end = new Date();
+      end.setDate(end.getDate() + 60);
+      params.set('dates', `${CFB.ymd(start)}-${CFB.ymd(end)}`);
+    } else if (sport.schedule === 'day') {
       params.set('dates', CFB.ymd(state.day || new Date()));
     } else {
       params.set('year', state.season);
@@ -216,11 +240,14 @@
           : Promise.resolve([]),
       ]);
       state.games = scoreboard.games || [];
+      state.events = scoreboard.events || null;
       state.notable = notable || [];
       state.favoriteTeamId = scoreboard.favoriteTeamId;
-      el('sourceNote').textContent = sport.schedule === 'day'
-        ? `${sport.label} · ${dayLabel(state.day || new Date())}`
-        : `${sport.label} · ${scoreboard.season} · Week ${scoreboard.week}`;
+      el('sourceNote').textContent = sport.schedule === 'event'
+        ? `${sport.label} · Events`
+        : sport.schedule === 'day'
+          ? `${sport.label} · ${dayLabel(state.day || new Date())}`
+          : `${sport.label} · ${scoreboard.season} · Week ${scoreboard.week}`;
       renderGames();
       renderNotable();
       scheduleAutoRefresh();
@@ -232,7 +259,7 @@
 
   function scheduleAutoRefresh() {
     if (state.pollTimer) clearInterval(state.pollTimer);
-    const anyLive = state.games.some((g) => g.status && g.status.state === 'in');
+    const anyLive = [...state.games, ...(state.events || [])].some((g) => g.status && g.status.state === 'in');
     el('refreshNote').textContent = anyLive ? 'Auto-refreshing live games every 20s' : '';
     if (anyLive) {
       state.pollTimer = setInterval(loadWeek, 20000);
@@ -391,6 +418,8 @@
   function applySportLayout(sport) {
     document.title = sport.key === 'cfb' ? 'CFB Tracker' : `${sport.label} · CFB Tracker`;
     const isCfb = sport.key === 'cfb';
+    // UFC and NASCAR have fighters and drivers, not teams to follow.
+    el('favoriteSection').hidden = sport.teams === false;
     document.querySelector('.tab-btn[data-tab="notable"]').hidden = !sport.notable;
     document.querySelector('.tab-btn[data-tab="videos"]').hidden = !isCfb;
   }
@@ -399,7 +428,9 @@
     const sport = await CFB.loadSports();
     CFB.initSportBar();
     applySportLayout(sport);
-    if (sport.schedule === 'day') {
+    if (sport.schedule === 'event') {
+      el('weekControls').hidden = true;
+    } else if (sport.schedule === 'day') {
       initDayControls();
     } else {
       try {
@@ -419,7 +450,7 @@
       loadWeek();
     });
     state.updateNewsFilter = initNewsFilter();
-    renderMyTeams();
+    if (sport.teams !== false) renderMyTeams();
   }
 
   init();

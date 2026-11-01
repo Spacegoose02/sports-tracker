@@ -79,8 +79,13 @@
     }
   }
 
-  CFB.loadSports().then(() => {
+  CFB.loadSports().then((sport) => {
     CFB.initSportBar();
+    if (sport.standings === false) {
+      el('sourceNote').textContent = sport.label;
+      el('standingsContainer').innerHTML = `<div class="empty-note">${CFB.esc(sport.label)} doesn't have standings. See the schedule for upcoming events and results.</div>`;
+      return;
+    }
     CFB.initDivisionToggle((group) => load(group));
   });
 })();

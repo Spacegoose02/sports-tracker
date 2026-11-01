@@ -11,6 +11,10 @@
 //   field:    whether the live football field diagram applies.
 //   notable:  whether the admin "Notable Games" picks apply (CFB only, the
 //             picks table has no sport column).
+//   format:   'game' (two teams), 'card' (UFC: an event made of fights) or
+//             'race' (NASCAR: one race with a running order). Card and race
+//             sports list events instead of games, have no teams to follow
+//             and no standings.
 
 const SPORTS = {
   cfb: {
@@ -90,7 +94,44 @@ const SPORTS = {
     notable: false,
     periodPrefix: 'P',
   },
+  ufc: {
+    key: 'ufc',
+    label: 'UFC',
+    shortLabel: 'UFC',
+    path: 'mma/ufc',
+    schedule: 'event',
+    format: 'card',
+    groups: null,
+    rankings: false,
+    standings: false,
+    teams: false,
+    field: false,
+    notable: false,
+    periodPrefix: 'R',
+  },
+  nascar: {
+    key: 'nascar',
+    label: 'NASCAR Cup Series',
+    shortLabel: 'NASCAR',
+    path: 'racing/nascar-premier',
+    schedule: 'event',
+    format: 'race',
+    groups: null,
+    rankings: false,
+    standings: false,
+    teams: false,
+    field: false,
+    notable: false,
+    periodPrefix: 'Lap ',
+  },
 };
+
+// Team sports get these defaults unless they say otherwise.
+for (const sport of Object.values(SPORTS)) {
+  if (sport.format === undefined) sport.format = 'game';
+  if (sport.standings === undefined) sport.standings = true;
+  if (sport.teams === undefined) sport.teams = true;
+}
 
 const DEFAULT_SPORT = 'cfb';
 

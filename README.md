@@ -200,6 +200,11 @@ football, so existing bookmarks and the Dynacat widget keep working.
   football keeps your RSS feeds and the Videos tab.
 - The pinned favorite team (`FAVORITE_TEAM_ID`) and Notable Games stay
   college-football features.
+- **UFC** (`ufc`) and **NASCAR Cup Series** (`nascar`) list events instead
+  of games: each UFC card shows every fight (main event first, winner and
+  method once it's over), and each NASCAR race shows the top 10 of the
+  running order. The home page covers the last 30 days and the next 60;
+  Upcoming shows the next 60. They have no team pages, follows or standings.
 - To add a league ESPN covers, add one entry to `src/sports.js`.
 
 ## Following teams

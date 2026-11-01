@@ -841,3 +841,22 @@ footer.foot {
   padding: 7px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
 }
 .news-filter button.active { background: var(--accent); color: #08111f; }
+
+/* UFC fight cards and NASCAR races */
+.event-card { cursor: default; }
+.event-card .event-name { font-weight: 800; font-size: 1.02rem; margin: 6px 0 2px; }
+.bout { padding: 8px 0; border-top: 1px dashed var(--border); }
+.bout:first-of-type { border-top: none; }
+.bout-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--favorite); margin-bottom: 4px; }
+.bout-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.bout.main-event .bout-row { font-weight: 700; }
+.bout-vs { color: var(--text-dim); font-size: 0.78rem; }
+.fighter.winner { color: var(--win); }
+.fighter-record { color: var(--text-dim); font-size: 0.78rem; font-weight: 400; }
+.bout-meta { color: var(--text-dim); font-size: 0.78rem; margin-top: 4px; }
+.race-order { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 0.9rem; }
+.race-order li { display: flex; gap: 8px; align-items: baseline; }
+.race-order li.winner { font-weight: 700; color: var(--win); }
+.race-place { width: 1.6em; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.car-number { color: var(--text-dim); font-size: 0.8rem; min-width: 2.6em; }
+.list-divider { grid-column: 1 / -1; margin-top: 12px; }

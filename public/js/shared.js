@@ -101,6 +101,7 @@ const CFB = (function () {
         const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html'];
         let page = listPages.includes(location.pathname) ? location.pathname : '/';
         if (page === '/rankings.html' && !s.rankings) page = '/';
+        if (page === '/standings.html' && s.standings === false) page = '/';
         location.href = `${page}?sport=${encodeURIComponent(s.key)}`;
       });
       bar.appendChild(btn);
@@ -111,6 +112,7 @@ const CFB = (function () {
       const href = a.getAttribute('href');
       if (!href || !href.startsWith('/') || href.startsWith('/admin')) return;
       if (href === '/rankings.html' && !sport().rankings) { a.remove(); return; }
+      if (href === '/standings.html' && sport().standings === false) { a.remove(); return; }
       a.setAttribute('href', withSport(href));
     });
 
@@ -278,6 +280,42 @@ const CFB = (function () {
       </div>`;
   }
 
+  // UFC fight cards and NASCAR races: one card per event, listing the
+  // fights (winner marked) or the top of the running order.
+  function eventCardHtml(event) {
+    const isLive = event.status && event.status.state === 'in';
+    const when = isLive ? 'LIVE' : event.status && event.status.state === 'post' ? 'Final' : fmtTime(event.date);
+    let body = '';
+    if (event.bouts) {
+      body = event.bouts.map((b, i) => {
+        const [x, y] = b.fighters;
+        const side = (f) => (f ? `<span class="fighter ${f.winner ? 'winner' : ''}">${esc(f.name || 'TBD')}${f.record ? ` <span class="fighter-record">${esc(f.record)}</span>` : ''}${f.winner ? ' <span class="wl-badge win">W</span>' : ''}</span>` : '<span class="fighter">TBD</span>');
+        return `
+          <div class="bout ${i === 0 ? 'main-event' : ''}">
+            ${i === 0 ? '<div class="bout-label">Main event</div>' : ''}
+            <div class="bout-row">${side(x)}<span class="bout-vs">vs</span>${side(y)}</div>
+            ${b.weightClass || b.result ? `<div class="bout-meta">${[b.weightClass, b.result].filter(Boolean).map(esc).join(' &middot; ')}</div>` : ''}
+          </div>`;
+      }).join('');
+    } else if (event.race) {
+      body = event.race.length
+        ? `<ol class="race-order">${event.race.map((d) => `
+            <li class="${d.winner ? 'winner' : ''}"><span class="race-place">${esc(d.place || '')}</span>${d.number ? `<span class="car-number">#${esc(d.number)}</span>` : ''}<span>${esc(d.name)}</span></li>`).join('')}
+          </ol>${event.fieldSize > event.race.length ? `<div class="bout-meta">Top ${event.race.length} of ${esc(event.fieldSize)}</div>` : ''}`
+        : '<div class="bout-meta">Running order appears once the race starts.</div>';
+    }
+    return `
+      <div class="game-card event-card ${isLive ? 'is-live' : ''}">
+        <div class="status-row">
+          <span class="${isLive ? 'live-dot' : ''}">${esc(when)}</span>
+          ${event.broadcast ? `<span>${esc(event.broadcast)}</span>` : ''}
+        </div>
+        <div class="event-name">${esc(event.name || event.shortName || 'Event')}</div>
+        ${event.venue ? `<div class="venue">${esc(event.venue)}</div>` : ''}
+        ${body}
+      </div>`;
+  }
+
   // Clicking a game card navigates to that game's own dedicated page
   // (game.html) rather than popping up a modal — it's shareable/bookmarkable
   // and doesn't compete for space with a team-name click inside the same
@@ -394,7 +432,7 @@ const CFB = (function () {
 
   return {
     el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
-    wireGameCardClicks, gameDetailSectionsHtml,
+    wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
     loadSports, sport, withSport, initSportBar, follows,
   };

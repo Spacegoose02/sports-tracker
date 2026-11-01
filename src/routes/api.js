@@ -114,6 +114,7 @@ router.get('/team/favorite', async (req, res) => {
 // Used by the click-through team.html page for every team, not just the
 // pinned favorite.
 router.get('/team/:id', async (req, res) => {
+  if (!req.sport.teams) return res.status(404).json({ error: `${req.sport.label} has no team pages` });
   try {
     const teamId = req.params.id;
     const sport = req.sport.key;
@@ -158,6 +159,7 @@ router.get('/rankings', async (req, res) => {
 
 router.get('/standings', async (req, res) => {
   try {
+    if (!req.sport.standings) return res.json({ conferences: [] });
     const { year, group } = req.query;
     const result = await ds.getStandings({
       sport: req.sport.key,

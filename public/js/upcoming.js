@@ -44,6 +44,13 @@
   // is easy to scan/sort by broadcast at a glance.
   function renderUpcoming() {
     const strip = el('upcomingStrip');
+    if (state.events) {
+      const ahead = state.events.filter((e) => e.status && e.status.state !== 'post');
+      strip.innerHTML = ahead.length
+        ? `<div class="game-list">${ahead.map(CFB.eventCardHtml).join('')}</div>`
+        : '<div class="empty-note">No upcoming events in the next two months.</div>';
+      return;
+    }
     const upcoming = state.games
       .filter((g) => g.status && g.status.state === 'pre' && g.date)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -91,7 +98,11 @@
     el('upcomingStrip').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
 
     const params = new URLSearchParams();
-    if (sport.schedule === 'day') {
+    if (sport.schedule === 'event') {
+      const end = new Date();
+      end.setDate(end.getDate() + 60);
+      params.set('dates', `${CFB.ymd(new Date())}-${CFB.ymd(end)}`);
+    } else if (sport.schedule === 'day') {
       // Daily sports: the next seven days.
       const start = new Date();
       const end = new Date();
@@ -106,7 +117,10 @@
     try {
       const scoreboard = await CFB.getJson(CFB.withSport(`/api/scoreboard?${params.toString()}`));
       state.games = scoreboard.games || [];
-      el('sourceNote').textContent = sport.schedule === 'day'
+      state.events = scoreboard.events || null;
+      el('sourceNote').textContent = sport.schedule === 'event'
+        ? `${sport.label} · Next 2 months`
+        : sport.schedule === 'day'
         ? `${sport.label} · Next 7 days`
         : `${sport.label} · ${scoreboard.season} · Week ${scoreboard.week}`;
       renderUpcoming();
@@ -118,7 +132,7 @@
   async function init() {
     const sport = await CFB.loadSports();
     CFB.initSportBar();
-    if (sport.schedule === 'day') {
+    if (sport.schedule === 'day' || sport.schedule === 'event') {
       el('weekControls').hidden = true;
     } else {
       try {
