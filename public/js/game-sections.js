@@ -10,9 +10,22 @@ const CFBGame = (function () {
     return t ? (t.abbreviation || t.shortName || t.name || '') : '';
   }
 
+  // "Watch on BingeBandit" rows: the home server's Live TV channel for each
+  // network (from /api/bingebandit/watch). Not shown once the game is over.
+  function bingeBanditRows(detail, links) {
+    if (!links || !links.length || (detail.status && detail.status.state === 'post')) return '';
+    return links.map((l) => {
+      const url = CFB.safeUrl(l.url);
+      if (!url) return '';
+      const c = l.channel || {};
+      const where = [c.number != null ? `Channel ${esc(c.number)}` : '', c.name ? esc(c.name) : ''].filter(Boolean).join(' &middot; ');
+      return `<li class="bb-watch"><a class="bb-watch-link" href="${url}" target="_blank" rel="noopener"><span class="bb-watch-mark" aria-hidden="true">&#9654;</span>Watch on BingeBandit</a><span class="watch-note">${where ? `${where} &middot; ` : ''}for ${esc(l.network)}</span></li>`;
+    }).join('');
+  }
+
   // TV channels first (the thing most people look for), then the apps that
-  // stream those channels.
-  function watchHtml(detail) {
+  // stream those channels, with the BingeBandit channel (if any) on top.
+  function watchHtml(detail, bingeBandit) {
     const broadcasts = detail.broadcasts && detail.broadcasts.length
       ? detail.broadcasts
       : (detail.broadcast ? [{ network: detail.broadcast, type: 'TV', market: 'National' }] : []);
@@ -26,12 +39,13 @@ const CFBGame = (function () {
         ${b.market && !/national/i.test(b.market) ? `<span class="watch-market">${esc(b.market)} only</span>` : ''}
         ${b.type && !/^tv$/i.test(b.type) ? `<span class="watch-market">${esc(b.type)}</span>` : ''}
       </li>`).join('');
-    const streams = (detail.streaming || []).map((s) => {
+    const services = (detail.streaming || []).map((s) => {
       const name = s.url
         ? `<a href="${CFB.safeUrl(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a>`
         : `<strong>${esc(s.name)}</strong>`;
       return `<li>${name}<span class="watch-note">${esc(s.note || '')}${s.networks && s.networks.length ? ` &middot; for ${s.networks.map(esc).join(', ')}` : ''}</span></li>`;
     }).join('');
+    const streams = bingeBanditRows(detail, bingeBandit) + services;
     return `
       <section>
         <h2 class="section-title">Where to Watch</h2>
