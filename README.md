@@ -273,7 +273,7 @@ docker run -d \
   -e SESSION_SECRET="a-long-random-string" \
   -e FAVORITE_TEAM_ID="259" \
   -e FAVORITE_TEAM_NAME="Virginia Tech Hokies" \
-  -e NCAA_API_BASE="https://ncaawidget.example.net" \
+  -e NCAA_API_BASE="https://ncaa-api.example.com" \
   -e NCAA_API_DIVISION="fbs" \
   -v /mnt/user/appdata/cfb-tracker:/app/data \
   cfb-tracker
@@ -321,7 +321,7 @@ If the tracker is down, BingeBandit reads ESPN directly until it's back.
 | `SESSION_SECRET` | *(placeholder)* | Cookie signing secret — **change this** |
 | `FAVORITE_TEAM_ID` | `259` | ESPN team ID pinned at the top (259 = Virginia Tech) |
 | `FAVORITE_TEAM_NAME` | `Virginia Tech Hokies` | Display name for the pinned team |
-| `NCAA_API_BASE` | `https://ncaawidget.exmple.net` | Your ncaa-api instance, used as fallback |
+| `NCAA_API_BASE` | *(unset: fallback off)* | Your ncaa-api instance, used as a fallback if ESPN is down |
 | `NCAA_API_DIVISION` | `fbs` | Division for ncaa-api fallback scoreboard calls |
 | `CACHE_TTL_SECONDS` | `20` | How long scoreboard responses are cached in memory |
 | `NEWS_FEEDS_JSON` | *(public ESPN / CBS Sports / Yahoo Sports CFB feeds)* | Optional JSON array of `{"name":"...","url":"..."}` to override the News tab's RSS feeds entirely |
