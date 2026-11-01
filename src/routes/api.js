@@ -4,6 +4,8 @@ const db = require('../db');
 const news = require('../news');
 const videos = require('../videos');
 const radio = require('../radio');
+const scorecard = require('../scorecard');
+const matchup = require('../matchup');
 const lines = require('../lines');
 const recruiting = require('../recruiting');
 const { isSafeId } = require('../security');
@@ -185,6 +187,17 @@ router.get('/game/:id', async (req, res) => {
   }
 });
 
+// Head-to-head history and kickoff weather for one game. Separate from
+// /game/:id so live polling stays one ESPN call; cached for hours.
+router.get('/game/:id/matchup', async (req, res) => {
+  try {
+    const summary = await ds.getGameSummary(req.params.id, 'espn', req.sport.key);
+    res.json(await matchup.getMatchup(summary, req.sport.key));
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load matchup info', detail: err.message });
+  }
+});
+
 // Where to listen: radio stations, SiriusXM, and free audio links for one
 // game. Separate from /game/:id because it changes rarely and is cached
 // longer. Uses the same ?sport= as every other route.
@@ -313,6 +326,56 @@ router.get('/videos', async (req, res) => {
   } catch (err) {
     res.status(502).json({ error: 'Could not load videos', detail: err.message });
   }
+});
+
+// Every team in a league, for pickers such as the Home Assistant
+// integration's "follow a team" step.
+router.get('/teams', async (req, res) => {
+  if (!req.sport.teams) return res.json({ sport: req.sport.key, teams: [] });
+  try {
+    res.json({ sport: req.sport.key, teams: await ds.getTeams({ sport: req.sport.key }) });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load teams', detail: err.message });
+  }
+});
+
+// ---- Home Assistant scorecards (src/scorecard.js) ---------------------------
+
+async function buildScorecard(sport, teamId) {
+  if (sport.format === 'game') return scorecard.teamScorecard(sport, teamId);
+  return scorecard.eventScorecard(sport);
+}
+
+// One scorecard: ?sport=cfb&team=259, or ?sport=nascar / ?sport=ufc.
+router.get('/ha/scorecard', async (req, res) => {
+  const teamId = req.query.team ? String(req.query.team) : null;
+  if (req.sport.format === 'game' && !teamId) return res.status(400).json({ error: 'team is required for this sport' });
+  if (teamId && !isSafeId(teamId)) return res.status(400).json({ error: 'Invalid team' });
+  try {
+    res.json(await buildScorecard(req.sport, teamId));
+  } catch (err) {
+    res.status(502).json({ error: 'Could not build scorecard', detail: err.message });
+  }
+});
+
+// Many scorecards in one request, which is what Home Assistant polls:
+// ?items=cfb:259,nhl:7,nascar,ufc (max 20). Results come back keyed by
+// the item string; one failing item doesn't fail the rest.
+const MAX_SCORECARDS = 20;
+router.get('/ha/scorecards', async (req, res) => {
+  const items = [...new Set(String(req.query.items || '').split(',').map((s) => s.trim()).filter(Boolean))].slice(0, MAX_SCORECARDS);
+  const results = await Promise.all(items.map(async (item) => {
+    const [sportKey, teamId] = item.split(':');
+    const sport = getSport(sportKey);
+    if (!sport) return [item, { error: `Unknown sport: ${sportKey}` }];
+    if (sport.format === 'game' && (!teamId || !isSafeId(teamId))) return [item, { error: 'Missing or invalid team id' }];
+    try {
+      return [item, await buildScorecard(sport, teamId)];
+    } catch (err) {
+      return [item, { error: 'Could not build scorecard', detail: err.message }];
+    }
+  }));
+  res.json({ updated: new Date().toISOString(), scorecards: Object.fromEntries(results) });
 });
 
 // Betting lines for a week (or a day/date range for daily sports): spread,

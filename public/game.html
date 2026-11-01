@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="/css/styles.css" />
 <link rel="stylesheet" href="/css/themes.css" />
 <script src="/js/theme-boot.js"></script>
+<script src="/js/theme-picker.js" defer></script>
 </head>
 <body>
 <header class="top">
@@ -30,6 +31,7 @@
     <a href="/upcoming.html">Upcoming</a>
     <a href="/rankings.html">Rankings</a>
     <a href="/standings.html">Standings</a>
+    <a href="/leaders.html">Leaders</a>
     <a href="/lines.html">Lines</a>
     <a href="/recruiting.html">Recruiting</a>
   </nav>
@@ -37,17 +39,26 @@
 
 <main>
   <div class="game-scorebug" id="gameScorebug">Loading&hellip;</div>
+  <div class="refresh-note" id="gameRefreshNote" aria-live="polite"></div>
   <div id="fieldPositionWrap"></div>
   <div class="game-situation empty-note" id="gameSituation"></div>
 
+  <div id="gameWatch"></div>
+  <div id="gameWinProb"></div>
+  <div id="gameMatchup"></div>
+
   <div id="gameRadio"></div>
 
+  <div id="gameBoxScore"></div>
   <div id="gameDetailSections"></div>
+  <div id="gameInjuries"></div>
+  <div id="gameForm"></div>
 </main>
 
 <footer class="foot">CFB Tracker</footer>
 
 <script src="/js/shared.js"></script>
+<script src="/js/game-sections.js"></script>
 <script src="/js/game.js"></script>
 <script src="/js/radio.js"></script>
 </body>

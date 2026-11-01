@@ -27,6 +27,7 @@ const PRECACHE = [
   '/js/pwa.js',
   '/js/theme-boot.js',
   '/css/themes.css',
+  '/js/theme-picker.js',
   '/img/favicon.svg',
   '/img/cfbtracker-icon.png',
   '/img/cfbtracker-icon-192.png',

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Player &middot; CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/stats.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<script src="/js/theme-boot.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1 id="pageTitle">Player</h1>
+      <div class="subtitle" id="sourceNote">Bio, stats &amp; game log</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Back to site</a>
+    <a href="/rankings.html">Rankings</a>
+    <a href="/standings.html">Standings</a>
+    <a href="/leaders.html">Leaders</a>
+    <a href="/lines.html">Lines</a>
+    <a href="/recruiting.html">Recruiting</a>
+  </nav>
+</header>
+
+<main>
+  <div class="team-hero" id="playerHero">Loading&hellip;</div>
+
+  <div class="tab-bar" id="playerTabs">
+    <button class="tab-btn active" type="button" data-tab="gamelog">Game Log</button>
+    <button class="tab-btn" type="button" data-tab="career">Season Stats</button>
+    <button class="tab-btn" type="button" data-tab="bio">Bio</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-gamelog"><div id="playerGameLog"><div class="empty-note">Loading&hellip;</div></div></div>
+  <div class="tab-panel" id="tab-career"><div id="playerCareer"><div class="empty-note">Loading&hellip;</div></div></div>
+  <div class="tab-panel" id="tab-bio"><div class="stats-grid" id="playerBio"><div class="empty-note">Loading&hellip;</div></div></div>
+</main>
+
+<footer class="foot">CFB Tracker</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/player.js"></script>
+</body>
+</html>

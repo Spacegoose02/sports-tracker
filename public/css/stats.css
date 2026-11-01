@@ -1,0 +1,101 @@
+/* Rankings, standings, team, player and leaders pages. Kept in its own
+   file so it doesn't collide with other features appending to styles.css. */
+
+/* ---- Rankings movement, standings badges ---------------------------- */
+.trend-up { color: var(--win); }
+.trend-down { color: var(--loss); }
+.trend-flat { color: var(--text-dim); }
+.badge-new {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.movers { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.movers:empty { display: none; }
+.mover {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.mover strong { color: var(--text); }
+.rank-badge {
+  display: inline-block;
+  min-width: 1.6em;
+  margin-right: 6px;
+  font-size: 0.75em;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.clincher { margin-left: 4px; font-size: 0.75rem; color: var(--accent); }
+.data-table small { font-size: 0.75rem; }
+
+/* ---- Team page ------------------------------------------------------- */
+.team-summary { display: flex; flex-wrap: wrap; gap: 10px; margin: -6px 0 18px; }
+.team-summary:empty { display: none; }
+.summary-tile {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  min-width: 96px;
+}
+.summary-tile > span { color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.summary-tile strong { font-size: 1.1rem; }
+.form-W { color: var(--win); margin-right: 3px; }
+.form-L { color: var(--loss); margin-right: 3px; }
+.form-T { color: var(--text-dim); margin-right: 3px; }
+.week-bar input[type="search"] {
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  min-width: 0;
+  flex: 1 1 220px;
+  max-width: 340px;
+}
+.data-table .team-cell img.headshot { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--bg-elev-2); }
+.injury-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--loss);
+  border: 1px solid var(--loss);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* ---- Player page ----------------------------------------------------- */
+.team-hero img.headshot-lg { border-radius: 50%; object-fit: cover; background: var(--bg-elev-2); }
+.team-hero .jersey { color: var(--text-dim); font-weight: 600; }
+.stat-table td, .stat-table th { white-space: nowrap; text-align: right; }
+.stat-table td:first-child, .stat-table th:first-child,
+.stat-table td:nth-child(2), .stat-table th:nth-child(2) { text-align: left; }
+.data-table tr.totals-row td { font-weight: 700; border-top: 2px solid var(--border); }
+.result-W { color: var(--win); }
+.result-L { color: var(--loss); }
+
+/* ---- Leaders and fantasy --------------------------------------------- */
+.leaders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.leader-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+.leader-row:first-of-type { border-top: none; }
+.leader-row.is-favorite-row { background: var(--favorite-soft); }
+.leader-row .team-cell { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.leader-row .team-cell img.headshot { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--bg-elev-2); }
+.leader-row a { text-decoration: none; color: var(--text); }
+.leader-row a:hover { color: var(--accent); text-decoration: underline; }
+.leader-rank { width: 18px; color: var(--text-dim); font-weight: 700; }
+.leader-value { white-space: nowrap; }
+.player-sub { color: var(--text-dim); font-size: 0.75rem; }
+.live-dot { color: var(--live); font-size: 0.7rem; }
+.roster-table td:not(:first-child), .roster-table th { white-space: nowrap; }
