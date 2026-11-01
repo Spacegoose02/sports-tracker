@@ -1,0 +1,7 @@
+# Only used for the Home Assistant integration's tests (tests/home_assistant).
+# The tracker itself is Node: see package.json.
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests/home_assistant"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

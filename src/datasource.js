@@ -62,8 +62,13 @@ async function getNews(opts) {
   return espn.getNews(opts);
 }
 
+async function getTeams(opts) {
+  return espn.getTeams(opts);
+}
+
 module.exports = {
   getNews,
+  getTeams,
   getScoreboard,
   getTeamSchedule,
   getTeamInfo,

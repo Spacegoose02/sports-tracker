@@ -344,7 +344,10 @@ function normalizeRace(event) {
     }))
     .sort((a, b) => (a.place || 999) - (b.place || 999));
   if (shell.status.state === 'pre') order = [];
-  return { ...shell, race: order.slice(0, 10), fieldSize: order.length };
+  // Lap counts, when ESPN has them (the period is the current lap while a
+  // race is running).
+  const totalLaps = Number((race && (race.laps || (race.format && race.format.regulation && race.format.regulation.periods))) || 0) || null;
+  return { ...shell, race: order.slice(0, 10), fieldSize: order.length, totalLaps };
 }
 
 // Full-season schedule for one team (used for the pinned favorite team and
@@ -696,6 +699,28 @@ async function getNews({ sport, team, limit = 30 } = {}) {
   }, 10 * 60 * 1000);
 }
 
+// Every team in a league, for pickers (the Home Assistant integration's
+// "follow a team" step). College leagues have hundreds of teams.
+async function getTeams({ sport } = {}) {
+  const cfg = sportConfig(sport);
+  if (cfg.teams === false) return [];
+  const key = `espn:${cfg.key}:teams`;
+  return cache.getOrFetch(key, async () => {
+    const json = await fetchJson(`${baseFor(cfg.key)}/teams?limit=1000`);
+    const league = json.sports && json.sports[0] && json.sports[0].leagues && json.sports[0].leagues[0];
+    return ((league && league.teams) || [])
+      .map((t) => t.team || t)
+      .filter((t) => t && t.id)
+      .map((t) => ({
+        id: String(t.id),
+        name: t.displayName || t.name,
+        abbreviation: t.abbreviation || null,
+        logo: (t.logos && t.logos[0] && t.logos[0].href) || null,
+      }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, 24 * 60 * 60 * 1000);
+}
+
 function parseNews(json) {
   return (json.articles || [])
     .map((a) => {
@@ -716,6 +741,7 @@ function parseNews(json) {
 
 module.exports = {
   getNews,
+  getTeams,
   parseNews,
   getScoreboard,
   getTeamSchedule,

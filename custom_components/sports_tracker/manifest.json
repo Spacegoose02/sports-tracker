@@ -1,0 +1,13 @@
+{
+  "domain": "sports_tracker",
+  "name": "Sports Tracker",
+  "codeowners": ["@Spacegoose02"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http"],
+  "documentation": "https://github.com/Spacegoose02/sports-tracker/blob/main/docs/home-assistant.md",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Spacegoose02/sports-tracker/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
