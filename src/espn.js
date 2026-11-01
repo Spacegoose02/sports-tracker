@@ -510,6 +510,11 @@ function buildFlatPlayByPlay(plays) {
 // Top 25 rankings (AP, Coaches, etc.), including "others receiving votes".
 // ESPN's rankings JSON shape has drifted a bit over the years, so this
 // reads several possible field names defensively rather than assuming one.
+// Preseason polls have no "previous" for anyone, so nobody is "new".
+function isFirstPoll(poll) {
+  return !(poll.ranks || []).some((r) => r.previous);
+}
+
 async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
   const cfg = sportConfig(sport);
   const params = new URLSearchParams();
@@ -531,6 +536,10 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
       const ranks = (poll.ranks || []).map((r) => ({
         rank: r.current,
         previousRank: r.previous || null,
+        // Positive = moved up. Null when the team wasn't ranked last week
+        // (isNew) or this is the first poll of the season.
+        movement: r.previous && r.current ? r.previous - r.current : null,
+        isNew: !r.previous && !!r.current && !isFirstPoll(poll),
         trend: r.trend || null,
         points: r.points || null,
         firstPlaceVotes: r.firstPlaceVotes || 0,
@@ -564,13 +573,15 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
       }));
 
       const droppedOut = (poll.droppedOut || []).map((d) => ({
-        team: d.team ? { id: d.team.id, name: d.team.displayName || d.team.name } : null,
+        previousRank: d.previous || null,
+        team: d.team ? { id: d.team.id, name: d.team.displayName || d.team.name, logo: d.team.logos && d.team.logos[0] && d.team.logos[0].href } : null,
       }));
 
       return {
         id: poll.id,
         name: poll.name,
         shortName: poll.shortName,
+        type: poll.type || null,
         headline: poll.headline,
         occurrence: poll.occurrence && poll.occurrence.value,
         ranks,
@@ -579,7 +590,12 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
       };
     });
 
-    return { season: year, week, polls };
+    return {
+      season: year || (json.latestSeason && json.latestSeason.year) || null,
+      week: week || (json.latestWeek && json.latestWeek.number) || null,
+      latestWeek: (json.latestWeek && json.latestWeek.number) || null,
+      polls,
+    };
   }, 60 * 1000); // rankings update ~weekly, but cache short so a same-day fix shows up fast
 }
 
@@ -650,6 +666,13 @@ function parseStandings(json) {
         points: statByName.points || null,
         streak: statByName.streak || null,
         rank: statByName.rank || null,
+        home: statByName['type:home'] || statByName.home || statByName.Home || null,
+        road: statByName['type:road'] || statByName['type:away'] || statByName.road || statByName.away || null,
+        pointsFor: statByName.pointsFor || statByName.avgPointsFor || null,
+        pointsAgainst: statByName.pointsAgainst || statByName.avgPointsAgainst || null,
+        differential: statByName.differential || statByName.pointDifferential || null,
+        seed: statByName.playoffSeed || null,
+        clincher: statByName.clincher || null,
       };
     });
     return {

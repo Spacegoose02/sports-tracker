@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Leaders &middot; CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1 id="pageTitle">Leaders</h1>
+      <div class="subtitle" id="sourceNote">Loading&hellip;</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Schedule &amp; Scores</a>
+    <a href="/upcoming.html">Upcoming</a>
+    <a href="/rankings.html">Rankings</a>
+    <a href="/standings.html">Standings</a>
+  </nav>
+</header>
+
+<main>
+  <div class="tab-bar" id="leaderTabs">
+    <button class="tab-btn active" type="button" data-tab="leaders">Season Leaders</button>
+    <button class="tab-btn" type="button" data-tab="fantasy" id="fantasyTabBtn" hidden>Fantasy</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-leaders">
+    <div class="leaders-grid" id="leadersGrid"><div class="empty-note">Loading&hellip;</div></div>
+  </div>
+
+  <div class="tab-panel" id="tab-fantasy">
+    <div class="week-bar">
+      <label for="fantasyWeek">Week</label>
+      <select id="fantasyWeek"></select>
+      <label for="fantasyFormat">Scoring</label>
+      <select id="fantasyFormat">
+        <option value="ppr">PPR</option>
+        <option value="half">Half PPR</option>
+        <option value="standard">Standard</option>
+      </select>
+      <div class="division-toggle" id="fantasyRole">
+        <button type="button" class="active" data-role="">All</button>
+        <button type="button" data-role="QB">QB</button>
+        <button type="button" data-role="RB">RB</button>
+        <button type="button" data-role="WR/TE">WR/TE</button>
+      </div>
+      <span class="refresh-note" id="fantasyNote"></span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="rank-cell">#</th><th>Player</th><th>Opp</th><th>Pts</th>
+            <th>Passing</th><th>Rushing</th><th>Receiving</th>
+          </tr>
+        </thead>
+        <tbody id="fantasyBody"><tr><td colspan="7" class="empty-note">Loading&hellip;</td></tr></tbody>
+      </table>
+    </div>
+    <p class="empty-note">Points use common league scoring: 1 per 25 passing yards, 4 per passing TD, -2 per interception, 1 per 10 rushing or receiving yards, 6 per rushing or receiving TD, -2 per fumble lost. Kick returns, 2-point plays and defense aren't counted.</p>
+  </div>
+</main>
+
+<footer class="foot">CFB Tracker</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/leaders.js"></script>
+</body>
+</html>

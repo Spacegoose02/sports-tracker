@@ -15,6 +15,8 @@
 //             'race' (NASCAR: one race with a running order). Card and race
 //             sports list events instead of games, have no teams to follow
 //             and no standings.
+//   leaders:  season stat leaders page (default on for team sports).
+//   fantasy:  weekly fantasy football scores built from box scores.
 
 const SPORTS = {
   cfb: {
@@ -43,6 +45,7 @@ const SPORTS = {
     rankings: false,
     field: true,
     notable: false,
+    fantasy: true,
     periodPrefix: 'Q',
   },
   nba: {
@@ -131,6 +134,8 @@ for (const sport of Object.values(SPORTS)) {
   if (sport.format === undefined) sport.format = 'game';
   if (sport.standings === undefined) sport.standings = true;
   if (sport.teams === undefined) sport.teams = true;
+  if (sport.leaders === undefined) sport.leaders = sport.format === 'game';
+  if (sport.fantasy === undefined) sport.fantasy = false;
 }
 
 const DEFAULT_SPORT = 'cfb';

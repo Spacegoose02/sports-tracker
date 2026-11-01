@@ -24,6 +24,7 @@
     <a href="/">&larr; Schedule &amp; Scores</a>
     <a href="/upcoming.html">Upcoming</a>
     <a href="/standings.html">Standings</a>
+    <a href="/leaders.html">Leaders</a>
   </nav>
 </header>
 
@@ -31,10 +32,18 @@
   <div class="week-bar">
     <label for="pollSelect">Poll</label>
     <select id="pollSelect"></select>
+    <label for="weekSelect" id="weekLabel" hidden>Week</label>
+    <select id="weekSelect" hidden></select>
   </div>
 
-  <section>
+  <div class="tab-bar" id="viewTabs">
+    <button class="tab-btn active" type="button" data-view="poll">Poll</button>
+    <button class="tab-btn" type="button" data-view="compare">Compare polls</button>
+  </div>
+
+  <section id="view-poll">
     <h2 class="section-title" id="pollHeadline">Top 25</h2>
+    <div class="movers" id="movers"></div>
     <div class="table-wrap">
       <table class="data-table" id="rankingsTable">
         <thead>
@@ -44,15 +53,27 @@
             <th>Record</th>
             <th>Points</th>
             <th>1st Place</th>
-            <th>Trend</th>
+            <th>Last Week</th>
+            <th>Move</th>
           </tr>
         </thead>
         <tbody id="rankingsBody">
-          <tr><td colspan="6" class="empty-note">Loading&hellip;</td></tr>
+          <tr><td colspan="7" class="empty-note">Loading&hellip;</td></tr>
         </tbody>
       </table>
     </div>
     <div class="others-votes" id="othersVotes"></div>
+    <div class="others-votes" id="droppedOut"></div>
+  </section>
+
+  <section id="view-compare" hidden>
+    <h2 class="section-title">Every major poll, side by side</h2>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead id="compareHead"></thead>
+        <tbody id="compareBody"></tbody>
+      </table>
+    </div>
   </section>
 </main>
 

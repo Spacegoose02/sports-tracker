@@ -98,10 +98,11 @@ const CFB = (function () {
       btn.addEventListener('click', () => {
         if (s.key === sportKey) return;
         try { localStorage.setItem(SPORT_STORAGE_KEY, s.key); } catch (e) { /* ignore */ }
-        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html'];
+        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html', '/leaders.html'];
         let page = listPages.includes(location.pathname) ? location.pathname : '/';
         if (page === '/rankings.html' && !s.rankings) page = '/';
         if (page === '/standings.html' && s.standings === false) page = '/';
+        if (page === '/leaders.html' && !s.leaders) page = '/';
         location.href = `${page}?sport=${encodeURIComponent(s.key)}`;
       });
       bar.appendChild(btn);
@@ -113,6 +114,7 @@ const CFB = (function () {
       if (!href || !href.startsWith('/') || href.startsWith('/admin')) return;
       if (href === '/rankings.html' && !sport().rankings) { a.remove(); return; }
       if (href === '/standings.html' && sport().standings === false) { a.remove(); return; }
+      if (href === '/leaders.html' && !sport().leaders) { a.remove(); return; }
       a.setAttribute('href', withSport(href));
     });
 
@@ -210,6 +212,11 @@ const CFB = (function () {
   function teamLink(team) {
     if (!team || !team.id) return '';
     return withSport(`/team.html?id=${encodeURIComponent(team.id)}&source=espn`);
+  }
+
+  function playerLink(player) {
+    if (!player || !player.id) return '#';
+    return withSport(`/player.html?id=${encodeURIComponent(player.id)}`);
   }
 
   function gameLink(id, source) {
@@ -431,7 +438,7 @@ const CFB = (function () {
   }
 
   return {
-    el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, gameLink, teamRowHtml, gameCardHtml,
+    el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, playerLink, gameLink, teamRowHtml, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
     loadSports, sport, withSport, initSportBar, follows,
