@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>cfb-tracker</Name>
+  <Repository>ghcr.io/spacegoose02/sports-tracker:latest</Repository>
+  <Registry>https://github.com/Spacegoose02/sports-tracker/pkgs/container/sports-tracker</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Spacegoose02/sports-tracker/issues</Support>
+  <Project>https://github.com/Spacegoose02/sports-tracker</Project>
+  <Overview>Self-hosted college football hub (plus other sports): live scores, schedules, stats, rankings, news, recruiting, accounts with followed teams, game alerts and a Home Assistant integration. Set ADMIN_PASSWORD and SESSION_SECRET before starting.</Overview>
+  <Category>MediaApp:Other Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Spacegoose02/sports-tracker/main/unraid/cfb-tracker.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Spacegoose02/sports-tracker/main/public/img/cfbtracker-icon-192.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+
+  <!-- Required -->
+  <Config Name="Web UI port" Target="3000" Default="3000" Mode="tcp" Description="Port the site is served on." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="App data" Target="/app/data" Default="/mnt/user/appdata/cfb-tracker" Mode="rw" Description="Database (accounts, follows, notable games) and push keys. Keep this on appdata so updates don't wipe it." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/cfb-tracker</Config>
+  <Config Name="Admin password" Target="ADMIN_PASSWORD" Default="" Mode="" Description="Password for the /admin notable-games editor. The admin login stays off while this is blank or 'changeme'." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="Session secret" Target="SESSION_SECRET" Default="" Mode="" Description="Long random string that signs login cookies (at least 16 characters). Generate one with: openssl rand -hex 32" Type="Variable" Display="always" Required="true" Mask="true"></Config>
+
+  <!-- Basics -->
+  <Config Name="Favorite team id" Target="FAVORITE_TEAM_ID" Default="259" Mode="" Description="ESPN team id pinned at the top (259 = Virginia Tech)." Type="Variable" Display="always" Required="false" Mask="false">259</Config>
+  <Config Name="Favorite team name" Target="FAVORITE_TEAM_NAME" Default="Virginia Tech Hokies" Mode="" Description="Display name for the pinned team." Type="Variable" Display="always" Required="false" Mask="false">Virginia Tech Hokies</Config>
+  <Config Name="Public URL" Target="PUBLIC_URL" Default="" Mode="" Description="The site's public address, e.g. https://sports.example.com. Needed for single sign-on and calendar links." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Trust proxy" Target="TRUST_PROXY" Default="" Mode="" Description="Set to 1 when behind a reverse proxy (Nginx Proxy Manager, SWAG, Traefik, Cloudflare tunnel) so login rate limits see real visitor IPs." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Timezone" Target="TZ" Default="America/New_York" Mode="" Description="Timezone for logs." Type="Variable" Display="advanced" Required="false" Mask="false">America/New_York</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User id the app runs as. Unraid default is 99 (nobody)." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group id the app runs as. Unraid default is 100 (users)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+
+  <!-- Accounts and sign-in -->
+  <Config Name="Allow sign-up" Target="ALLOW_SIGNUP" Default="true" Mode="" Description="Set to false to stop new email/password sign-ups." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="SSO issuer" Target="SSO_ISSUER" Default="" Mode="" Description="OpenID Connect issuer URL (Tinyauth, Authentik, Authelia...). Register PUBLIC_URL/auth/sso/callback as a redirect URI there." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SSO client id" Target="SSO_CLIENT_ID" Default="cfb-tracker" Mode="" Description="OIDC client id." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SSO client secret" Target="SSO_CLIENT_SECRET" Default="" Mode="" Description="OIDC client secret." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="SSO button label" Target="SSO_LABEL" Default="Tinyauth" Mode="" Description="Text on the single sign-on button." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SSO scopes" Target="SSO_SCOPES" Default="openid profile email" Mode="" Description="OIDC scopes to request." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+
+  <!-- Game alerts (web push) -->
+  <Config Name="Game alerts" Target="GAME_ALERTS" Default="true" Mode="" Description="Set to false to stop push alerts when followed teams' games start and end." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="VAPID subject" Target="VAPID_SUBJECT" Default="" Mode="" Description="Contact for push alerts, e.g. mailto:you@example.com." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="VAPID public key" Target="VAPID_PUBLIC_KEY" Default="" Mode="" Description="Optional. Leave blank to generate keys once into the app data folder." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="VAPID private key" Target="VAPID_PRIVATE_KEY" Default="" Mode="" Description="Optional. Leave blank to generate keys once into the app data folder." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+
+  <!-- Data sources -->
+  <Config Name="CFBD API key" Target="CFBD_API_KEY" Default="" Mode="" Description="Free key from collegefootballdata.com/key. Turns on Transfer Portal, Top Recruits and Class Rankings." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Cache seconds" Target="CACHE_TTL_SECONDS" Default="20" Mode="" Description="How long ESPN responses are cached before refetching." Type="Variable" Display="advanced" Required="false" Mask="false">20</Config>
+  <Config Name="NCAA API base" Target="NCAA_API_BASE" Default="" Mode="" Description="Optional self-hosted ncaa-api (github.com/henrygd/ncaa-api), used if ESPN is down." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="NCAA API division" Target="NCAA_API_DIVISION" Default="fbs" Mode="" Description="Division for the ncaa-api fallback: fbs, fcs, ii or iii." Type="Variable" Display="advanced" Required="false" Mask="false">fbs</Config>
+  <Config Name="ESPN relay key" Target="RELAY_API_KEY" Default="" Mode="" Description="Long random string that turns on /espn/... so BingeBandit can share this tracker's ESPN cache." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="News feeds" Target="NEWS_FEEDS_JSON" Default="" Mode="" Description="Optional JSON array of {&quot;name&quot;,&quot;url&quot;} RSS feeds that replaces the News tab defaults." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Recruiting feeds" Target="RECRUITING_FEEDS_JSON" Default="" Mode="" Description="Optional JSON array of {&quot;name&quot;,&quot;url&quot;} RSS feeds for the Recruiting page." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="YouTube channels" Target="YOUTUBE_CHANNELS_JSON" Default="" Mode="" Description="Optional JSON array of {&quot;id&quot;,&quot;name&quot;} YouTube channels for the videos section." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="News article images" Target="NEWS_FETCH_OG_IMAGES" Default="1" Mode="" Description="Set to 0 to skip looking up each article's preview image (faster, fewer requests)." Type="Variable" Display="advanced" Required="false" Mask="false">1</Config>
+</Container>

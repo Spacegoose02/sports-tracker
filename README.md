@@ -406,60 +406,88 @@ events for automations like flashing the lights on a touchdown. See
 
 ![Home Assistant scorecards](docs/img/ha-scorecards.png)
 
-## Running on Unraid
+## Running with Docker
 
-You have two straightforward options. Either way, the app needs one
-persistent folder for its SQLite database — create
-`/mnt/user/appdata/cfb-tracker` first (Unraid's appdata share is the usual
-place for this).
+A ready-made image is published to GitHub Container Registry on every push
+to `main`:
 
-### Option A — Docker Compose Manager plugin (recommended)
+```
+ghcr.io/spacegoose02/sports-tracker:latest
+```
 
-1. Install the **Docker Compose Manager** plugin from the Community
-   Applications store if you don't already have it.
-2. Copy this whole project folder onto your Unraid box, e.g. to
-   `/mnt/user/appdata/cfb-tracker-src` (via the Unraid terminal, `scp`, or
-   your network share).
-3. Edit `docker-compose.yml` and change `ADMIN_PASSWORD` and
-   `SESSION_SECRET` to values of your own. Adjust `FAVORITE_TEAM_ID` if you
-   want a different pinned team (ESPN team IDs — Virginia Tech is `259`).
-4. In the Docker Compose Manager UI, add a new stack pointing at that
-   folder, then hit **Compose Up**. It will build the image the first time
-   (takes a minute or two) and start the container.
-5. Visit `http://<your-unraid-ip>:3000`.
+It runs on amd64 and arm64, keeps everything it needs to save (the SQLite
+database with accounts, follows and notable games, plus the push-alert keys)
+in `/app/data`, and has a built-in health check (`GET /healthz`) so Docker and
+Unraid show it as healthy or unhealthy. Set `PUID`/`PGID` to choose which user
+owns the files in the data folder (Unraid's default is `99`/`100`).
 
-### Option B — Plain `docker build` + `docker run` from the Unraid terminal
+At minimum, set `ADMIN_PASSWORD` and `SESSION_SECRET` (a long random string,
+for example the output of `openssl rand -hex 32`). Every other setting is
+listed in [`.env.example`](.env.example).
+
+### Unraid: Docker tab template (recommended)
+
+1. Download the template onto your server from the Unraid terminal:
+
+   ```bash
+   wget -O /boot/config/plugins/dockerMan/templates-user/my-cfb-tracker.xml \
+     https://raw.githubusercontent.com/Spacegoose02/sports-tracker/main/unraid/cfb-tracker.xml
+   ```
+
+2. In the **Docker** tab, click **Add Container** and pick **cfb-tracker**
+   from the **Template** dropdown.
+3. Fill in **Admin password** and **Session secret**. Change the favorite
+   team or add a CFBD API key if you like; the rest is under
+   **Show more settings**. App data defaults to
+   `/mnt/user/appdata/cfb-tracker`.
+4. Click **Apply**, then open the WebUI from the container's icon.
+
+Updates show up in the Docker tab like any other container ("update ready"),
+and your data in appdata survives them.
+
+### Unraid: Docker Compose Manager, Portainer or plain Compose
+
+[`docker-compose.yml`](docker-compose.yml) uses the published image and lists
+every setting, most of them commented out. Change `ADMIN_PASSWORD` and
+`SESSION_SECRET`, then `docker compose up -d` (or **Compose Up** in the
+Compose Manager plugin). To build from source instead, swap `image:` for
+`build: .` in that file.
+
+### Plain `docker run`
 
 ```bash
-mkdir -p /mnt/user/appdata/cfb-tracker
-cd /mnt/user/appdata/cfb-tracker-src   # wherever you copied this project
-
-docker build -t cfb-tracker .
-
 docker run -d \
   --name cfb-tracker \
   --restart unless-stopped \
   -p 3000:3000 \
+  -e PUID=99 -e PGID=100 \
   -e ADMIN_PASSWORD="something-private" \
-  -e SESSION_SECRET="a-long-random-string" \
+  -e SESSION_SECRET="$(openssl rand -hex 32)" \
   -e FAVORITE_TEAM_ID="259" \
   -e FAVORITE_TEAM_NAME="Virginia Tech Hokies" \
-  -e NCAA_API_BASE="https://ncaa-api.example.com" \
-  -e NCAA_API_DIVISION="fbs" \
   -v /mnt/user/appdata/cfb-tracker:/app/data \
-  cfb-tracker
+  ghcr.io/spacegoose02/sports-tracker:latest
 ```
 
-Then add it to Unraid's Docker tab as an existing container if you'd like
-it managed in the UI (Docker tab &rarr; the container will already show up
-since it was started with `docker run`).
+### Behind a reverse proxy
 
-### Updating later
+When the site sits behind Nginx Proxy Manager, SWAG, Traefik or a Cloudflare
+tunnel, set `TRUST_PROXY=1` and `PUBLIC_URL` to the public address. Point
+uptime monitors at `/healthz`.
 
-Pull/copy the latest source, then either `docker compose up -d --build`
-(Option A) or re-run `docker build` + recreate the container (Option B).
-Your notable-games picks live in `/mnt/user/appdata/cfb-tracker` and
-survive rebuilds.
+### Updating
+
+Pull the new image and recreate the container: Unraid's **Update** button,
+`docker compose pull && docker compose up -d`, or `docker pull` then re-run.
+Your data in `/mnt/user/appdata/cfb-tracker` is kept.
+
+### Publishing the image
+
+`.github/workflows/docker.yml` builds the image on every pull request and
+pushes it to GHCR from `main` (`latest` plus a short commit tag) and from
+`v*` tags (`1.2.3`, `1.2`). The first time it publishes, open the package on
+GitHub (your profile, **Packages**, **sports-tracker**, **Package settings**)
+and set its visibility to **Public** so Unraid can pull it without logging in.
 
 ## Sharing ESPN data with BingeBandit (the ESPN relay)
 

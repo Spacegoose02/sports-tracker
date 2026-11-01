@@ -57,3 +57,15 @@ test('team and game ids with path characters are rejected', async () => {
     await app.close();
   }
 });
+
+test('/healthz reports ok for the Docker healthcheck', async () => {
+  const app = await startApp(REAL);
+  try {
+    const res = await fetch(`${app.url}/healthz`);
+    assert.strictEqual(res.status, 200);
+    assert.deepStrictEqual(await res.json(), { ok: true });
+    assert.strictEqual(res.headers.get('cache-control'), 'no-store');
+  } finally {
+    await app.close();
+  }
+});

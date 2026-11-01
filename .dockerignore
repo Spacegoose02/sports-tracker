@@ -1,0 +1,27 @@
+# Keep the build context small and secrets out of the image.
+.git
+.github
+node_modules
+data
+.env
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+npm-debug.log*
+
+# Not needed at runtime
+test
+tests
+docs
+blueprints
+custom_components
+unraid
+*.md
+*.yaml
+pyproject.toml
+hacs.json
+__pycache__
+.venv
+.pytest_cache
