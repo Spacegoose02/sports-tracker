@@ -7,7 +7,7 @@
  *     from cache, refreshed in the background for the next load.
  *   - /api (except admin and accounts): network first with a short timeout,
  *     falling back to the last good response so scores still show offline.
- *   - Everything else (admin, auth, the /espn relay, other origins such as
+ *   - Everything else (admin, /auth sign-in, /calendar feeds, the /espn relay, other origins such as
  *     team logos on ESPN's CDN): left to the browser, never cached here.
  *
  * Bump VERSION to throw away every old cache on the next visit.
@@ -65,6 +65,8 @@ self.addEventListener('fetch', (event) => {
 
   const path = url.pathname;
   if (path === '/admin' || path.startsWith('/admin.') || path.startsWith('/espn/')) return;
+  // Sign-in redirects and private calendar feeds must never be cached or replayed.
+  if (path.startsWith('/auth/') || path.startsWith('/calendar')) return;
 
   if (req.mode === 'navigate') {
     event.respondWith(pageFetch(req));

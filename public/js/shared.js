@@ -98,7 +98,7 @@ const CFB = (function () {
       btn.addEventListener('click', () => {
         if (s.key === sportKey) return;
         try { localStorage.setItem(SPORT_STORAGE_KEY, s.key); } catch (e) { /* ignore */ }
-        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html', '/kids.html'];
+        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html', '/lines.html', '/kids.html'];
         let page = listPages.includes(location.pathname) ? location.pathname : '/';
         if (page === '/rankings.html' && !s.rankings) page = '/';
         if (page === '/standings.html' && s.standings === false) page = '/';
@@ -113,6 +113,9 @@ const CFB = (function () {
       if (!href || !href.startsWith('/') || href.startsWith('/admin')) return;
       if (href === '/rankings.html' && !sport().rankings) { a.remove(); return; }
       if (href === '/standings.html' && sport().standings === false) { a.remove(); return; }
+      // Recruiting is college football only; lines need two-team games.
+      if (href === '/recruiting.html' && sportKey !== DEFAULT_SPORT) { a.remove(); return; }
+      if (href === '/lines.html' && sport().format && sport().format !== 'game') { a.remove(); return; }
       a.setAttribute('href', withSport(href));
     });
 
