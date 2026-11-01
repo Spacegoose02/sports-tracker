@@ -47,9 +47,13 @@ services:
       # BINGEBANDIT_LINK_URL: ""          # address browsers open, if different
       # BINGEBANDIT_API_KEY: ""           # defaults to RELAY_API_KEY
 
-      # --- Scrappy, the AI chat bubble (off until a key is set) ---
+      # --- Scrappy, the AI chat bubble (off until Claude or Ollama is set) ---
       # ANTHROPIC_API_KEY: ""             # from console.anthropic.com
       # SCRAPPY_MODEL: "claude-opus-5-5"
+      # OLLAMA_URL: "http://192.168.1.10:11434"  # or use Ollama instead of Claude
+      # OLLAMA_MODEL: "qwen3"             # must support tool calling
+      # OLLAMA_API_KEY: ""                # ollama.com key: cloud models + web search
+      # SEARXNG_URL: ""                   # web search via your SearXNG instead
       # SCRAPPY_RATE_PER_MINUTE: "8"      # messages per visitor IP
       # SCRAPPY_RATE_PER_DAY: "100"
       # NEWS_FEEDS_JSON: '[{"name":"ESPN","url":"https://example.com/feed.rss"}]'
