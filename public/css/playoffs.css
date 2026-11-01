@@ -1,0 +1,85 @@
+/* Playoff hub (/brackets.html): bracket grids, bowl list and the family
+   bracket challenge panel. League standings use leagues.css. */
+
+#hubTabs { flex-wrap: wrap; }
+.hub-season { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 4px 0 14px; font-weight: 700; }
+.hub-season button {
+  font: inherit; font-size: 1.3rem; line-height: 1; width: 40px; height: 40px; cursor: pointer;
+  border-radius: 50%; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text);
+}
+.hub-season button:disabled { opacity: 0.35; cursor: default; }
+.hub-note {
+  margin: 0 0 14px; padding: 12px 14px; border-radius: var(--radius);
+  background: var(--accent-soft); border: 1px solid var(--accent); line-height: 1.45;
+}
+.hub-count { color: var(--text-dim); margin: 0 0 8px; }
+
+/* Challenge panel */
+.challenge {
+  margin-bottom: 18px; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--bg-elev); border: 1px solid var(--border);
+}
+.challenge .section-title { margin-top: 0; }
+.challenge-help { color: var(--text-dim); margin: 0 0 10px; }
+.challenge .add-player { margin-bottom: 12px; }
+.challenge-boards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.challenge-boards > div:empty { display: none; }
+
+/* Bracket grid: one column per round. Later rounds spread their games out
+   so each one sits beside the pair that feeds it. On a phone the grid
+   scrolls sideways inside its own box; the page never does. */
+.bk-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 0 18px; padding-bottom: 6px; }
+.bk-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(var(--rounds, 4), minmax(210px, 1fr));
+  min-width: calc(var(--rounds, 4) * 224px);
+}
+.bk-round { display: flex; flex-direction: column; min-width: 0; }
+.bk-round-title {
+  margin: 0 0 8px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim);
+}
+.bk-points {
+  display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: var(--radius-pill);
+  background: var(--favorite-soft); color: var(--favorite); font-size: 0.72rem; letter-spacing: 0; text-transform: none;
+}
+.bk-games { display: flex; flex-direction: column; justify-content: space-around; gap: 10px; flex: 1; }
+
+.bk-game {
+  display: grid; gap: 4px; padding: 8px; border-radius: var(--radius);
+  background: var(--bg-elev); border: 1px solid var(--border);
+}
+.bk-game.live { border-color: var(--live); }
+.bk-game.placeholder { border-style: dashed; opacity: 0.75; }
+.bk-meta { font-size: 0.78rem; color: var(--text-dim); display: flex; flex-wrap: wrap; gap: 0 4px; }
+.bk-bowl { font-weight: 700; color: var(--text); }
+.bk-live { color: var(--live); font-weight: 700; }
+.bk-venue { font-size: 0.75rem; color: var(--text-dim); }
+.bk-link { font-size: 0.8rem; color: var(--accent); justify-self: end; text-decoration: none; }
+.bk-link:hover { text-decoration: underline; }
+
+.bk-team {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px;
+  padding: 5px 8px; border-radius: var(--radius-sm); border: 2px solid transparent;
+  background: var(--bg-elev-2); color: var(--text); font: inherit; text-align: left;
+}
+button.bk-team { cursor: pointer; border-color: var(--border); }
+button.bk-team:hover { border-color: var(--accent); }
+button.bk-team:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bk-team.picked { border-color: var(--favorite); background: var(--favorite-soft); }
+.bk-team.lost { opacity: 0.6; }
+.bk-team.won .bk-name, .bk-team.won .bk-score { font-weight: 800; }
+.bk-team.tbd { color: var(--text-dim); font-style: italic; }
+.bk-team img, .bk-logo-gap { width: 24px; height: 24px; object-fit: contain; flex: none; }
+.bk-seed, .bk-rank { flex: none; min-width: 1.6em; text-align: center; font-size: 0.78rem; font-weight: 700; color: var(--text-dim); }
+.bk-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-record { color: var(--text-dim); font-size: 0.78rem; font-weight: 400; }
+.bk-score { flex: none; font-variant-numeric: tabular-nums; }
+.bk-mark { flex: none; }
+
+/* Bowl list and March Madness regions */
+.bk-day, .bk-region { margin: 18px 0 8px; font-size: 1rem; }
+.bk-region:first-child, .bk-day:first-child { margin-top: 0; }
+.bk-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); margin-bottom: 8px; }
+
+body.kid-mode .bk-team { min-height: 52px; font-size: 1.05rem; }
+body.kid-mode .bk-team img { width: 34px; height: 34px; }

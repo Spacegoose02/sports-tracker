@@ -28,7 +28,7 @@
       });
       chip.querySelector('.player-remove').addEventListener('click', () => {
         const p = Kids.players.list().find((x) => x.id === chip.dataset.id);
-        if (p && confirm(`Remove ${p.name}? Their picks and stickers go too.`)) {
+        if (p && confirm(`Remove ${p.name}? Their picks, brackets and stickers go too.`)) {
           Kids.players.remove(p.id);
           renderAll();
         }
@@ -354,12 +354,69 @@
     renderStickers();
   }
 
+  // ---- Family league ------------------------------------------------------------
+  // The league panel (start, join, invite) and the league's weekly
+  // leaderboard for the sport on screen. Needs an account; signed out it
+  // shows a sign-in nudge and everything else still works on this device.
+  const league = { week: null };
+
+  function currentWeekKey() {
+    const g = state.weekLabel && KidsCore.weekGroup(state.weekLabel);
+    return g ? g.key : null;
+  }
+
+  function renderLeague() {
+    const joinCode = new URLSearchParams(location.search).get('join');
+    return Leagues.renderManager(el('leagueBox'), { onChange: loadLeagueBoard, joinCode }).then(loadLeagueBoard);
+  }
+
+  async function loadLeagueBoard() {
+    const box = el('leagueBoard');
+    const leagues = await Leagues.list();
+    const current = Leagues.selected(leagues);
+    if (!current) { box.innerHTML = ''; return; }
+    const sport = CFB.sport();
+    const week = league.week || currentWeekKey();
+    const params = new URLSearchParams({ sport: sport.key });
+    if (week) params.set('week', week);
+    let data;
+    try {
+      data = await CFB.getJson(`/api/family/leagues/${current.id}/leaderboard?${params}`);
+    } catch (e) {
+      box.innerHTML = '<div class="empty-note">Could not load the league leaderboard.</div>';
+      return;
+    }
+    const weeks = data.weeks || [];
+    const thisWeek = currentWeekKey() && KidsCore.weekGroup(state.weekLabel);
+    if (thisWeek && !weeks.some((w) => w.key === thisWeek.key)) weeks.unshift({ key: thisWeek.key, label: thisWeek.label });
+    const shown = data.week ? data.week.key : (thisWeek && thisWeek.key);
+    box.innerHTML = `
+      <div class="league-head">
+        <h3 class="league-sub">${esc(current.name)} &middot; ${esc(sport.label || '')}</h3>
+        ${weeks.length ? `<label class="league-picker">Week
+          <select id="leagueWeek">${weeks.map((w) => `<option value="${esc(w.key)}" ${w.key === shown ? 'selected' : ''}>${esc(w.label)}</option>`).join('')}</select>
+        </label>` : ''}
+      </div>
+      ${data.week ? Leagues.standingsList(data.rows, 'week') : '<div class="empty-note">No league picks yet this week. Make your picks below!</div>'}
+      <p class="league-note">League picks count when they're saved before kickoff, and they're scored from the final results.</p>`;
+    const sel = el('leagueWeek');
+    if (sel) sel.addEventListener('change', () => { league.week = sel.value; loadLeagueBoard(); });
+  }
+
+  let boardTimer = null;
+  window.addEventListener('tracker:kids-data', (e) => {
+    if (!Kids.isSynced() || !e.detail || e.detail.key !== 'picks') return;
+    // Give the save a moment to reach the server, then refresh.
+    clearTimeout(boardTimer);
+    boardTimer = setTimeout(loadLeagueBoard, 1500);
+  });
+
   initTabs();
   initParty();
-  CFB.loadSports().then(() => {
+  CFB.loadSports().then(() => Kids.ready).then(() => {
     CFB.initSportBar();
     renderPlayers();
     renderStickers();
-    loadPickem();
+    loadPickem().then(renderLeague);
   });
 })();

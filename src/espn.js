@@ -182,6 +182,8 @@ function normalizeCompetitor(c) {
     homeAway: c.homeAway,
     winner: !!c.winner,
     curatedRank: parseCuratedRank(c),
+    // Tournament seed (CFP, March Madness), when ESPN sends one.
+    seed: Number(c.seed) > 0 ? Number(c.seed) : null,
     records: (c.records || []).map((r) => ({ name: r.name, summary: r.summary })),
     linescores,
   };
@@ -241,6 +243,9 @@ function normalizeGame(event) {
     timeValid: !(event.timeValid === false || (comp && comp.timeValid === false)),
     name: event.name,
     shortName: event.shortName,
+    // "CFP Quarterfinal at the Rose Bowl", "Men's Basketball Championship -
+    // South Region - 1st Round": names bowls and tournament rounds.
+    headline: (comp && comp.notes && comp.notes[0] && comp.notes[0].headline) || null,
     week: event.week && event.week.number,
     venue: comp && comp.venue && comp.venue.fullName,
     neutralSite: !!(comp && comp.neutralSite),

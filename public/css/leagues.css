@@ -1,0 +1,47 @@
+/* Family leagues: the start / join / invite panel and league standings.
+   Used on /kids.html and /brackets.html (public/js/leagues.js). */
+
+.league-box {
+  margin-bottom: 14px; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--bg-elev); border: 1px solid var(--border);
+}
+.league-box:empty { display: none; }
+.league-box .section-title { margin: 0 0 8px; }
+.league-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.league-sub { margin: 4px 0 8px; font-size: 1.05rem; }
+.league-picker { display: inline-flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 0.9rem; }
+.league-picker select {
+  font: inherit; color: var(--text); background: var(--bg-elev-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; max-width: 60vw;
+}
+.league-invite { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 0 10px; }
+.league-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.15rem; letter-spacing: 0.12em; color: var(--favorite); }
+.league-invite button, .league-forms button {
+  font: inherit; cursor: pointer; padding: 8px 14px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: var(--bg-elev-2); color: var(--text); min-height: 40px;
+}
+.league-invite button:hover, .league-forms button:hover { border-color: var(--accent); }
+.league-members { margin: 6px 0 12px; color: var(--text-dim); }
+.league-members summary { cursor: pointer; }
+.league-members ul { margin: 8px 0; padding-left: 20px; color: var(--text); }
+.league-members li { margin: 4px 0; }
+.league-tag {
+  display: inline-block; font-size: 0.75rem; padding: 1px 8px; margin-left: 4px;
+  border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent);
+}
+.link-btn { font: inherit; background: none; border: 0; padding: 4px; color: var(--accent); cursor: pointer; text-decoration: underline; }
+.league-forms { display: flex; flex-wrap: wrap; gap: 10px; }
+.league-forms form { display: flex; gap: 8px; flex: 1 1 240px; min-width: 0; }
+.league-forms input {
+  flex: 1; min-width: 0; font: inherit; padding: 8px 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: var(--bg-elev-2); color: var(--text);
+}
+.league-error { color: var(--loss); margin-top: 8px; }
+.league-error:empty { display: none; }
+.league-note { color: var(--text-dim); font-size: 0.9rem; margin: 6px 0; }
+.league-nudge p { margin: 6px 0 0; color: var(--text-dim); }
+.league-nudge a { color: var(--accent); font-weight: 700; }
+.league-board-wrap { margin-bottom: 14px; }
+.league-board-wrap:empty { display: none; }
+.lb-member { font-weight: 400; font-size: 0.85rem; color: var(--text-dim); margin-left: 4px; }
+.league-board li { grid-template-areas: "place name score"; }

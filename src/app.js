@@ -10,8 +10,9 @@ const { resolveSecurityConfig, securityHeaders } = require('./security');
 const { createRelayRouter } = require('./relay');
 const { createBingeBanditRouter } = require('./bingebandit');
 const { createScrappyRouter } = require('./routes/scrappy');
+const { createFamilyRouter, createBracketsRouter } = require('./routes/family');
 
-function createApp({ env = process.env, logger = console, relay = {}, sso = {}, scrappy = {}, bingebandit = {} } = {}) {
+function createApp({ env = process.env, logger = console, relay = {}, sso = {}, scrappy = {}, bingebandit = {}, family = {} } = {}) {
   const security = resolveSecurityConfig(env);
   security.warnings.forEach((w) => logger.warn(`[security] ${w}`));
 
@@ -48,6 +49,9 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {}, 
       return compression.filter(req, res);
     },
   }));
+  // Kids Zone data (picks, stickers) saved to an account can run past the
+  // site-wide 20kb body limit, so its routes get their own parser first.
+  app.use('/api/family', express.json({ limit: '512kb' }));
   app.use(express.json({ limit: '20kb' }));
   app.use(
     cookieSession({
@@ -62,6 +66,9 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {}, 
   app.use('/api/admin', createAdminRouter());
   app.use('/api/account', createAccountRouter({ env }));
   app.use(createAccountPublicRouter({ env, fetchImpl: sso.fetch }));
+  // Family leagues and the playoff hub (src/family.js, src/brackets.js).
+  app.use('/api/family', createFamilyRouter({ deps: family.deps }));
+  app.use('/api', createBracketsRouter({ deps: family.deps }));
   // Scrappy, the AI chat bubble. Off unless ANTHROPIC_API_KEY is set.
   app.use('/api', createScrappyRouter({ env, logger, ...scrappy }));
   // "Watch on BingeBandit" channel links. Off unless BINGEBANDIT_URL is set.
