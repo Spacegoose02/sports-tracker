@@ -3,6 +3,7 @@ const ds = require('../datasource');
 const db = require('../db');
 const news = require('../news');
 const videos = require('../videos');
+const highlights = require('../highlights');
 const radio = require('../radio');
 const scorecard = require('../scorecard');
 const matchup = require('../matchup');
@@ -196,6 +197,24 @@ router.get('/game/:id/matchup', async (req, res) => {
     res.json(await matchup.getMatchup(summary, req.sport.key));
   } catch (err) {
     res.status(502).json({ error: 'Could not load matchup info', detail: err.message });
+  }
+});
+
+// Highlight clips for a game: ESPN's own clips (already in the summary)
+// plus matching uploads from the Videos tab's YouTube channels. Separate
+// from /game/:id so the YouTube lookup only runs when the page asks.
+router.get('/game/:id/highlights', async (req, res) => {
+  try {
+    const summary = await ds.getGameSummary(req.params.id, 'espn', req.sport.key);
+    const espnClips = summary.highlights || [];
+    const yt = await videos.getVideos().catch(() => []);
+    const ytClips = highlights.matchYouTube(yt, summary.teams, summary.date);
+    res.json({
+      state: (summary.status && summary.status.state) || null,
+      clips: [...espnClips, ...ytClips],
+    });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load highlights', detail: err.message });
   }
 });
 

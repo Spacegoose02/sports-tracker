@@ -1,0 +1,263 @@
+/* TV wall mode (public/wall.html, public/js/wall.js). A full-screen,
+   always-dark scoreboard sized in viewport units so it reads from across
+   the room on a TV and still fits a wall tablet. Accent and live colors
+   come from the theme tokens in styles.css / themes.css. */
+
+body.wall {
+  --wall-bg: #05070b;
+  --wall-panel: #0f131c;
+  --wall-line: #232a38;
+  --wall-text: #f4f6fb;
+  --wall-dim: #9aa3b8;
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--wall-bg);
+  color: var(--wall-text);
+  font-family: var(--font-body);
+}
+body.wall.wall-idle,
+body.wall.wall-idle * { cursor: none; }
+
+.wall-shell {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  padding: max(1.4vh, env(safe-area-inset-top)) max(2vw, env(safe-area-inset-right)) max(1.4vh, env(safe-area-inset-bottom)) max(2vw, env(safe-area-inset-left));
+  box-sizing: border-box;
+  gap: 1.2vh;
+}
+
+/* ---- Top bar ---------------------------------------------------------- */
+.wall-bar { display: flex; align-items: center; gap: 2vw; }
+.wall-brand { display: flex; align-items: center; gap: 0.8vw; font-weight: 800; font-size: clamp(14px, 2.2vh, 28px); letter-spacing: 0.02em; }
+.wall-brand img { height: clamp(22px, 4vh, 48px); width: auto; }
+.wall-dots { flex: 1; display: flex; justify-content: center; gap: 0.6vw; }
+.wall-dots i { width: clamp(6px, 1vh, 12px); height: clamp(6px, 1vh, 12px); border-radius: 50%; background: var(--wall-line); }
+.wall-dots i.on { background: var(--accent); }
+.wall-clock { font-variant-numeric: tabular-nums; font-weight: 700; font-size: clamp(16px, 3.2vh, 40px); color: var(--wall-dim); }
+
+/* ---- Score alert ------------------------------------------------------ */
+.wall-alert {
+  position: fixed;
+  top: 9vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--favorite);
+  color: var(--on-favorite);
+  font-weight: 900;
+  font-size: clamp(18px, 4vh, 52px);
+  padding: 1vh 2.4vw;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.wall-alert[hidden] { display: none; }
+.wall-alert.flash { animation: wall-pop 0.6s ease-out; }
+@keyframes wall-pop {
+  0% { transform: translateX(-50%) scale(0.6); opacity: 0; }
+  70% { transform: translateX(-50%) scale(1.08); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* ---- Main stage ------------------------------------------------------- */
+/* styles.css gives every <main> a centered max-width column; the wall
+   uses the whole screen. */
+body.wall main.wall-stage { max-width: none; margin: 0; padding: 0; min-height: 0; display: flex; }
+.wall-stage.enter .wall-game { animation: wall-in 0.5s ease-out; }
+@keyframes wall-in {
+  from { opacity: 0; transform: translateY(1.5vh); }
+  to { opacity: 1; transform: none; }
+}
+
+.wall-empty {
+  margin: auto;
+  text-align: center;
+  font-size: clamp(20px, 4vh, 48px);
+  font-weight: 700;
+  color: var(--wall-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 1vh;
+}
+.wall-empty small { font-size: 0.5em; font-weight: 500; }
+
+.wall-game {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6vh;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 2);
+  padding: 2vh 2vw;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--away) 28%, transparent), transparent 38%, transparent 62%, color-mix(in srgb, var(--home) 28%, transparent)),
+    var(--wall-panel);
+  border: 1px solid var(--wall-line);
+}
+.wall-game.is-mine { border-color: var(--favorite); box-shadow: inset 0 0 0 2px var(--favorite); }
+
+.wall-meta { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1.4vw; font-size: clamp(14px, 2.6vh, 32px); font-weight: 700; color: var(--wall-dim); }
+.wall-live { color: var(--live); animation: wall-blink 1.6s ease-in-out infinite; }
+@keyframes wall-blink { 50% { opacity: 0.45; } }
+.wall-mine { color: var(--favorite); }
+.wall-league { text-transform: uppercase; letter-spacing: 0.08em; }
+
+.wall-board {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto minmax(14vw, auto) auto 1fr;
+  align-items: center;
+  gap: 2vw;
+}
+.wall-team { display: flex; flex-direction: column; align-items: center; gap: 1vh; text-align: center; min-width: 0; }
+.wall-logo { width: clamp(56px, 15vh, 220px); height: clamp(56px, 15vh, 220px); object-fit: contain; filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.5)); }
+.wall-name { font-size: clamp(18px, 4.4vh, 60px); font-weight: 800; line-height: 1.1; text-wrap: balance; }
+.wall-rank { font-size: 0.6em; color: var(--wall-dim); margin-right: 0.3em; vertical-align: 0.25em; }
+.wall-ball { font-size: 0.8em; }
+.wall-record { font-size: clamp(12px, 2.4vh, 30px); color: var(--wall-dim); }
+
+.wall-score {
+  font-family: var(--font-score);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  font-size: clamp(56px, 17vh, 220px);
+  line-height: 1;
+  min-width: 1.2em;
+  text-align: center;
+}
+.wall-game:not(.is-live) .wall-score:not(.won) { opacity: 0.55; }
+.wall-game:not(.is-live) .wall-score.won { opacity: 1; }
+.wall-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6vh;
+  text-align: center;
+  font-size: clamp(16px, 3.6vh, 46px);
+  font-weight: 800;
+  color: var(--wall-text);
+}
+.wall-game.is-live .wall-status { color: var(--live); }
+.wall-status small { font-size: 0.5em; font-weight: 600; color: var(--wall-dim); }
+
+.wall-situation { font-size: clamp(16px, 3.4vh, 44px); font-weight: 800; }
+.wall-rz { background: var(--live); color: var(--on-live); padding: 0.1em 0.5em; border-radius: 0.3em; font-size: 0.7em; vertical-align: 0.15em; }
+.wall-lastplay { max-width: 80vw; text-align: center; color: var(--wall-dim); font-size: clamp(13px, 2.4vh, 30px); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.wall-visual { flex: 0 1 auto; min-height: 0; max-width: 100%; display: flex; justify-content: center; }
+
+/* Field and diamond (same drawing as the Home Assistant card). */
+.wall-field { height: 30vh; width: auto; max-width: 100%; display: block; }
+.wall-field .yd { fill: #fff; fill-opacity: 0.7; font-size: 7px; font-weight: 700; text-anchor: middle; }
+.wall-field .ez { font-size: 10px; font-weight: 900; text-anchor: middle; dominant-baseline: middle; letter-spacing: 1px; }
+.wall-field .firstdown { stroke: #facc15; stroke-width: 1.4; }
+.wall-field .scrimmage { stroke: #60a5fa; stroke-width: 1.4; }
+.wall-field .redzone { fill: #ef4444; fill-opacity: 0.18; }
+
+.wall-diamond { display: flex; align-items: center; gap: 3vw; }
+.wall-diamond svg { height: 26vh; width: auto; }
+.wall-diamond .base { fill: #fff; fill-opacity: 0.35; stroke: #fff; stroke-width: 1; }
+.wall-diamond .base.on { fill: #facc15; fill-opacity: 1; }
+.wall-count { display: flex; flex-direction: column; gap: 1.2vh; font-size: clamp(16px, 3.4vh, 42px); font-weight: 800; }
+.wall-count span { display: flex; align-items: center; gap: 0.4em; }
+.wall-count i { width: 0.7em; height: 0.7em; border-radius: 50%; border: 2px solid var(--wall-dim); display: inline-block; }
+.wall-count i.ball { background: var(--win); border-color: var(--win); }
+.wall-count i.strike, .wall-count i.out { background: var(--live); border-color: var(--live); }
+
+.wall-lines { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: clamp(14px, 3vh, 38px); }
+.wall-lines th, .wall-lines td { padding: 0.25em 0.7em; text-align: center; }
+.wall-lines thead th { color: var(--wall-dim); font-weight: 700; font-size: 0.75em; }
+.wall-lines tbody th { text-align: left; font-weight: 800; }
+.wall-lines tbody tr + tr { border-top: 1px solid var(--wall-line); }
+.wall-lines .tot { font-weight: 900; }
+
+/* ---- Rotation progress and ticker ------------------------------------- */
+.wall-progress { height: 4px; background: var(--wall-line); border-radius: 2px; overflow: hidden; }
+.wall-progress div { height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform 0.25s linear; }
+body.wall-paused .wall-progress div { background: var(--wall-dim); }
+
+.wall-ticker { display: flex; gap: 0.8vw; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.2vh; }
+.wall-ticker::-webkit-scrollbar { display: none; }
+.wall-chip {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 1vw;
+  row-gap: 0.3vh;
+  align-items: center;
+  font: inherit;
+  font-size: clamp(12px, 2.1vh, 26px);
+  color: var(--wall-text);
+  background: var(--wall-panel);
+  border: 1px solid var(--wall-line);
+  border-radius: var(--radius);
+  padding: 0.8vh 1vw;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.wall-chip.active { opacity: 1; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.wall-chip.is-mine { border-left: 4px solid var(--favorite); }
+.chip-team { font-weight: 700; display: flex; justify-content: space-between; gap: 0.8em; grid-column: 1; }
+.chip-team b { font-variant-numeric: tabular-nums; }
+.chip-team.won b { color: var(--win); }
+.chip-status { grid-column: 2; grid-row: 1 / span 2; color: var(--wall-dim); font-size: 0.85em; white-space: nowrap; }
+.wall-chip.is-live .chip-status { color: var(--live); font-weight: 700; }
+
+/* ---- Controls (fade out with the cursor) ------------------------------- */
+.wall-controls {
+  position: fixed;
+  right: 2vw;
+  top: 7vh;
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(15, 19, 28, 0.85);
+  border: 1px solid var(--wall-line);
+  border-radius: var(--radius);
+  transition: opacity 0.4s ease;
+}
+body.wall-idle .wall-controls { opacity: 0; pointer-events: none; }
+.wall-controls button,
+.wall-controls a {
+  min-width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0 12px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--wall-text);
+  background: var(--wall-panel);
+  border: 1px solid var(--wall-line);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  cursor: pointer;
+}
+.wall-controls button:hover,
+.wall-controls a:hover { border-color: var(--accent); }
+
+/* Portrait tablets: teams stack over their scores. */
+@media (orientation: portrait) {
+  .wall-board { grid-template-columns: 1fr auto 1fr; grid-template-areas: "away status home" "sa . sh"; row-gap: 1vh; }
+  .wall-away { grid-area: away; }
+  .wall-home { grid-area: home; }
+  .wall-status { grid-area: status; }
+  .wall-score-away { grid-area: sa; }
+  .wall-score-home { grid-area: sh; }
+  .wall-logo { width: clamp(56px, 22vw, 200px); height: clamp(56px, 22vw, 200px); }
+  .wall-score { font-size: clamp(48px, 18vw, 200px); }
+  .wall-visual { width: 100%; }
+  .wall-field { height: auto; width: 100%; max-height: 24vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wall-stage.enter .wall-game, .wall-alert.flash, .wall-live { animation: none; }
+}

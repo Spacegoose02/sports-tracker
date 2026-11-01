@@ -6,6 +6,7 @@
 // reader here is defensive and returns null or [] when a field is missing.
 
 const { servicesFor } = require('./streaming');
+const { parseEspnHighlights } = require('./highlights');
 
 const MAX_WIN_PROB_POINTS = 240;
 
@@ -198,6 +199,7 @@ function parseGameExtras(json, comp) {
     gameInfo: parseGameInfo(json),
     recentForm: parseRecentForm(json),
     seasonSeries: parseSeasonSeries(json),
+    highlights: parseEspnHighlights(json),
   };
 }
 

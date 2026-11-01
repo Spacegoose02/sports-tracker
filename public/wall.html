@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>TV Wall &middot; Stat Scraps</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/statscraps-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/statscraps-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#05070b" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/wall.css" />
+<script src="/js/theme-boot.js"></script>
+</head>
+<body class="wall">
+<div class="wall-shell">
+  <header class="wall-bar">
+    <div class="wall-brand">
+      <img src="/img/scrappy-head.png" alt="" />
+      <span>Stat Scraps</span>
+    </div>
+    <div class="wall-dots" id="wallDots" aria-hidden="true"></div>
+    <div class="wall-clock" id="wallClock"></div>
+  </header>
+
+  <div class="wall-alert" id="wallAlert" hidden></div>
+
+  <main class="wall-stage" id="wallStage" aria-live="polite">
+    <div class="wall-empty">Loading games&hellip;</div>
+  </main>
+
+  <div class="wall-progress" aria-hidden="true"><div id="wallProgress"></div></div>
+  <nav class="wall-ticker" id="wallTicker" aria-label="Games"></nav>
+</div>
+
+<div class="wall-controls" id="wallControls">
+  <button type="button" data-wall="prev" title="Previous game (Left arrow)">&#9664;</button>
+  <button type="button" data-wall="pause" title="Pause or resume (Space)">&#10074;&#10074;</button>
+  <button type="button" data-wall="next" title="Next game (Right arrow)">&#9654;</button>
+  <button type="button" data-wall="fullscreen" title="Full screen (F)">&#x26F6;</button>
+  <a href="/" title="Back to Stat Scraps">Exit</a>
+</div>
+
+<script src="/js/shared.js"></script>
+<script src="/js/wall.js"></script>
+</body>
+</html>

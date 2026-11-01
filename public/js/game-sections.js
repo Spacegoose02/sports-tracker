@@ -246,5 +246,58 @@ const CFBGame = (function () {
     return `<section><h2 class="section-title">Matchup</h2><div class="matchup-grid">${parts.join('')}</div></section>`;
   }
 
-  return { watchHtml, winProbHtml, boxScoreHtml, injuriesHtml, recentFormHtml, matchupHtml, weatherHtml, headToHeadHtml };
+  function clipLength(seconds) {
+    if (!seconds) return '';
+    const m = Math.floor(seconds / 60);
+    const sec = String(seconds % 60).padStart(2, '0');
+    return `${m}:${sec}`;
+  }
+
+  // Highlight clips for a finished game, as a row of thumbnails. Clicking
+  // one plays it in the player slot above the row (see game.js); a clip
+  // with nothing playable here opens its page in a new tab instead.
+  function highlightsHtml(data) {
+    const clips = (data && data.clips) || [];
+    if (!clips.length) return '';
+    const cards = clips.map((c, i) => {
+      const playable = !!(c.videoUrl || c.embedUrl);
+      const thumb = c.thumbnail
+        ? `<img src="${CFB.safeUrl(c.thumbnail)}" alt="" loading="lazy" onerror="this.remove()">`
+        : '';
+      const inner = `
+        <span class="hl-thumb">${thumb}<span class="hl-play" aria-hidden="true">&#9654;</span>${c.duration ? `<span class="hl-len">${clipLength(c.duration)}</span>` : ''}</span>
+        <span class="hl-title">${esc(c.title)}</span>
+        <span class="hl-source">${esc(c.source || '')}</span>`;
+      return playable
+        ? `<button type="button" class="hl-card" data-hl="${i}">${inner}</button>`
+        : `<a class="hl-card" href="${CFB.safeUrl(c.url)}" target="_blank" rel="noopener">${inner}</a>`;
+    }).join('');
+    return `
+      <section class="highlights">
+        <h2 class="section-title">Highlights</h2>
+        <div class="hl-player" id="hlPlayer" hidden></div>
+        <div class="hl-row">${cards}</div>
+      </section>`;
+  }
+
+  // The player for one clip: ESPN's MP4 in a <video>, YouTube in its
+  // no-cookie embed.
+  function highlightPlayerHtml(clip) {
+    if (!clip) return '';
+    let media = '';
+    if (clip.videoUrl) {
+      media = `<video controls autoplay playsinline preload="metadata" src="${CFB.safeUrl(clip.videoUrl)}"${clip.thumbnail ? ` poster="${CFB.safeUrl(clip.thumbnail)}"` : ''}></video>`;
+    } else if (clip.embedUrl) {
+      media = `<iframe src="${CFB.safeUrl(clip.embedUrl)}" title="${esc(clip.title)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+    }
+    return `
+      <div class="hl-frame">${media}</div>
+      <div class="hl-caption">
+        <strong>${esc(clip.title)}</strong>
+        ${clip.description ? `<span>${esc(clip.description)}</span>` : ''}
+        ${clip.url ? `<a href="${CFB.safeUrl(clip.url)}" target="_blank" rel="noopener">Open on ${esc(clip.source || 'the web')}</a>` : ''}
+      </div>`;
+  }
+
+  return { highlightsHtml, highlightPlayerHtml, watchHtml, winProbHtml, boxScoreHtml, injuriesHtml, recentFormHtml, matchupHtml, weatherHtml, headToHeadHtml };
 })();
