@@ -1,0 +1,21 @@
+{
+  "name": "cfb-tracker",
+  "version": "1.0.0",
+  "description": "College football schedules, scores, and live stats tracker with a favorite-team pin and an admin-curated notable games section.",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "better-sqlite3": "^11.3.0",
+    "cookie-session": "^2.1.0",
+    "bcryptjs": "^2.4.3",
+    "node-fetch": "^2.7.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

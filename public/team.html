@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Team &middot; CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1 id="pageTitle">Team</h1>
+      <div class="subtitle">Season schedule &amp; stats</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Back to site</a>
+    <a href="/upcoming.html">Upcoming</a>
+    <a href="/rankings.html">Rankings</a>
+    <a href="/standings.html">Standings</a>
+  </nav>
+</header>
+
+<main>
+  <div class="team-hero" id="teamHero">Loading&hellip;</div>
+
+  <section>
+    <h2 class="section-title">Season Schedule</h2>
+    <div class="game-list" id="teamSchedule">
+      <div class="empty-note">Loading&hellip;</div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Season Stats</h2>
+    <div class="stats-grid" id="teamStats">
+      <div class="empty-note">Loading&hellip;</div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">CFB Tracker</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/team.js"></script>
+</body>
+</html>

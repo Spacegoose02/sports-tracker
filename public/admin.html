@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin &middot; CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1>CFB Tracker &middot; Admin</h1>
+      <div class="subtitle">Pick this week's notable games</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Back to site</a>
+  </nav>
+</header>
+
+<main>
+  <div id="loginBox" class="login-box">
+    <h2>Admin Login</h2>
+    <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password" />
+    <button id="loginBtn">Log in</button>
+    <div class="error-text" id="loginError"></div>
+  </div>
+
+  <div id="adminPanel" style="display:none">
+    <section>
+      <div class="week-bar">
+        <label for="seasonSelect">Season</label>
+        <select id="seasonSelect"></select>
+        <label for="weekSelect">Week</label>
+        <select id="weekSelect"></select>
+        <label for="seasonTypeSelect">Type</label>
+        <select id="seasonTypeSelect">
+          <option value="2">Regular Season</option>
+          <option value="3">Postseason / Bowls</option>
+        </select>
+        <button id="loadBtn">Load Week</button>
+        <button id="logoutBtn" style="margin-left:auto">Log out</button>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Currently Notable</h2>
+      <div id="pickedList"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title">All Games This Week</h2>
+      <div id="allGamesList"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">CFB Tracker &middot; Admin</footer>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Standings &middot; CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1>Conference Standings</h1>
+      <div class="subtitle" id="sourceNote">Loading&hellip;</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Schedule &amp; Scores</a>
+    <a href="/upcoming.html">Upcoming</a>
+    <a href="/rankings.html">Rankings</a>
+  </nav>
+</header>
+
+<main>
+  <div class="week-bar">
+    <div class="division-toggle" id="divisionToggle">
+      <button data-division="fbs" class="active">FBS</button>
+      <button data-division="fcs">FCS</button>
+    </div>
+  </div>
+  <div id="standingsContainer">
+    <div class="empty-note">Loading&hellip;</div>
+  </div>
+</main>
+
+<footer class="foot">CFB Tracker</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/standings.js"></script>
+</body>
+</html>

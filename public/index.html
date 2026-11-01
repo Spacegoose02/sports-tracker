@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CFB Tracker</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/cfbtracker-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/cfbtracker-icon-180.png" />
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/cfbtracker-icon.png" alt="CFB Tracker" />
+    </div>
+    <div>
+      <h1>CFB Tracker</h1>
+      <div class="subtitle" id="sourceNote">Loading&hellip;</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/upcoming.html">Upcoming</a>
+    <a href="/rankings.html">Rankings</a>
+    <a href="/standings.html">Standings</a>
+  </nav>
+</header>
+
+<main>
+  <section id="favoriteSection">
+    <h2 class="section-title">My Team</h2>
+    <div class="favorite-card" id="favoriteCard">Loading favorite team&hellip;</div>
+  </section>
+
+  <section>
+    <div class="week-bar">
+      <div class="division-toggle" id="divisionToggle">
+        <button data-division="fbs" class="active">FBS</button>
+        <button data-division="fcs">FCS</button>
+      </div>
+      <label for="seasonSelect">Season</label>
+      <select id="seasonSelect"></select>
+      <label for="weekSelect">Week</label>
+      <select id="weekSelect"></select>
+      <label for="seasonTypeSelect">Type</label>
+      <select id="seasonTypeSelect">
+        <option value="2">Regular Season</option>
+        <option value="3">Postseason / Bowls</option>
+      </select>
+      <button id="goBtn">Go</button>
+      <span class="refresh-note" id="refreshNote"></span>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="schedule">Schedule &amp; Scores</button>
+      <button class="tab-btn" data-tab="notable">Notable Games</button>
+      <button class="tab-btn" data-tab="news">News</button>
+      <button class="tab-btn" data-tab="videos">Videos</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-schedule">
+      <div class="game-list" id="gameList">
+        <div class="empty-note">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-notable">
+      <div class="game-list" id="notableGrid">
+        <div class="empty-note">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-news">
+      <div class="news-list" id="newsList">
+        <div class="empty-note">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-videos">
+      <div class="video-list" id="videoList">
+        <div class="empty-note">Loading&hellip;</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">CFB Tracker</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

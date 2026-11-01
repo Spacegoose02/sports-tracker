@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  cfb-tracker:
+    build: .
+    container_name: cfb-tracker
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      ADMIN_PASSWORD: "changeme"          # change this
+      SESSION_SECRET: "change-this-too"   # change this, use a long random string
+      FAVORITE_TEAM_ID: "259"             # Virginia Tech Hokies
+      FAVORITE_TEAM_NAME: "Virginia Tech Hokies"
+      NCAA_API_BASE: "https://ncaawidget.sgiu.net"
+      NCAA_API_DIVISION: "fbs"
+      CACHE_TTL_SECONDS: "20"
+    volumes:
+      # Persists the notable-games database across container
+      # rebuilds/updates. On Unraid, point this at a path under
+      # /mnt/user/appdata/cfb-tracker.
+      - /mnt/user/appdata/cfb-tracker:/app/data

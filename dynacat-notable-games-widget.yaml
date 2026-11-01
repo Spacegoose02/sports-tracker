@@ -1,0 +1,252 @@
+# Drop-in replacement for the hand-maintained "Notable Games" custom-api
+# widget in your Dynacat/Glance config.
+#
+# What this replaces: the ~500-line widget that hardcodes a list of
+# matchup team-name pairs per week and re-derives everything else from
+# ESPN's scoreboard on every render. That list has to be hand-edited in
+# your Dynacat config every week.
+#
+# What this does instead: points at cfb-tracker's own
+# GET /api/notable/feed endpoint, which already returns each pick fully
+# enriched with live score/status/broadcast/venue (it internally does the
+# exact same join your old template did by hand). Picking which games are
+# "notable" each week now happens in cfb-tracker's own /admin page instead
+# of editing this YAML — add or remove a game there and it shows up here
+# on the next widget refresh, no redeploy needed.
+#
+# FIX #1 (v2): the first draft reused class names (ntg-row, ntg-grid,
+# ntg-tooltip-card, etc.) assuming they were already defined globally in
+# your dashboard's CSS. They weren't — they only existed inside your OLD
+# widget's own <style> block, which got removed along with the rest of
+# that widget. This version embeds its own self-contained <style> block
+# (reusing your theme's --glance-divider / --glance-accent-color /
+# --glance-text-color / --glance-muted-text variables).
+#
+# FIX #2 (v3): v2 put team names, scores, and the date/time all on one
+# nowrap line, so anything wider than the card (a full team name plus a
+# logo plus a score plus a timestamp) overlapped itself. This version is
+# a proper two-row "scorebug": a status strip on top (LIVE indicator,
+# time/quarter+clock, network), and a dedicated row below for
+# logo + abbreviation + score on each side — the same shape as an ESPN
+# scorebug, so nothing has to compete for the same line. The winning
+# team's abbreviation/score also brightens once a game is final.
+#
+# SETUP:
+# 1. Replace YOUR-CFB-TRACKER-HOST:PORT below with wherever this container
+#    is reachable from your Unraid box / wherever Dynacat runs (e.g. the
+#    container's name if they're on the same Docker network, or
+#    unraid-ip:3004 using whatever host port you mapped it to).
+# 2. `weeks=3` shows the current week plus the next two. Adjust as you
+#    like; omit it entirely for just the current week.
+# 3. Paste this whole block in place of your old "Notable Games" custom-api
+#    widget entry (replace the entire entry, including its old <style>
+#    block — this one replaces it).
+
+- type: custom-api
+  title: Notable Games
+  cache: 2m
+  update-interval: 2m
+  url: "http://YOUR-CFB-TRACKER-HOST:PORT/api/notable/feed?weeks=3"
+  template: |
+    {{ $weeks := .JSON.Array "weeks" }}
+    <div class="ntg-wrap">
+      <ul class="list collapsible-container" data-collapse-after="1" style="list-style:none;padding:0;margin:0;">
+        {{ range $wk := $weeks }}
+          {{ $games := $wk.Array "games" }}
+          {{ if gt (len $games) 0 }}
+            <li>
+              <div class="ntg-week-block">
+                <div class="ntg-heading">Week {{ $wk.String "week" }} Notable Games</div>
+                <ul class="ntg-grid">
+                  {{ range $g := $games }}
+                    {{ template "notable-game" $g }}
+                  {{ end }}
+                </ul>
+              </div>
+            </li>
+          {{ end }}
+        {{ end }}
+      </ul>
+    </div>
+
+    {{ define "notable-game" }}
+      {{ $g := . }}
+      {{ $state := $g.String "status.state" }}
+      {{ $label := $g.String "label" }}
+      {{ $venue := $g.String "venue" }}
+      {{ $broadcast := $g.String "broadcast" }}
+      {{ $awayWinner := $g.Bool "away.winner" }}
+      {{ $homeWinner := $g.Bool "home.winner" }}
+      <li class="ntg-row">
+        <div class="ntg-status-row">
+          {{ if eq $state "in" }}<span class="ntg-live-dot">&#9679; LIVE</span>{{ end }}
+          <span class="ntg-status">{{ $g.String "status.shortDetail" }}</span>
+          {{ if ne $broadcast "" }}<span class="ntg-net">{{ $broadcast }}</span>{{ end }}
+        </div>
+        <div class="ntg-scorebug">
+          <div class="ntg-side">
+            <img class="ntg-logo" src="{{ $g.String "away.logo" }}">
+            <span class="ntg-abbr {{ if $awayWinner }}ntg-winner{{ end }}">{{ $g.String "away.abbreviation" }}</span>
+          </div>
+          <div class="ntg-score-block">
+            <span class="ntg-score {{ if $awayWinner }}ntg-winner{{ end }}">{{ $g.String "away.score" }}</span>
+            <span class="ntg-dash">&ndash;</span>
+            <span class="ntg-score {{ if $homeWinner }}ntg-winner{{ end }}">{{ $g.String "home.score" }}</span>
+          </div>
+          <div class="ntg-side ntg-side-right">
+            <span class="ntg-abbr {{ if $homeWinner }}ntg-winner{{ end }}">{{ $g.String "home.abbreviation" }}</span>
+            <img class="ntg-logo" src="{{ $g.String "home.logo" }}">
+          </div>
+        </div>
+
+        <div class="ntg-tooltip-card">
+          <div class="ntg-tooltip-title">{{ $g.String "away.name" }} @ {{ $g.String "home.name" }}</div>
+          {{ if ne $label "" }}<div class="ntg-tooltip-row"><span>{{ $label }}</span></div>{{ end }}
+          {{ if ne $venue "" }}<div class="ntg-tooltip-row"><span>{{ $venue }}</span></div>{{ end }}
+          {{ if ne $broadcast "" }}<div class="ntg-tooltip-row"><span>{{ $broadcast }}</span></div>{{ end }}
+        </div>
+      </li>
+    {{ end }}
+
+    <style>
+      .ntg-wrap { width: 100%; box-sizing: border-box; }
+      .ntg-week-block + .ntg-week-block,
+      li:not(:first-child) > .ntg-week-block {
+        margin-top: 18px;
+        padding-top: 18px;
+        border-top: 1px solid var(--glance-divider);
+      }
+      .ntg-heading {
+        font-size: 1.3rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--glance-accent-color);
+        margin-bottom: 14px;
+      }
+      .ntg-grid {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      /* Scorebug card: a status strip on top (live/time + network), then
+         a dedicated row for logos/abbreviations/score that never has to
+         share space with anything else, so nothing overlaps regardless
+         of team name length. */
+      .ntg-row {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--glance-divider);
+        border-radius: 10px;
+        cursor: default;
+      }
+      .ntg-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.78em;
+        color: var(--glance-muted-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ntg-live-dot { color: #dc2626; font-weight: 800; flex-shrink: 0; }
+      .ntg-status { overflow: hidden; text-overflow: ellipsis; }
+      .ntg-net { flex-shrink: 0; opacity: 0.8; }
+      .ntg-scorebug {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .ntg-side {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        min-width: 0;
+      }
+      .ntg-side-right { justify-content: flex-end; }
+      .ntg-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+      .ntg-abbr {
+        font-weight: 700;
+        font-size: 0.95em;
+        color: var(--glance-muted-text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ntg-score-block {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 1.3rem;
+        font-weight: 800;
+        flex-shrink: 0;
+        padding: 0 6px;
+        color: var(--glance-muted-text);
+      }
+      .ntg-dash { opacity: 0.4; font-weight: 400; font-size: 1rem; }
+      .ntg-winner { color: var(--glance-text-color, #eee); }
+      .ntg-tooltip-card {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        margin-top: 4px;
+        z-index: 40;
+        background: rgba(10, 10, 12, 0.97);
+        border: 1px solid var(--glance-divider);
+        border-radius: 8px;
+        padding: 10px 12px;
+        box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-4px);
+        transition: opacity .12s ease, transform .12s ease;
+        pointer-events: none;
+        white-space: normal;
+        font-size: 0.78em;
+        color: var(--glance-text-color, #eee);
+      }
+      .ntg-row:hover .ntg-tooltip-card {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+      .ntg-tooltip-title {
+        font-weight: 700;
+        margin-bottom: 6px;
+        color: var(--glance-text-color, #eee);
+      }
+      .ntg-tooltip-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 2px 0;
+        color: var(--glance-muted-text);
+      }
+    </style>
+
+# Notes:
+# - /api/notable/feed defaults `season` and `startWeek` to the app's own
+#   idea of the current season/week (same source /api/meta uses) when you
+#   don't pass them, so you shouldn't need to touch this seasonally.
+# - Games you haven't picked in /admin for a given week just don't appear
+#   — an empty week is skipped entirely rather than rendering a blank
+#   heading.
+# - Hover over a card to see venue/broadcast/your admin note — same
+#   hover-card pattern as your other widgets (VT Live Card, etc).
+# - This endpoint is unauthenticated (same as the rest of the read-only
+#   API), matching how your existing widgets hit ESPN directly with no
+#   auth. If your Dynacat instance is reachable from outside your LAN,
+#   make sure cfb-tracker itself isn't exposed past your firewall/VPN,
+#   same as you'd want for any home-server API.
