@@ -414,12 +414,15 @@ function createScrappy({ env = process.env, client = null, logger = console } = 
     return anthropic;
   }
 
-  async function chat(history) {
+  async function chat(history, { lang = 'en' } = {}) {
     const messages = history.map((m) => ({ role: m.role, content: m.content }));
     const system = [
       { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
       { type: 'text', text: todayLine() },
     ];
+    // The site's language switch is set to Spanish: answer in Spanish
+    // (team and player names stay as they are).
+    if (lang === 'es') system.push({ type: 'text', text: 'The visitor is using the Spanish version of the site. Reply in Spanish.' });
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
       const response = await getClient().beta.messages.create({
         model,

@@ -118,3 +118,20 @@ test('tools reject unsafe ids and unknown names', async () => {
   assert.strictEqual(unknown.isError, true);
   assert.ok(TOOLS.every((t) => t.name && t.description && t.input_schema));
 });
+
+test('Scrappy answers in Spanish when the site is set to Spanish', async () => {
+  const client = fakeClient([
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: '¡Hola!' }] },
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Hi!' }] },
+  ]);
+  const app = await start({ ...BASE, ANTHROPIC_API_KEY: 'test' }, { client });
+  try {
+    await post(app.url, { messages: [{ role: 'user', content: 'hola' }], lang: 'es' });
+    await post(app.url, { messages: [{ role: 'user', content: 'hi' }], lang: '<script>' });
+    const spanish = (call) => call.system.some((b) => /Reply in Spanish/.test(b.text));
+    assert.strictEqual(spanish(client.calls[0]), true);
+    assert.strictEqual(spanish(client.calls[1]), false);
+  } finally {
+    await app.close();
+  }
+});

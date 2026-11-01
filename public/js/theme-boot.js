@@ -112,8 +112,10 @@
     // A near-white primary (some teams list white first) makes a poor
     // accent; use the alternate instead when it has more color.
     if (luminance(toRgb(p)) > 0.8 && luminance(toRgb(a)) < 0.8) { var t = p; p = a; a = t; }
-    var dark = readableOn(p, '#0d0f14', 4.5);
-    var light = readableOn(p, '#ffffff', 4.5);
+    // 5:1 against the extreme page colors, so the accent still clears 4.5:1
+    // on the team-tinted cards and page background.
+    var dark = readableOn(p, '#0d0f14', 5);
+    var light = readableOn(p, '#ffffff', 5.2);
     return {
       '--team-primary': p,
       '--team-secondary': a,

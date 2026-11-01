@@ -88,7 +88,7 @@
     };
 
     return `
-      <svg viewBox="0 0 ${VIEW_W} ${VIEW_H}" class="field-svg" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox="0 0 ${VIEW_W} ${VIEW_H}" class="field-svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Field position diagram">
         <rect x="0" y="0" width="${VIEW_W}" height="${VIEW_H}" fill="#0a2e16"/>
         <rect x="${EZ}" y="0" width="${FIELD_W}" height="${VIEW_H}" fill="#14532d"/>
         <rect x="0" y="0" width="${EZ}" height="${VIEW_H}" fill="${awayColor}" fill-opacity="0.82"/>
