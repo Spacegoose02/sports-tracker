@@ -1642,3 +1642,28 @@ body.has-live-ticker { padding-bottom: 56px; }
 /* ---- Game page tabs ---- */
 .game-tabs { margin-top: 16px; }
 .game-tabs .tab-btn[hidden], .game-tab-panel[hidden] { display: none; }
+
+/* ---- Sport-specific card details ---- */
+.diamond-line { display: flex; align-items: center; gap: 12px; }
+.diamond { width: 40px; height: 30px; flex: none; }
+.diamond rect { fill: var(--bg-elev); stroke: var(--text-dim); stroke-width: 1.2; }
+.diamond rect.on { fill: var(--favorite); stroke: var(--favorite); }
+.count-dots { display: flex; gap: 10px; font-size: 0.7rem; }
+.count-row { display: inline-flex; align-items: center; gap: 3px; }
+.count-k { color: var(--text-dim); font-weight: 800; margin-right: 2px; }
+.count-dots .dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--text-dim); display: inline-block; }
+.count-dots .dot.ball { background: var(--win); border-color: var(--win); }
+.count-dots .dot.strike, .count-dots .dot.out { background: var(--live); border-color: var(--live); }
+.mini-linescore {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  table-layout: fixed;
+}
+.mini-linescore th, .mini-linescore td { padding: 2px 0; text-align: center; }
+.mini-linescore thead th { font-weight: 700; }
+.mini-linescore tbody th { text-align: left; font-weight: 700; color: var(--text); width: 3.2em; }
+.mini-linescore td.t { font-weight: 800; color: var(--text); }

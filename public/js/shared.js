@@ -539,6 +539,7 @@ const CFB = (function () {
         ${teamRowHtml(game.away, { completed: isCompleted, hasPossession: awayHasBall })}
         ${teamRowHtml(game.home, { completed: isCompleted, hasPossession: homeHasBall })}
         ${situation}
+        ${linescoreHtml(game)}
         ${tags}
         ${game.headline ? `<div class="venue card-headline">${esc(game.headline)}</div>` : ''}
         ${game.venue ? `<div class="venue">${esc(game.venue)}</div>` : ''}
@@ -747,12 +748,56 @@ const CFB = (function () {
       if (b.balls !== null && b.strikes !== null) parts.push(`${b.balls}-${b.strikes}`);
       if (b.outs !== null) parts.push(`${b.outs} out${b.outs === 1 ? '' : 's'}`);
       parts.push(bases.length ? `on ${bases.join(', ')}` : 'bases empty');
-      return `<div class="situation-line">${esc(parts.join(' · '))}</div>`;
+      // A little diamond with the runners, plus the count and outs as dots.
+      const base = (on, x, y) => `<rect x="${x}" y="${y}" width="9" height="9" transform="rotate(45 ${x + 4.5} ${y + 4.5})" class="${on ? 'on' : ''}"/>`;
+      const dots = (n, max, cls) => Array.from({ length: max }, (_, i) => `<span class="dot ${i < n ? cls : ''}"></span>`).join('');
+      return `
+        <div class="situation-line diamond-line" aria-label="${esc(parts.join(', '))}">
+          <svg class="diamond" viewBox="0 0 34 26" aria-hidden="true">${base(b.onSecond, 12.5, 2)}${base(b.onThird, 3, 12)}${base(b.onFirst, 22, 12)}</svg>
+          <span class="count-dots">
+            <span class="count-row"><span class="count-k">B</span>${dots(b.balls || 0, 3, 'ball')}</span>
+            <span class="count-row"><span class="count-k">S</span>${dots(b.strikes || 0, 2, 'strike')}</span>
+            <span class="count-row"><span class="count-k">O</span>${dots(b.outs || 0, 2, 'out')}</span>
+          </span>
+        </div>`;
     }
     if (s.down) {
       return `<div class="situation-line ${s.isRedZone ? 'red-zone' : ''}">${esc(s.down)}${s.possessionText && !String(s.down).includes(' at ') ? ` at ${esc(s.possessionText)}` : ''}</div>`;
     }
     return '';
+  }
+
+  // Inning / period / quarter scores under a live or final game, for the
+  // sports where the line score tells the story (not football, which gets
+  // down and distance instead).
+  const LINESCORE = {
+    mlb: { regulation: 9, label: (i) => String(i + 1), extra: (i) => String(i + 1) },
+    nhl: { regulation: 3, label: (i) => String(i + 1), extra: (i) => (i === 3 ? 'OT' : i === 4 ? 'SO' : `${i - 2}OT`) },
+    nba: { regulation: 4, label: (i) => `Q${i + 1}`, extra: (i) => (i === 4 ? 'OT' : `${i - 3}OT`) },
+    wnba: { regulation: 4, label: (i) => `Q${i + 1}`, extra: (i) => (i === 4 ? 'OT' : `${i - 3}OT`) },
+    cbb: { regulation: 2, label: (i) => `H${i + 1}`, extra: (i) => (i === 2 ? 'OT' : `${i - 1}OT`) },
+    wcbb: { regulation: 4, label: (i) => `Q${i + 1}`, extra: (i) => (i === 4 ? 'OT' : `${i - 3}OT`) },
+  };
+
+  function linescoreHtml(game, sportKeyArg) {
+    const key = sportKeyArg || sportKey;
+    const cfg = LINESCORE[key];
+    if (!cfg || !game || !game.status || game.status.state === 'pre' || !game.home || !game.away) return '';
+    const a = game.away.linescores || [];
+    const h = game.home.linescores || [];
+    const n = Math.max(a.length, h.length);
+    if (!n) return '';
+    const head = Array.from({ length: n }, (_, i) => (i < cfg.regulation ? cfg.label(i) : cfg.extra(i)));
+    const cell = (v) => (v === undefined || v === null || v === '' ? '&ndash;' : esc(v));
+    const abbr = (t) => esc(t.abbreviation || t.shortName || '');
+    return `
+      <table class="mini-linescore" aria-label="Score by ${key === 'mlb' ? 'inning' : 'period'}">
+        <thead><tr><th></th>${head.map((x) => `<th>${esc(x)}</th>`).join('')}<th>T</th></tr></thead>
+        <tbody>
+          <tr><th>${abbr(game.away)}</th>${head.map((_, i) => `<td>${cell(a[i])}</td>`).join('')}<td class="t">${cell(game.away.score)}</td></tr>
+          <tr><th>${abbr(game.home)}</th>${head.map((_, i) => `<td>${cell(h[i])}</td>`).join('')}<td class="t">${cell(game.home.score)}</td></tr>
+        </tbody>
+      </table>`;
   }
 
   // Grey placeholder cards shown while a list loads, instead of "Loading...".
@@ -814,7 +859,7 @@ const CFB = (function () {
   }
 
   return {
-    gameDrama, situationLine, skeletonCards, initLiveTicker,
+    gameDrama, situationLine, linescoreHtml, skeletonCards, initLiveTicker,
     el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, playerLink, gameLink, teamRowHtml, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
