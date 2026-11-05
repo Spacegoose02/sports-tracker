@@ -5,6 +5,18 @@
   const esc = CFB.esc;
   const state = { scoreboard: null, filter: 'top', weekLabel: null };
 
+  // Straight up or against the spread. Grown-ups only: kid mode hides
+  // betting lines everywhere, so it always picks straight up.
+  const MODE_KEY = 'tracker-pickem-mode';
+  function pickMode() {
+    if (CFB.kidMode()) return 'su';
+    try { return localStorage.getItem(MODE_KEY) === 'ats' ? 'ats' : 'su'; } catch (e) { return 'su'; }
+  }
+  function homeSpread(g) {
+    const n = g && g.odds ? Number(g.odds.homeSpread !== undefined ? g.odds.homeSpread : g.odds.spread) : NaN;
+    return g && g.odds && g.odds.homeSpread !== null && Number.isFinite(n) ? n : null;
+  }
+
   // ---- Players ---------------------------------------------------------------
   function currentId() {
     const p = Kids.players.current();
@@ -124,20 +136,30 @@
     }
     const myPicks = player ? Kids.picks.forPlayer(player.id) : {};
     const sportKey = CFB.sport().key;
+    const mode = pickMode();
+    const modeBar = el('pickemMode');
+    modeBar.hidden = CFB.kidMode() || !games.some((g) => homeSpread(g) !== null);
+    modeBar.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
     el('pickemList').innerHTML = `
       ${player ? '' : '<div class="empty-note">Add a name above to start picking.</div>'}
       ${shown.map((g) => {
         const pick = myPicks[`${sportKey}:${g.id}`];
         const locked = !g.status || g.status.state !== 'pre';
         const outcome = pick ? KidsCore.pickOutcome(Object.assign({}, pick, { result: pick.result || KidsCore.gameResult(g) })) : null;
+        // A pick made against the spread keeps showing its own line.
+        const lineSpread = pick ? (pick.spread !== undefined && pick.spread !== null ? pick.spread : null) : (mode === 'ats' ? homeSpread(g) : null);
+        const noLine = !pick && mode === 'ats' && lineSpread === null;
         const side = (t) => `
           <button type="button" class="pick-side ${pick && String(pick.teamId) === String(t.id) ? 'picked' : ''}" data-team="${esc(t.id)}" ${locked || !player ? 'disabled' : ''}>
             ${t.logo ? `<img src="${CFB.safeUrl(t.logo)}" alt="" onerror="this.style.display='none'">` : ''}
             <span>${t.curatedRank ? `#${esc(t.curatedRank)} ` : ''}${esc(t.shortName || t.name)}</span>
+            ${lineSpread !== null ? `<span class="pick-line">${esc(KidsCore.lineFor(t, t === g.home, lineSpread))}</span>` : ''}
             ${t.score !== null && t.score !== undefined && locked ? `<strong>${esc(t.score)}</strong>` : ''}
           </button>`;
         const note = outcome === 'right' ? '<span class="pick-note right">&#9989; You got it!</span>'
           : outcome === 'wrong' ? '<span class="pick-note wrong">&#10060; Not this time</span>'
+            : outcome === 'tie' && lineSpread !== null ? '<span class="pick-note">Push: landed right on the line</span>'
+            : noLine && !locked ? `<span class="pick-note">No line yet, picks straight up &middot; ${esc(CFB.statusLabel(g))}</span>`
             : locked ? `<span class="pick-note">${pick ? 'Locked in' : 'Too late to pick'} &middot; ${esc(CFB.statusLabel(g))}</span>`
               : `<span class="pick-note">${esc(CFB.statusLabel(g))}</span>`;
         return `<div class="pick-game" data-id="${esc(g.id)}">${side(g.away)}<span class="pick-at">at</span>${side(g.home)}${note}</div>`;
@@ -159,6 +181,7 @@
             home: team(g.home),
             ranks: { [String(g.away.id)]: g.away.curatedRank || null, [String(g.home.id)]: g.home.curatedRank || null },
             result: null,
+            ...(pickMode() === 'ats' && homeSpread(g) !== null ? { spread: homeSpread(g) } : {}),
           });
           renderPickem();
         });
@@ -185,6 +208,13 @@
         ${KidsCore.BADGES.map((b) => `<div>${b.emoji} <strong>${esc(b.name)}</strong>: ${esc(b.desc)}</div>`).join('')}
       </details>`;
   }
+
+  el('pickemMode').querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      try { localStorage.setItem(MODE_KEY, btn.dataset.mode); } catch (e) { /* ignore */ }
+      renderPickem();
+    });
+  });
 
   el('pickemFilter').querySelectorAll('button').forEach((btn) => {
     btn.addEventListener('click', () => {

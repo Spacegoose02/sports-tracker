@@ -21,13 +21,19 @@ const WEEK = {
     { id: 'g2', date: future, status: { state: 'pre' }, away: team('a2', 'Away Two'), home: team('h2', 'Home Two') },
   ],
 };
+// Week 11: home is a 6.5-point favorite and wins by only 4.
+const WEEK11 = {
+  games: [
+    { id: 'g3', date: past, status: { state: 'post', completed: true }, odds: { homeSpread: -6.5 }, away: team('a3', 'Away Three', { score: 20 }), home: team('h3', 'Home Three', { score: 24, winner: true }) },
+  ],
+};
 const POSTSEASON = {
   sport: 'cfb', season: 2026, empty: false, cfp: null, cfpSet: false, projected: null,
   bowls: [{ id: 'b1', date: past, bowl: 'Rose Bowl', status: { state: 'post', completed: true }, away: team('x', 'X', { winner: true }), home: team('y', 'Y') }],
 };
 const calls = [];
 const deps = {
-  getScoreboard: async (opts) => { calls.push(opts); return opts.week === 10 ? WEEK : { games: [] }; },
+  getScoreboard: async (opts) => { calls.push(opts); return opts.week === 10 ? WEEK : opts.week === 11 ? WEEK11 : { games: [] }; },
   getGameSummary: async () => null,
   getPostseason: async () => POSTSEASON,
 };
@@ -179,6 +185,34 @@ test('leagues: create, join by code, weekly leaderboard, bracket standings, leav
     assert.strictEqual(gpLeague.isOwner, true);
     await grandpa(`/api/family/leagues/${league.id}/members/me`, { method: 'DELETE' });
     assert.deepStrictEqual((await (await grandpa('/api/family/leagues')).json()).leagues, []);
+  } finally {
+    await app.close();
+  }
+});
+
+test('league pick\'em against the spread is scored on ESPN\'s line', async () => {
+  const app = await start();
+  const dad = client(app.url);
+  try {
+    await dad('/api/account/signup', { method: 'POST', body: { email: 'dad-ats@example.com', password: 'go-hokies-1', displayName: 'Dad' } });
+    const { league } = await (await dad('/api/family/leagues', { method: 'POST', body: { name: 'Spread Family' } })).json();
+    await dad('/api/family/data/players', { method: 'PUT', body: { value: [{ id: 'p1', name: 'Fav', emoji: '🦊' }, { id: 'p2', name: 'Dog', emoji: '🐻' }, { id: 'p3', name: 'Straight', emoji: '🐸' }] } });
+    const g3 = (teamId, extra) => ({ sport: 'cfb', gameId: 'g3', teamId, week: 'cfb-2026-2-11', date: past, away: { id: 'a3', name: 'Away' }, home: { id: 'h3', name: 'Home' }, result: null, ...extra });
+    await dad('/api/family/data/picks', { method: 'PUT', body: { value: {
+      // Saved a made-up pick'em line: ESPN's -6.5 wins out, so the favorite didn't cover.
+      p1: { 'cfb:g3': g3('h3', { spread: -1 }) },
+      p2: { 'cfb:g3': g3('a3', { spread: -6.5 }) },
+      p3: { 'cfb:g3': g3('h3') },
+    } } });
+    const { db } = require('../src/db');
+    const row = db.prepare("SELECT user_id, value FROM kids_data WHERE key = 'picks' AND value LIKE '%cfb:g3%'").get();
+    const picks = JSON.parse(row.value);
+    assert.strictEqual(picks.p1['cfb:g3'].spread, -1, 'the line is kept on the pick');
+    Object.values(picks).forEach((list) => { list['cfb:g3'].pickedAt = now - 2 * DAY; });
+    db.prepare("UPDATE kids_data SET value = ? WHERE user_id = ? AND key = 'picks'").run(JSON.stringify(picks), row.user_id);
+    const board = await (await dad(`/api/family/leagues/${league.id}/leaderboard?sport=cfb&week=cfb-2026-2-11`)).json();
+    const by = Object.fromEntries(board.rows.map((r) => [r.name, [r.right, r.wrong]]));
+    assert.deepStrictEqual(by, { Fav: [0, 1], Dog: [1, 0], Straight: [1, 0] });
   } finally {
     await app.close();
   }

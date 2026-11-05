@@ -84,8 +84,8 @@ test('leaderboard orders by right picks', () => {
 test('gameResult reads scoreboard games and summaries', () => {
   assert.strictEqual(K.gameResult({ status: { state: 'in' }, away: { id: 'a' }, home: { id: 'h' } }), null);
   assert.deepStrictEqual(K.gameResult({ status: { state: 'post', completed: true }, teams: [{ id: 'a', winner: true }, { id: 'h' }] }), { winnerId: 'a' });
-  assert.deepStrictEqual(K.gameResult({ status: { state: 'post' }, away: { id: 'a', score: 3 }, home: { id: 'h', score: 7 } }), { winnerId: 'h' });
-  assert.deepStrictEqual(K.gameResult({ status: { state: 'post' }, away: { id: 'a', score: 7 }, home: { id: 'h', score: 7 } }), { winnerId: null });
+  assert.deepStrictEqual(K.gameResult({ status: { state: 'post' }, away: { id: 'a', score: 3 }, home: { id: 'h', score: 7 } }), { winnerId: 'h', scores: { a: 3, h: 7 } });
+  assert.deepStrictEqual(K.gameResult({ status: { state: 'post' }, away: { id: 'a', score: 7 }, home: { id: 'h', score: 7 } }), { winnerId: null, scores: { a: 7, h: 7 } });
 });
 
 test('buildQuiz makes valid questions from team info', () => {
@@ -118,4 +118,23 @@ test('albumByTeam groups stickers per team', () => {
   ]);
   assert.deepStrictEqual(album.map((s) => [s.teamId, s.stickers.length]), [['259', 2], ['28', 1]]);
   assert.notStrictEqual(K.stickerKey({ sport: 'cfb', gameId: '1', teamId: '2', reason: 'watched' }), K.stickerKey({ sport: 'cfb', gameId: '1', teamId: '2', reason: 'picked' }));
+});
+
+test('against the spread: the line decides right, wrong and push', () => {
+  const ats = (teamId, spread, away, home) => ({
+    teamId, spread, away: { id: 'a' }, home: { id: 'h' },
+    result: K.gameResult({ status: { state: 'post', completed: true }, away: { id: 'a', score: away }, home: { id: 'h', score: home } }),
+  });
+  // Home favored by 6.5 and wins by 7: home covers.
+  assert.strictEqual(K.pickOutcome(ats('h', -6.5, 14, 21)), 'right');
+  assert.strictEqual(K.pickOutcome(ats('a', -6.5, 14, 21)), 'wrong');
+  // Home wins by 3 as a 6.5-point favorite: the away team covers while losing.
+  assert.strictEqual(K.pickOutcome(ats('a', -6.5, 18, 21)), 'right');
+  // Exactly on the number is a push.
+  assert.strictEqual(K.pickOutcome(ats('h', -7, 14, 21)), 'tie');
+  // No scores saved (older picks): straight up.
+  assert.strictEqual(K.pickOutcome({ teamId: 'h', spread: -6.5, away: { id: 'a' }, home: { id: 'h' }, result: { winnerId: 'h' } }), 'right');
+  assert.strictEqual(K.lineFor({}, true, -6.5), '-6.5');
+  assert.strictEqual(K.lineFor({}, false, -6.5), '+6.5');
+  assert.strictEqual(K.lineFor({}, false, 0), 'PK');
 });

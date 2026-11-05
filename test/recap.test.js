@@ -16,15 +16,19 @@ const NOW = Date.parse('2026-11-02T15:45:00Z'); // 7:45 AM in Los Angeles, 10:45
 
 // Virginia Tech beat Florida State on Sunday night and plays Miami on
 // Saturday (time TBD); a second followed team has nothing going on.
+// The game dates sit at the same distance from `base` as they do from NOW,
+// so a test that goes through the real clock (send-now) can move them
+// along with it instead of aging out.
 const VT = { id: '259', name: 'Virginia Tech Hokies', shortName: 'Virginia Tech', abbreviation: 'VT' };
-function stubEspn() {
+const shifted = (iso, base) => new Date(Date.parse(iso) - NOW + base).toISOString();
+function stubEspn(base = NOW) {
   const saved = { getTeamSchedule: ds.getTeamSchedule, getTeamInfo: ds.getTeamInfo, getNews: ds.getNews };
   ds.getTeamSchedule = async (id) => ({
     games: id !== '259' ? [] : [
-      { id: '401', date: '2026-11-01T23:00:00Z', name: 'Florida State at Virginia Tech',
+      { id: '401', date: shifted('2026-11-01T23:00:00Z', base), name: 'Florida State at Virginia Tech',
         status: { state: 'post', detail: 'Final' },
         home: { ...VT, score: 31 }, away: { id: '52', shortName: 'Florida State', score: 24 } },
-      { id: '402', date: '2026-11-07T17:00:00Z', timeValid: false, broadcast: 'ACC Network', name: 'Virginia Tech at Miami',
+      { id: '402', date: shifted('2026-11-07T17:00:00Z', base), timeValid: false, broadcast: 'ACC Network', name: 'Virginia Tech at Miami',
         status: { state: 'pre' }, home: { id: '2390', shortName: 'Miami', rank: 9 }, away: { ...VT } },
     ],
   });
@@ -92,7 +96,7 @@ test('facts and the plain recap cover results, next games and quiet teams', () =
 });
 
 test('settings, send-now, and the feed-key endpoints for Home Assistant and Den Duty', async () => {
-  const restore = stubEspn();
+  const restore = stubEspn(Date.now()); // send-now runs on the real clock
   const client = fakeClient(scrappyReply);
   const pushes = [];
   const send = async (subs, payload) => { pushes.push({ subs, payload }); return subs.length; };

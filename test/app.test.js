@@ -85,3 +85,18 @@ test('games to watch: a ranked team trailing late is an upset alert', () => {
   const ot = CFB.gameDrama(live(5, team('a', 3, null), team('h', 3, null)), 'nhl');
   assert.ok(ot.tags.some((t) => t.key === 'ot'));
 });
+
+test('line scores show for baseball and hockey cards, not football', () => {
+  const { loadShared } = require('./helpers');
+  const CFB = loadShared();
+  const game = (state) => ({ status: { state }, away: { abbreviation: 'NYY', score: 3, linescores: [0, 2, 1] }, home: { abbreviation: 'BOS', score: 1, linescores: [1, 0, 0] } });
+  const html = CFB.linescoreHtml(game('in'), 'mlb');
+  assert.match(html, /NYY/);
+  assert.match(html, /<th>3<\/th>/);
+  assert.strictEqual(CFB.linescoreHtml(game('pre'), 'mlb'), '');
+  assert.strictEqual(CFB.linescoreHtml(game('in'), 'cfb'), '');
+  const nhl = CFB.linescoreHtml({ status: { state: 'post' }, away: { abbreviation: 'A', score: 3, linescores: [1, 1, 0, 1] }, home: { abbreviation: 'B', score: 2, linescores: [0, 2, 0, 0] } }, 'nhl');
+  assert.match(nhl, /<th>OT<\/th>/);
+  // Team abbreviations from ESPN are escaped.
+  assert.doesNotMatch(CFB.linescoreHtml({ status: { state: 'in' }, away: { abbreviation: '<b>', linescores: [1] }, home: { abbreviation: 'B', linescores: [0] } }, 'nba'), /<b>/);
+});

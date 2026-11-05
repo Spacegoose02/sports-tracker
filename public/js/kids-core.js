@@ -188,10 +188,32 @@
   // where result is null until the game ends, then { winnerId } (null
   // winnerId for a tie). Week is a label like "cfb-2026-2-10" that groups
   // picks for the "perfect week" badge.
+  // Against-the-spread picks also carry `spread`: the home team's line when
+  // the pick was made (-6.5 = home favored by 6.5). Those are scored on the
+  // final margin with the line added; landing exactly on it is a push
+  // ('tie'). Without final scores they fall back to straight up.
   function pickOutcome(pick) {
     if (!pick || !pick.result) return 'pending';
+    const spread = pick.spread === null || pick.spread === undefined ? null : Number(pick.spread);
+    const scores = pick.result.scores;
+    const homeId = pick.home && String(pick.home.id);
+    const awayId = pick.away && String(pick.away.id);
+    if (spread !== null && Number.isFinite(spread) && scores && homeId && awayId
+      && Number.isFinite(Number(scores[homeId])) && Number.isFinite(Number(scores[awayId]))) {
+      const homeCover = Number(scores[homeId]) - Number(scores[awayId]) + spread;
+      if (homeCover === 0) return 'tie';
+      const pickedHome = String(pick.teamId) === homeId;
+      return (homeCover > 0) === pickedHome ? 'right' : 'wrong';
+    }
     if (!pick.result.winnerId) return 'tie';
     return String(pick.result.winnerId) === String(pick.teamId) ? 'right' : 'wrong';
+  }
+
+  // "UGA -6.5" / "ALA +6.5": a team's line from the home spread.
+  function lineFor(team, isHome, homeSpread) {
+    if (homeSpread === null || homeSpread === undefined || !Number.isFinite(Number(homeSpread))) return '';
+    const n = isHome ? Number(homeSpread) : -Number(homeSpread);
+    return n === 0 ? 'PK' : `${n > 0 ? '+' : ''}${n}`;
   }
 
   function playerStats(picks) {
@@ -296,13 +318,16 @@
   function gameResult(game) {
     if (!game || !game.status || !(game.status.completed || game.status.state === 'post')) return null;
     const teams = game.teams || [game.away, game.home].filter(Boolean);
+    const scored = teams.filter((t) => t && t.score !== null && t.score !== undefined && Number.isFinite(Number(t.score)));
+    // Final scores ride along for against-the-spread picks.
+    const scores = scored.length === 2 ? { [String(scored[0].id)]: Number(scored[0].score), [String(scored[1].id)]: Number(scored[1].score) } : null;
+    const withScores = (r) => (scores ? Object.assign(r, { scores }) : r);
     const winner = teams.find((t) => t && t.winner);
-    if (winner) return { winnerId: String(winner.id) };
-    const scored = teams.filter((t) => t && t.score !== null && t.score !== undefined);
+    if (winner) return withScores({ winnerId: String(winner.id) });
     if (scored.length === 2) {
       const [a, b] = scored.map((t) => Number(t.score));
-      if (a === b) return { winnerId: null };
-      return { winnerId: String(a > b ? scored[0].id : scored[1].id) };
+      if (a === b) return withScores({ winnerId: null });
+      return withScores({ winnerId: String(a > b ? scored[0].id : scored[1].id) });
     }
     return null;
   }
@@ -456,7 +481,7 @@
   return {
     family, explainPlay, celebrationLabel, celebratesEveryScore, scoreChanges,
     countdownParts, nextGame,
-    pickOutcome, playerStats, badgesFor, leaderboard, gameResult, BADGES, weekGroup,
+    pickOutcome, lineFor, playerStats, badgesFor, leaderboard, gameResult, BADGES, weekGroup,
     buildQuiz, shuffle, FACTS,
     stickerKey, albumByTeam,
   };
