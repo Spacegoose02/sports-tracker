@@ -666,6 +666,13 @@ names and numbers; opening the link still needs a BingeBandit sign-in.
 Answers are cached for 5 minutes, and if BingeBandit is down the links just
 don't appear.
 
+**Not seeing the button?** Open `/admin` and look at **Watch on
+BingeBandit**. It checks each step in order and names the first one that's
+missing: `BINGEBANDIT_URL` unset, no key, BingeBandit unreachable, BingeBandit
+older than v0.43.0, no Sports data key in BingeBandit, keys that don't match,
+or no channel for the main sports networks. When it works, it lists which
+networks link to which channel.
+
 If browsers should open BingeBandit at a different address than this server
 uses to reach it (say, its public URL), set `BINGEBANDIT_LINK_URL`. To use a
 different key than the relay's, set `BINGEBANDIT_API_KEY` and put that key in
