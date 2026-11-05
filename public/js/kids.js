@@ -109,7 +109,7 @@ const Kids = (function () {
           if (KidsCore.pickOutcome(p) === 'right') {
             const team = [p.away, p.home].find((t) => t && String(t.id) === String(p.teamId)) || {};
             const opponent = [p.away, p.home].find((t) => t && String(t.id) !== String(p.teamId)) || {};
-            stickers.add({ sport: p.sport, gameId: p.gameId, teamId: p.teamId, name: team.name, logo: team.logo, color: team.color, reason: 'picked', label: opponent.name ? `Beat ${opponent.name}` : 'Picked right' }, playerId);
+            stickers.add({ sport: p.sport, gameId: p.gameId, teamId: p.teamId, name: team.name, logo: team.logo, color: team.color, reason: 'picked', label: opponent.name ? `${p.spread !== undefined && p.spread !== null ? 'Covered vs' : 'Beat'} ${opponent.name}` : 'Picked right' }, playerId);
           }
         });
       });

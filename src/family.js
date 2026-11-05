@@ -114,7 +114,19 @@ function cleanPick(raw) {
     ranks[t.id] = Number.isInteger(r) && r > 0 && r < 100 ? r : null;
   });
   let result = null;
-  if (raw.result && typeof raw.result === 'object') result = { winnerId: safeId(raw.result.winnerId) };
+  if (raw.result && typeof raw.result === 'object') {
+    result = { winnerId: safeId(raw.result.winnerId) };
+    const sc = raw.result.scores;
+    if (sc && typeof sc === 'object' && away && home) {
+      const a = Number(sc[away.id]);
+      const h = Number(sc[home.id]);
+      if (Number.isInteger(a) && Number.isInteger(h) && a >= 0 && h >= 0 && a < 1000 && h < 1000) result.scores = { [away.id]: a, [home.id]: h };
+    }
+  }
+  // Against the spread: the home line when picked, in half points.
+  const spreadNum = Number(raw.spread);
+  const spread = raw.spread !== null && raw.spread !== undefined && Number.isFinite(spreadNum) && Math.abs(spreadNum) <= 80
+    ? Math.round(spreadNum * 2) / 2 : null;
   return {
     sport,
     gameId,
@@ -125,6 +137,7 @@ function cleanPick(raw) {
     home,
     ranks,
     result,
+    ...(spread !== null ? { spread } : {}),
   };
 }
 
@@ -480,7 +493,11 @@ async function weeklyLeaderboard(leagueId, { sport, weekKey } = {}, deps = realD
       const start = Date.parse((game && game.date) || p.date);
       if (!p.pickedAt || !Number.isFinite(start) || p.pickedAt >= start) { stats.late += 1; return; }
       stats.total += 1;
-      const outcome = KidsCore.pickOutcome({ ...p, result: KidsCore.gameResult(game) });
+      // Spread picks are scored on ESPN's line for the game when it has
+      // one, not on whatever line the browser saved.
+      const espnSpread = game && game.odds && Number.isFinite(Number(game.odds.homeSpread)) ? Number(game.odds.homeSpread) : null;
+      const scored = p.spread !== undefined && p.spread !== null && espnSpread !== null ? { ...p, spread: espnSpread } : p;
+      const outcome = KidsCore.pickOutcome({ ...scored, result: KidsCore.gameResult(game) });
       if (outcome === 'right') stats.right += 1;
       else if (outcome === 'wrong') stats.wrong += 1;
       else if (outcome === 'pending') stats.pending += 1;

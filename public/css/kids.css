@@ -188,3 +188,14 @@ body.kid-mode .pbp-meta { display: none; }
 body.kiosk header.top, body.kiosk .sport-bar { display: none; }
 body.kiosk main { max-width: none; }
 body.kiosk .countdown-hero { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; }
+.pick-side .pick-line {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 0.85rem;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.pickem-mode { margin-top: -4px; }
+.pickem-mode[hidden] { display: none; }
