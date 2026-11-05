@@ -12,7 +12,7 @@
  *
  * Bump VERSION to throw away every old cache on the next visit.
  */
-const VERSION = 'v6';
+const VERSION = 'v7';
 const STATIC_CACHE = `cfb-static-${VERSION}`;
 const PAGE_CACHE = `cfb-pages-${VERSION}`;
 const API_CACHE = `cfb-api-${VERSION}`;
