@@ -70,6 +70,8 @@ const CFB = (function () {
     // followed teams are pulled from their account.
     await account.load();
     initAccountLink();
+    initSiteNav();
+    initLiveTicker();
     return sportInfo;
   }
 
@@ -115,6 +117,7 @@ const CFB = (function () {
     main.insertBefore(bar, main.firstChild);
 
     document.querySelectorAll('nav.top-nav a').forEach((a) => {
+      if (a.closest('.nav-links')) return; // built by initSiteNav, already sport-aware
       const href = a.getAttribute('href');
       if (!href || !href.startsWith('/') || href.startsWith('/admin')) return;
       if (href === '/rankings.html' && !sport().rankings) { a.remove(); return; }
@@ -254,6 +257,119 @@ const CFB = (function () {
     nav.appendChild(a);
   }
 
+  // ---- Site navigation ----------------------------------------------------
+  // Every page used to hand-write its own row of 7 to 9 nav pills. This
+  // swaps them for one consistent set: four main links plus a "More" menu,
+  // and on phones a bottom tab bar. Buttons other scripts add to the nav
+  // (theme, language, kid mode, account) are left where they are; any
+  // link a script adds later is folded into the More menu.
+  function navItems() {
+    const s = sport();
+    const isCfb = sportKey === DEFAULT_SPORT;
+    const twoTeamGames = !s.format || s.format === 'game';
+    const kid = kidMode();
+    return {
+      primary: [
+        { href: '/', label: 'Scores', icon: '&#127967;', match: ['/', '/index.html'] },
+        s.rankings ? { href: '/rankings.html', label: 'Rankings', icon: '&#128202;' } : null,
+        s.standings !== false && s.teams !== false ? { href: '/standings.html', label: 'Standings', icon: '&#128203;' } : null,
+        { href: '/brackets.html', label: 'Playoffs', icon: '&#127942;', cls: 'playoffs-link', plain: true },
+      ].filter(Boolean),
+      more: [
+        { href: '/upcoming.html', label: 'Upcoming', icon: '&#128197;' },
+        s.leaders ? { href: '/leaders.html', label: 'Leaders', icon: '&#11088;' } : null,
+        s.teams !== false ? { href: '/compare.html', label: 'Compare teams', icon: '&#9878;' } : null,
+        twoTeamGames && !kid ? { href: '/lines.html', label: 'Lines & odds', icon: '&#128200;' } : null,
+        isCfb ? { href: '/recruiting.html', label: 'Recruiting', icon: '&#127891;', plain: true } : null,
+        { href: '/wall.html', label: 'TV Wall', icon: '&#128250;', plain: true },
+        { href: '/kids.html', label: 'Kids', icon: '&#129437;', cls: 'kids-link', plain: true },
+      ].filter(Boolean),
+    };
+  }
+
+  function navLinkHtml(item, inMenu) {
+    const href = item.plain ? item.href : withSport(item.href);
+    const paths = item.match || [item.href];
+    const current = paths.includes(location.pathname);
+    return `<a href="${esc(href)}" class="${item.cls || ''} ${inMenu ? 'nav-menu-link' : 'nav-main-link'}"${current ? ' aria-current="page"' : ''}>${inMenu ? `<span class="nav-icon" aria-hidden="true">${item.icon}</span>` : ''}${esc(item.label)}</a>`;
+  }
+
+  function initSiteNav() {
+    const nav = document.querySelector('nav.top-nav');
+    if (!nav || nav.dataset.siteNav) return;
+    nav.dataset.siteNav = '1';
+    const items = navItems();
+    // Drop the page's own hand-written links; keep buttons and the account link.
+    nav.querySelectorAll(':scope > a:not(.account-link)').forEach((a) => a.remove());
+    const links = document.createElement('div');
+    links.className = 'nav-links';
+    links.innerHTML = `
+      ${items.primary.map((i) => navLinkHtml(i, false)).join('')}
+      <div class="nav-more">
+        <button type="button" class="nav-more-btn" aria-expanded="false" aria-controls="navMoreMenu">More <span aria-hidden="true">&#9662;</span></button>
+        <div class="nav-more-menu" id="navMoreMenu" hidden>
+          ${items.more.map((i) => navLinkHtml(i, true)).join('')}
+        </div>
+      </div>`;
+    nav.insertBefore(links, nav.firstChild);
+
+    const menu = links.querySelector('.nav-more-menu');
+    const moreBtn = links.querySelector('.nav-more-btn');
+    const moreWrap = links.querySelector('.nav-more');
+    const phone = window.matchMedia ? window.matchMedia('(max-width: 720px)') : { matches: false };
+    const setOpen = (open) => {
+      // On phones the menu is a sheet over the page; the header can be a
+      // containing block for fixed children, so the sheet moves to <body>.
+      if (open) {
+        const home = phone.matches ? document.body : moreWrap;
+        if (menu.parentNode !== home) home.appendChild(menu);
+        menu.classList.toggle('as-sheet', phone.matches);
+      }
+      menu.hidden = !open;
+      moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      document.body.classList.toggle('nav-menu-open', open);
+      const tab = document.querySelector('.bottom-tabs .bottom-more');
+      if (tab) tab.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    moreBtn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+    document.addEventListener('click', (e) => { if (!menu.hidden && !menu.contains(e.target)) setOpen(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { setOpen(false); moreBtn.focus(); } });
+
+    // Links other scripts append later (kids.js, older pages) go in More,
+    // unless one with the same page is already there.
+    const hasPage = (href) => {
+      const path = href.split('?')[0];
+      return [...links.querySelectorAll('a')].some((a) => a.getAttribute('href').split('?')[0] === path);
+    };
+    const adopt = () => {
+      nav.querySelectorAll(':scope > a:not(.account-link)').forEach((a) => {
+        const href = a.getAttribute('href') || '';
+        if (hasPage(href)) { a.remove(); return; }
+        a.classList.add('nav-menu-link');
+        menu.appendChild(a);
+      });
+    };
+    new MutationObserver(adopt).observe(nav, { childList: true });
+
+    // Phones: a bottom tab bar with the same main links.
+    if (!document.querySelector('.bottom-tabs')) {
+      const bar = document.createElement('nav');
+      bar.className = 'bottom-tabs';
+      bar.setAttribute('aria-label', 'Main');
+      const tabs = items.primary.slice(0, 4);
+      bar.innerHTML = `
+        ${tabs.map((i) => {
+          const paths = i.match || [i.href];
+          const current = paths.includes(location.pathname);
+          return `<a href="${esc(i.plain ? i.href : withSport(i.href))}"${current ? ' aria-current="page"' : ''}><span class="bt-icon" aria-hidden="true">${i.icon}</span><span>${esc(i.label)}</span></a>`;
+        }).join('')}
+        <button type="button" class="bottom-more" aria-expanded="false" aria-controls="navMoreMenu"><span class="bt-icon" aria-hidden="true">&#9776;</span><span>More</span></button>`;
+      bar.querySelector('.bottom-more').addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+      document.body.appendChild(bar);
+      document.body.classList.add('has-bottom-tabs');
+    }
+  }
+
   function syncFollow(method, team, key) {
     if (!account.user()) return;
     const req = method === 'DELETE'
@@ -370,8 +486,10 @@ const CFB = (function () {
     // Small football icon marks whichever team currently has the ball —
     // only meaningful (and only shown) while the game is actually live.
     const possessionIcon = rowOpts.hasPossession ? '<span class="possession-icon" title="Has possession">&#127944;</span>' : '';
+    const isLoser = rowOpts.completed && team.score !== null && !team.winner;
+    const color = team.color && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(team.color) ? team.color : null;
     return `
-      <div class="team-row">
+      <div class="team-row ${isLoser ? 'loser' : ''}"${color ? ` style="--row-color:${color}"` : ''} data-side="${esc(team.homeAway || '')}">
         <span class="rank">${team.curatedRank ? '#' + team.curatedRank : ''}</span>
         ${team.logo ? `<img src="${safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
         <a class="team-name team-link ${isWinner ? 'winner' : ''}" href="${teamLink(team)}" onclick="event.stopPropagation()">${esc(team.name || team.shortName || 'TBD')}</a>
@@ -403,8 +521,13 @@ const CFB = (function () {
     const possessionId = isLive && game.situation ? game.situation.possession : null;
     const awayHasBall = !!(possessionId && game.away && String(possessionId) === String(game.away.id));
     const homeHasBall = !!(possessionId && game.home && String(possessionId) === String(game.home.id));
+    const drama = isLive ? gameDrama(game) : null;
+    const tags = drama && drama.tags.length
+      ? `<div class="drama-tags">${drama.tags.map((t) => `<span class="drama-tag drama-${esc(t.key)}">${esc(t.label)}</span>`).join('')}</div>`
+      : '';
+    const situation = isLive ? situationLine(game) : '';
     return `
-      <div class="game-card ${isFav ? 'is-favorite' : ''} ${isLive ? 'is-live' : ''}" data-id="${esc(game.id)}" data-source="${esc(game.source || 'espn')}">
+      <div class="game-card ${isFav ? 'is-favorite' : ''} ${isLive ? 'is-live' : ''} ${isCompleted ? 'is-final' : ''}" data-id="${esc(game.id)}" data-source="${esc(game.source || 'espn')}">
         <div class="status-row">
           <span class="${isLive ? 'live-dot' : ''}">${esc(statusLabel(game))}</span>
           <span style="display:flex;align-items:center;gap:6px;">
@@ -414,6 +537,9 @@ const CFB = (function () {
         </div>
         ${teamRowHtml(game.away, { completed: isCompleted, hasPossession: awayHasBall })}
         ${teamRowHtml(game.home, { completed: isCompleted, hasPossession: homeHasBall })}
+        ${situation}
+        ${tags}
+        ${game.headline ? `<div class="venue card-headline">${esc(game.headline)}</div>` : ''}
         ${game.venue ? `<div class="venue">${esc(game.venue)}</div>` : ''}
         ${oddsLine(game)}
       </div>`;
@@ -571,7 +697,123 @@ const CFB = (function () {
     return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
   }
 
+  // ---- Games to watch ----------------------------------------------------
+  // How gripping a live game is right now, 0 to ~130: close score, late in
+  // the game, a ranked team in trouble. Drives the "Live now" sort order on
+  // the home page and the Upset alert / Nail-biter tags on game cards.
+  const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, wnba: 4, cbb: 2, wcbb: 4, nhl: 3, mlb: 9 };
+  const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, wnba: 6, cbb: 6, wcbb: 6, nhl: 1, mlb: 2 };
+
+  function gameDrama(game, sportKeyArg) {
+    const key = sportKeyArg || sportKey;
+    const out = { score: 0, tags: [] };
+    if (!game || !game.status || game.status.state !== 'in' || !game.home || !game.away) return out;
+    const h = Number(game.home.score);
+    const a = Number(game.away.score);
+    if (Number.isNaN(h) || Number.isNaN(a)) return out;
+    const regulation = REG_PERIODS[key] || 4;
+    const close = CLOSE_MARGIN[key] || 8;
+    const period = Number(game.status.period) || 1;
+    const margin = Math.abs(h - a);
+    const overtime = period > regulation;
+    const lateness = overtime ? 1.1 : Math.min(1, period / regulation);
+    const closeness = Math.max(0, 1 - margin / (close * 2));
+    const rank = (t) => (t.curatedRank && Number(t.curatedRank) <= 25 ? Number(t.curatedRank) : null);
+    const hr = rank(game.home);
+    const ar = rank(game.away);
+    // A ranked team losing to an unranked team, or to one ranked at least
+    // five spots lower.
+    const trailing = h < a ? { me: hr, them: ar } : a < h ? { me: ar, them: hr } : null;
+    const upset = !!(trailing && trailing.me && (!trailing.them || trailing.them - trailing.me >= 5));
+    out.score = Math.round(closeness * 60 + lateness * 30 + (upset ? 25 : 0) + (hr && ar ? 10 : 0) + (overtime ? 10 : 0));
+    if (upset && lateness >= 0.5) out.tags.push({ key: 'upset', label: 'Upset alert' });
+    if (overtime) out.tags.push({ key: 'ot', label: 'Overtime' });
+    else if (margin <= close && lateness >= 0.75) out.tags.push({ key: 'close', label: 'Nail-biter' });
+    if (hr && ar && hr <= 15 && ar <= 15) out.tags.push({ key: 'clash', label: 'Top 15 clash' });
+    if (game.situation && game.situation.isRedZone) out.tags.push({ key: 'redzone', label: 'Red zone' });
+    return out;
+  }
+
+  // One line under a live game's teams: "2nd & 7 at UGA 34" for football,
+  // "2-1, 1 out, runners on 1st and 3rd" for baseball.
+  function situationLine(game) {
+    const s = game && game.situation;
+    if (!s || kidMode()) return '';
+    if (s.baseball) {
+      const b = s.baseball;
+      const bases = [b.onFirst && '1st', b.onSecond && '2nd', b.onThird && '3rd'].filter(Boolean);
+      const parts = [];
+      if (b.balls !== null && b.strikes !== null) parts.push(`${b.balls}-${b.strikes}`);
+      if (b.outs !== null) parts.push(`${b.outs} out${b.outs === 1 ? '' : 's'}`);
+      parts.push(bases.length ? `on ${bases.join(', ')}` : 'bases empty');
+      return `<div class="situation-line">${esc(parts.join(' · '))}</div>`;
+    }
+    if (s.down) {
+      return `<div class="situation-line ${s.isRedZone ? 'red-zone' : ''}">${esc(s.down)}${s.possessionText && !String(s.down).includes(' at ') ? ` at ${esc(s.possessionText)}` : ''}</div>`;
+    }
+    return '';
+  }
+
+  // Grey placeholder cards shown while a list loads, instead of "Loading...".
+  function skeletonCards(n) {
+    return Array.from({ length: n || 6 }, () => `
+      <div class="game-card skeleton" aria-hidden="true">
+        <div class="sk-line sk-short"></div>
+        <div class="sk-line"></div>
+        <div class="sk-line"></div>
+        <div class="sk-line sk-short"></div>
+      </div>`).join('') + '<span class="visually-hidden">Loading&hellip;</span>';
+  }
+
+  // ---- Live ticker ---------------------------------------------------------
+  // A slim strip along the bottom of every page (except the home page and
+  // the TV wall, which show every score already) with the live games of the
+  // teams you follow and of ranked teams. Hidden when none are live.
+  function initLiveTicker() {
+    const skip = ['/', '/index.html', '/wall.html', '/kids.html', '/admin.html', '/countdown.html'];
+    if (skip.includes(location.pathname) || document.querySelector('.live-ticker')) return;
+    if (!document.querySelector('main')) return;
+    const bar = document.createElement('aside');
+    bar.className = 'live-ticker';
+    bar.setAttribute('aria-label', 'Live scores');
+    bar.hidden = true;
+    document.body.appendChild(bar);
+    let timer = null;
+    const load = async () => {
+      clearTimeout(timer);
+      if (document.hidden) return;
+      let data;
+      try { data = await getJson(withSport('/api/scoreboard')); } catch (e) { timer = setTimeout(load, 120000); return; }
+      const followed = follows.ids();
+      const live = (data.games || []).filter((g) => g.status && g.status.state === 'in');
+      const picked = live.filter((g) => {
+        const mine = [g.home, g.away].some((t) => t && followed.has(String(t.id)));
+        const ranked = [g.home, g.away].some((t) => t && t.curatedRank);
+        return mine || ranked;
+      });
+      const isMine = (g) => [g.home, g.away].some((t) => t && followed.has(String(t.id)));
+      picked.sort((x, y) => (isMine(y) - isMine(x)) || (gameDrama(y).score - gameDrama(x).score));
+      picked.splice(12);
+      bar.hidden = !picked.length;
+      document.body.classList.toggle('has-live-ticker', picked.length > 0);
+      bar.innerHTML = picked.length ? `
+        <span class="ticker-label"><span class="live-dot"></span>Live</span>
+        <div class="ticker-track">${picked.map((g) => {
+          const mine = [g.home, g.away].some((t) => t && followed.has(String(t.id)));
+          const abbr = (t) => esc((t && (t.abbreviation || t.shortName)) || 'TBD');
+          return `<a class="ticker-game ${mine ? 'mine' : ''}" href="${gameLink(g.id, g.source)}">
+            <span class="tk-team">${abbr(g.away)} <b>${esc(g.away && g.away.score)}</b></span>
+            <span class="tk-team">${abbr(g.home)} <b>${esc(g.home && g.home.score)}</b></span>
+            <span class="tk-status">${esc(statusLabel(g))}</span></a>`;
+        }).join('')}</div>` : '';
+      timer = setTimeout(load, picked.length ? 30000 : 120000);
+    };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+    load();
+  }
+
   return {
+    gameDrama, situationLine, skeletonCards, initLiveTicker,
     el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, playerLink, gameLink, teamRowHtml, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
