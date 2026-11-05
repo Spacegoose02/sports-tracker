@@ -87,6 +87,33 @@ test('projected playoff field seeds the CFP rankings straight down', () => {
   assert.strictEqual(B.projectCfp([{ name: 'AP', ranks: ranks.slice(0, 5) }]), null);
 });
 
+test('what if: picks move winners through the projected bracket to a champion', () => {
+  const ranks = Array.from({ length: 12 }, (_, i) => ({ rank: i + 1, team: { id: `t${i + 1}`, name: `Team ${i + 1}` } }));
+  const p = B.projectCfp([{ name: 'College Football Playoff Rankings', ranks }]);
+  // Nothing picked: the semifinals and final are still waiting.
+  let w = B.whatIfCfp(p, {});
+  assert.strictEqual(w.champion, null);
+  assert.ok(w.rounds[2].games.every((g) => g.placeholder));
+  const picks = { 'first-0': 't9', 'qf-0': 't9', 'qf-1': 't4', 'sf-0': 't9' };
+  w = B.whatIfCfp(p, picks);
+  assert.strictEqual(w.rounds[1].games[0].away.id, 't9');
+  assert.strictEqual(w.rounds[2].games[0].away.id, 't9');
+  assert.strictEqual(w.rounds[2].games[0].home.id, 't4');
+  assert.strictEqual(w.rounds[3].games[0].away.id, 't9');
+  assert.strictEqual(w.rounds[3].games[0].placeholder, true);
+  // Fill in the other half and the final.
+  Object.assign(picks, { 'qf-2': 't2', 'qf-3': 't3', 'sf-1': 't3', 'final-0': 't3' });
+  w = B.whatIfCfp(p, picks);
+  assert.strictEqual(w.champion.id, 't3');
+  // Changing an early pick drops the later picks that no longer fit.
+  picks['first-0'] = 't8';
+  w = B.whatIfCfp(p, picks);
+  assert.strictEqual(w.rounds[1].games[0].pickedId, null);
+  assert.strictEqual(w.rounds[2].games[0].away.placeholder, true);
+  assert.strictEqual(w.rounds[3].games[0].away.placeholder, true);
+  assert.strictEqual(w.champion, null);
+});
+
 test('challenge scoring: later rounds are worth more, strict mode needs a pick before kickoff', () => {
   const game = (id, round, winner) => ({
     id, round, date: '2026-01-01T20:00:00Z',

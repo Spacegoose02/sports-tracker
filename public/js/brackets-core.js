@@ -246,6 +246,50 @@
     return { poll: poll.name || poll.shortName || 'Rankings', seeds, rounds };
   }
 
+  // ---- What if ----------------------------------------------------------------
+  // Plays out the projected field from the visitor's picks: picks is
+  // { 'first-0': teamId, 'qf-2': teamId, ... }. Each pick moves that team
+  // into its next game; a pick whose team is no longer in that game (an
+  // earlier pick changed) is ignored. Returns { rounds, champion }, with
+  // every game carrying its `slot` key.
+  function whatIfCfp(projected, picks) {
+    if (!projected || !projected.rounds || projected.rounds.length < 4) return null;
+    picks = picks || {};
+    const copyTeam = (t) => (t ? Object.assign({}, t) : null);
+    const rounds = projected.rounds.map((r) => Object.assign({}, r, {
+      games: r.games.map((g, i) => Object.assign({}, g, { slot: `${r.key}-${i}`, away: copyTeam(g.away), home: copyTeam(g.home), placeholder: false })),
+    }));
+    const isTeam = (t) => !!(t && t.id && !t.placeholder);
+    const picked = (g) => {
+      const id = picks[g.slot];
+      if (id === undefined || id === null) return null;
+      return [g.away, g.home].find((t) => isTeam(t) && String(t.id) === String(id)) || null;
+    };
+    const tbd = (label) => ({ id: null, name: label, placeholder: true });
+    const [first, qf, sf, final] = rounds;
+    // First round winner i meets the bye seed in quarterfinal i (away side).
+    first.games.forEach((g, i) => {
+      const w = picked(g);
+      qf.games[i].away = w ? copyTeam(w) : qf.games[i].away;
+    });
+    qf.games.forEach((g, i) => {
+      const w = picked(g);
+      const side = i % 2 === 0 ? 'away' : 'home';
+      sf.games[Math.floor(i / 2)][side] = w ? copyTeam(w) : tbd('Quarterfinal winner');
+    });
+    sf.games.forEach((g, i) => {
+      const w = picked(g);
+      final.games[0][i === 0 ? 'away' : 'home'] = w ? copyTeam(w) : tbd('Semifinal winner');
+    });
+    rounds.forEach((r) => r.games.forEach((g) => {
+      g.placeholder = !(isTeam(g.away) && isTeam(g.home));
+      const w = g.placeholder ? null : picked(g);
+      g.pickedId = w ? String(w.id) : null;
+    }));
+    const champ = picked(final.games[0]);
+    return { rounds, champion: champ && !final.games[0].placeholder ? champ : null };
+  }
+
   // ---- Challenge scoring ---------------------------------------------------
   // A bracket pick: { sport, gameId, teamId, pickedAt? }. pickedAt is set by
   // the server when the pick is saved to an account; with `strict`, a pick
@@ -302,6 +346,6 @@
   return {
     ROUNDS, BOWL_POINTS, CFP_SIZE,
     classify, bowlName, roundInfo, alignRounds, buildBracket, gameIndex,
-    projectCfp, winnerOf, scorePicks, standings, defaultSeason,
+    projectCfp, whatIfCfp, winnerOf, scorePicks, standings, defaultSeason,
   };
 });

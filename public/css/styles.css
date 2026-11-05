@@ -1638,3 +1638,7 @@ body.has-live-ticker { padding-bottom: 56px; }
   .live-ticker { bottom: calc(60px + env(safe-area-inset-bottom)); padding-bottom: 6px; }
   body.has-bottom-tabs.has-live-ticker { padding-bottom: calc(118px + env(safe-area-inset-bottom)); }
 }
+
+/* ---- Game page tabs ---- */
+.game-tabs { margin-top: 16px; }
+.game-tabs .tab-btn[hidden], .game-tab-panel[hidden] { display: none; }
