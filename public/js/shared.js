@@ -280,6 +280,7 @@ const CFB = (function () {
         s.leaders ? { href: '/leaders.html', label: 'Leaders', icon: '&#11088;' } : null,
         s.teams !== false ? { href: '/compare.html', label: 'Compare teams', icon: '&#9878;' } : null,
         twoTeamGames && !kid ? { href: '/lines.html', label: 'Lines & odds', icon: '&#128200;' } : null,
+        isCfb ? { href: '/race.html', label: 'Conference race', icon: '&#127937;', plain: true } : null,
         isCfb ? { href: '/recruiting.html', label: 'Recruiting', icon: '&#127891;', plain: true } : null,
         { href: '/wall.html', label: 'TV Wall', icon: '&#128250;', plain: true },
         { href: '/kids.html', label: 'Kids', icon: '&#129437;', cls: 'kids-link', plain: true },
