@@ -351,6 +351,7 @@ const CFB = (function () {
       });
     };
     new MutationObserver(adopt).observe(nav, { childList: true });
+    initSearch(nav);
 
     // Phones: a bottom tab bar with the same main links.
     if (!document.querySelector('.bottom-tabs')) {
@@ -369,6 +370,188 @@ const CFB = (function () {
       document.body.appendChild(bar);
       document.body.classList.add('has-bottom-tabs');
     }
+  }
+
+  // ---- Site-wide search ------------------------------------------------
+  // A search button in the header (or "/" and Ctrl+K) opens a box that finds
+  // teams in every sport, players and pages. Picks are remembered so the box
+  // opens on recent ones.
+  const SEARCH_RECENT_KEY = 'tracker-search-recent';
+
+  function sportShort(key) {
+    const s = (sportList || []).find((x) => x.key === key);
+    return s ? s.shortLabel : String(key || '').toUpperCase();
+  }
+
+  function searchRecent() {
+    try {
+      const list = JSON.parse(localStorage.getItem(SEARCH_RECENT_KEY) || '[]');
+      return Array.isArray(list) ? list.filter((r) => r && r.href && r.name).slice(0, 6) : [];
+    } catch (e) { return []; }
+  }
+
+  function rememberSearch(item) {
+    const list = [item, ...searchRecent().filter((r) => r.href !== item.href)].slice(0, 6);
+    try { localStorage.setItem(SEARCH_RECENT_KEY, JSON.stringify(list)); } catch (e) { /* ignore */ }
+  }
+
+  function searchPages(q) {
+    const items = navItems();
+    const pages = [...items.primary, ...items.more, { href: '/account.html', label: 'Account and settings', icon: '&#128100;', plain: true }];
+    const n = q.toLowerCase();
+    return pages
+      .filter((p) => p.label.toLowerCase().split(/\s+/).some((w) => w.startsWith(n)) || p.label.toLowerCase().includes(n))
+      .slice(0, 4)
+      .map((p) => ({ kind: 'page', name: p.label, href: p.plain ? p.href : withSport(p.href), icon: p.icon }));
+  }
+
+  function searchResultHtml(r, i) {
+    const art = r.logo || r.headshot
+      ? `<img class="sr-art${r.kind === 'player' ? ' round' : ''}" src="${esc(r.logo || r.headshot)}" alt="" loading="lazy" />`
+      : `<span class="sr-art sr-icon" aria-hidden="true">${r.icon || (r.kind === 'player' ? '&#128100;' : '&#127944;')}</span>`;
+    return `<a class="sr-item" role="option" id="sr-${i}" href="${esc(r.href)}" data-index="${i}">
+      ${art}
+      <span class="sr-text"><span class="sr-name">${esc(r.name)}</span>${r.sub ? `<span class="sr-sub">${esc(r.sub)}</span>` : ''}</span>
+      ${r.sport ? `<span class="sr-sport">${esc(sportShort(r.sport))}</span>` : ''}
+    </a>`;
+  }
+
+  function initSearch(nav) {
+    if (document.querySelector('.search-btn')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'search-btn';
+    btn.setAttribute('aria-label', 'Search teams and players');
+    btn.title = 'Search (/)';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="search-btn-label">Search</span>';
+    nav.insertBefore(btn, nav.querySelector('.nav-links').nextSibling);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'search-overlay';
+    overlay.hidden = true;
+    overlay.innerHTML = `
+      <div class="search-panel" role="dialog" aria-modal="true" aria-label="Search">
+        <div class="search-field">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <input type="search" class="search-input" placeholder="Teams, players or pages" autocomplete="off" spellcheck="false"
+            role="combobox" aria-expanded="true" aria-controls="searchResults" aria-autocomplete="list" />
+          <button type="button" class="search-close">Esc</button>
+        </div>
+        <div class="search-results" id="searchResults" role="listbox" aria-label="Results"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('.search-input');
+    const results = overlay.querySelector('.search-results');
+    let flat = [];
+    let active = -1;
+    let timer = null;
+    let seq = 0;
+    let lastFocus = null;
+
+    const setActive = (i) => {
+      const nodes = results.querySelectorAll('.sr-item');
+      nodes.forEach((n) => n.classList.toggle('active', Number(n.dataset.index) === i));
+      active = i;
+      const node = results.querySelector(`#sr-${i}`);
+      if (node) { input.setAttribute('aria-activedescendant', node.id); node.scrollIntoView({ block: 'nearest' }); } else input.removeAttribute('aria-activedescendant');
+    };
+
+    const render = (groups, note) => {
+      flat = [];
+      const html = groups.filter((g) => g.items.length).map((g) => {
+        const rows = g.items.map((r) => { flat.push(r); return searchResultHtml(r, flat.length - 1); }).join('');
+        return `<div class="sr-group"><div class="sr-head">${esc(g.title)}</div>${rows}</div>`;
+      }).join('');
+      results.innerHTML = html || `<div class="sr-empty">${esc(note || 'No matches')}</div>`;
+      setActive(flat.length ? 0 : -1);
+    };
+
+    const showRecent = () => {
+      const recent = searchRecent();
+      if (recent.length) render([{ title: 'Recent', items: recent }]);
+      else results.innerHTML = '<div class="sr-empty">Try a team like &ldquo;Hokies&rdquo;, an abbreviation like &ldquo;KC&rdquo;, or a player&rsquo;s name.</div>';
+      if (!recent.length) { flat = []; active = -1; }
+    };
+
+    const run = async (q) => {
+      const mine = ++seq;
+      const pages = searchPages(q);
+      if (q.length < 2) { render([{ title: 'Pages', items: pages }], 'Keep typing'); return; }
+      results.classList.add('loading');
+      try {
+        const data = await getJson(`/api/search?q=${encodeURIComponent(q)}`);
+        if (mine !== seq) return;
+        const followed = new Set();
+        try { (follows.all ? follows.all() : []).forEach((f) => followed.add(`${f.sport}:${f.id}`)); } catch (e) { /* ignore */ }
+        const teams = (data.teams || []).map((t) => ({
+          kind: 'team', name: t.name, sport: t.sport, logo: t.logo,
+          sub: followed.has(`${t.sport}:${t.id}`) ? 'Following' : null,
+          href: `/team.html?id=${encodeURIComponent(t.id)}&source=espn&sport=${encodeURIComponent(t.sport)}`,
+        })).sort((a, b) => (b.sub ? 1 : 0) - (a.sub ? 1 : 0));
+        const players = (data.players || []).map((p) => ({
+          kind: 'player', name: p.name, sport: p.sport, headshot: p.headshot, sub: p.team,
+          href: `/player.html?id=${encodeURIComponent(p.id)}&sport=${encodeURIComponent(p.sport)}`,
+        }));
+        render([{ title: 'Teams', items: teams }, { title: 'Players', items: players }, { title: 'Pages', items: pages }],
+          data.playersError ? 'No teams match, and player search is unavailable right now' : 'No matches');
+      } catch (err) {
+        if (mine === seq) render([{ title: 'Pages', items: pages }], 'Search is unavailable right now');
+      } finally {
+        if (mine === seq) results.classList.remove('loading');
+      }
+    };
+
+    const open = () => {
+      if (!overlay.hidden) return;
+      lastFocus = document.activeElement;
+      overlay.hidden = false;
+      document.body.classList.add('search-open');
+      input.value = '';
+      showRecent();
+      setTimeout(() => input.focus(), 0);
+    };
+    const close = () => {
+      if (overlay.hidden) return;
+      overlay.hidden = true;
+      document.body.classList.remove('search-open');
+      seq++;
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    };
+    const go = (r) => {
+      if (!r) return;
+      rememberSearch({ kind: r.kind, name: r.name, href: r.href, sport: r.sport || null, logo: r.logo || null, headshot: r.headshot || null, icon: r.icon || null, sub: r.kind === 'player' ? r.sub : null });
+      location.href = r.href;
+    };
+
+    btn.addEventListener('click', open);
+    overlay.querySelector('.search-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    results.addEventListener('click', (e) => {
+      const a = e.target.closest('.sr-item');
+      if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      go(flat[Number(a.dataset.index)]);
+    });
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (!q) { seq++; showRecent(); return; }
+      timer = setTimeout(() => run(q), 180);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' && flat.length) { e.preventDefault(); setActive((active + 1) % flat.length); }
+      else if (e.key === 'ArrowUp' && flat.length) { e.preventDefault(); setActive((active - 1 + flat.length) % flat.length); }
+      else if (e.key === 'Enter') { e.preventDefault(); go(flat[active]); }
+      else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    document.addEventListener('keydown', (e) => {
+      const t = e.target;
+      const typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+      if ((e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
+        e.preventDefault();
+        open();
+      }
+    });
   }
 
   function syncFollow(method, team, key) {

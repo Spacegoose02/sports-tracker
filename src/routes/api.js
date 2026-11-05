@@ -10,6 +10,7 @@ const matchup = require('../matchup');
 const lines = require('../lines');
 const recruiting = require('../recruiting');
 const race = require('../race');
+const search = require('../search');
 const overrides = require('../overrides');
 const { isSafeId } = require('../security');
 const { getSport, DEFAULT_SPORT, publicSportList } = require('../sports');
@@ -369,6 +370,17 @@ router.get('/teams', async (req, res) => {
     res.json({ sport: req.sport.key, teams: await ds.getTeams({ sport: req.sport.key }) });
   } catch (err) {
     res.status(502).json({ error: 'Could not load teams', detail: err.message });
+  }
+});
+
+// Site-wide search box: teams in every team sport, plus players.
+router.get('/search', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.json({ query: q, teams: [], players: [] });
+  try {
+    res.json(await search.search(q));
+  } catch (err) {
+    res.status(502).json({ error: 'Search failed', detail: err.message });
   }
 });
 
