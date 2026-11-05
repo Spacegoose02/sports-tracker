@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Conference Race &middot; Stat Scraps</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/statscraps-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/statscraps-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/scrappy.css" />
+<script src="/js/scrappy.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/brand.css" />
+<link rel="stylesheet" href="/css/stats.css" />
+<link rel="stylesheet" href="/css/kids.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/a11y.css" />
+<script src="/js/theme-boot.js"></script>
+<script src="/js/i18n.js"></script>
+<script src="/js/i18n-es.js"></script>
+<script src="/js/a11y.js" defer></script>
+<script src="/js/theme-picker.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/scrappy-head.png" alt="Stat Scraps" />
+    </div>
+    <div>
+      <h1>Conference Race</h1>
+      <div class="subtitle" id="sourceNote">Loading&hellip;</div>
+    </div>
+  </div>
+  <nav class="top-nav">
+    <a href="/">&larr; Schedule &amp; Scores</a>
+    <a href="/upcoming.html">Upcoming</a>
+    <a href="/rankings.html">Rankings</a>
+    <a href="/leaders.html">Leaders</a>
+    <a href="/lines.html">Lines</a>
+    <a href="/recruiting.html">Recruiting</a>
+  </nav>
+</header>
+
+<main>
+  <div class="week-bar">
+    <div class="division-toggle" id="divisionToggle"></div>
+    <span class="refresh-note" id="raceNote"></span>
+  </div>
+  <div class="race-legend" id="raceLegend">
+    <span class="race-chip race-clinched">Clinched</span> a title game spot
+    <span class="race-chip race-control">Controls destiny</span> win out and you're in
+    <span class="race-chip race-tiebreak">Needs tiebreakers</span> win out and you're tied for a spot
+    <span class="race-chip race-help">Needs help</span> has to win and get losses elsewhere
+    <span class="race-chip race-out">Out</span>
+  </div>
+  <div class="race-list" id="raceList"><div class="game-list"><div class="game-card skeleton" aria-hidden="true"><div class="sk-line sk-short"></div><div class="sk-line"></div><div class="sk-line"></div></div>
+<div class="game-card skeleton" aria-hidden="true"><div class="sk-line sk-short"></div><div class="sk-line"></div><div class="sk-line"></div></div>
+<div class="game-card skeleton" aria-hidden="true"><div class="sk-line sk-short"></div><div class="sk-line"></div><div class="sk-line"></div></div></div></div>
+  <p class="race-foot">Based on conference records and the conference games left on the schedule. Tiebreakers are not modeled, so a tie for a spot shows as "Needs tiebreakers".</p>
+</main>
+
+<footer class="foot">Stat Scraps</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/kids-core.js"></script>
+<script src="/js/kids.js"></script>
+<script src="/js/race.js"></script>
+</body>
+</html>

@@ -9,6 +9,7 @@ const scorecard = require('../scorecard');
 const matchup = require('../matchup');
 const lines = require('../lines');
 const recruiting = require('../recruiting');
+const race = require('../race');
 const overrides = require('../overrides');
 const { isSafeId } = require('../security');
 const { getSport, DEFAULT_SPORT, publicSportList } = require('../sports');
@@ -176,6 +177,17 @@ router.get('/standings', async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(502).json({ error: 'Could not load standings', detail: err.message });
+  }
+});
+
+router.get('/race', async (req, res) => {
+  try {
+    if (!isCfb(req)) return res.json({ races: [] });
+    const year = Number(req.query.year) || undefined;
+    const group = Number(req.query.group) === 81 ? 81 : 80;
+    res.json(await race.getRaces({ year, group }));
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load the conference races', detail: err.message });
   }
 });
 
