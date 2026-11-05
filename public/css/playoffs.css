@@ -83,3 +83,46 @@ button.bk-team:focus-visible { outline: 2px solid var(--accent); outline-offset:
 
 body.kid-mode .bk-team { min-height: 52px; font-size: 1.05rem; }
 body.kid-mode .bk-team img { width: 34px; height: 34px; }
+
+/* What if: play out the projected CFP field */
+.whatif-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.whatif-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.whatif-btn {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.whatif-btn.ghost { background: transparent; color: var(--accent); }
+.whatif-game button.bk-team { width: 100%; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.whatif-game button.bk-team:hover { border-color: var(--accent); }
+.whatif-game .bk-team.won { border-color: var(--win); background: var(--win-soft); }
+.whatif-champ {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--team-color);
+  background: linear-gradient(115deg, color-mix(in srgb, var(--team-color) 35%, transparent), var(--bg-elev) 70%);
+}
+.whatif-champ img { width: 56px; height: 56px; object-fit: contain; }
+.whatif-trophy { font-size: 2.4rem; }
+.whatif-champ-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); font-weight: 700; }
+.whatif-champ-name { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; }

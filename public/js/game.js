@@ -415,6 +415,7 @@
       el('gameWatch').innerHTML = CFBGame.watchHtml(detail, bingeBandit.links);
       loadBingeBandit(detail);
 
+      document.body.dataset.gameState = (detail.status && detail.status.state) || '';
       renderFieldPosition(detail, away, home);
 
       const situationEl = el('gameSituation');

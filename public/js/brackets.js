@@ -156,7 +156,12 @@
     const opts = { sport: 'cfb', pickable: true };
     if (data.cfpSet && data.cfp) return grid(data.cfp.rounds, opts);
     if (data.projected) {
+      if (state.whatIf) return renderWhatIf(data);
       return `
+        <div class="whatif-cta">
+          <div><strong>&#129300; What if?</strong> Pick every game and see who you'd crown champion.</div>
+          <button type="button" class="whatif-btn" data-whatif="on">Play it out</button>
+        </div>
         <div class="hub-note">
           <strong>If the season ended today.</strong> The top ${B.CFP_SIZE} of the ${esc(data.projected.poll)}, seeded in order, with the top four getting a first-round bye.
           The real field also saves spots for the highest-ranked conference champions, so it can differ. The real bracket shows up here on selection day, and picks open then.
@@ -165,6 +170,67 @@
     }
     if (data.cfp) return grid(data.cfp.rounds, opts);
     return '<div class="empty-note">No playoff games for this season yet.</div>';
+  }
+
+  // What if: pick winners through the projected bracket. Saved on this
+  // device per season, and never counted in the family challenge.
+  const WHATIF_KEY = 'tracker-cfp-whatif';
+  function whatIfPicks(season) {
+    try { return (JSON.parse(localStorage.getItem(WHATIF_KEY) || '{}') || {})[season] || {}; } catch (e) { return {}; }
+  }
+  function saveWhatIf(season, picks) {
+    try {
+      const all = JSON.parse(localStorage.getItem(WHATIF_KEY) || '{}') || {};
+      all[season] = picks;
+      localStorage.setItem(WHATIF_KEY, JSON.stringify(all));
+    } catch (e) { /* ignore */ }
+  }
+
+  function whatIfTeam(t, g) {
+    if (!t || t.placeholder || !t.id) return `<div class="bk-team tbd"><span class="bk-name">${esc((t && t.name) || 'TBD')}</span></div>`;
+    const on = g.pickedId === String(t.id);
+    const cls = ['bk-team'];
+    if (g.pickedId) cls.push(on ? 'won' : 'lost');
+    const inner = `
+      ${t.seed ? `<span class="bk-seed">${esc(t.seed)}</span>` : ''}
+      ${t.logo ? `<img src="${CFB.safeUrl(t.logo)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<span class="bk-logo-gap"></span>'}
+      <span class="bk-name">${esc(t.shortName || t.name || 'TBD')}${t.record ? ` <span class="bk-record">${esc(t.record)}</span>` : ''}</span>
+      ${on ? '<span class="bk-mark" aria-hidden="true">&#10004;</span>' : ''}`;
+    if (g.placeholder) return `<div class="${cls.join(' ')}">${inner}</div>`;
+    return `<button type="button" class="${cls.join(' ')}" data-wi-slot="${esc(g.slot)}" data-wi-team="${esc(t.id)}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${esc(t.name || t.shortName)} wins">${inner}</button>`;
+  }
+
+  function renderWhatIf(data) {
+    const result = B.whatIfCfp(data.projected, whatIfPicks(data.season));
+    if (!result) return '<div class="empty-note">No projected field to play out yet.</div>';
+    const champ = result.champion;
+    return `
+      <div class="whatif-cta">
+        <div><strong>&#129300; What if?</strong> Tap the team you think wins each game. Winners move on.</div>
+        <span class="whatif-actions">
+          <button type="button" class="whatif-btn ghost" data-whatif="reset">Start over</button>
+          <button type="button" class="whatif-btn ghost" data-whatif="off">Back to projection</button>
+        </span>
+      </div>
+      ${champ ? `
+        <div class="whatif-champ" style="--team-color:${/^#[0-9a-f]{3,6}$/i.test(champ.color || '') ? champ.color : 'var(--favorite)'}">
+          ${champ.logo ? `<img src="${CFB.safeUrl(champ.logo)}" alt="" onerror="this.remove()">` : '<span class="whatif-trophy">&#127942;</span>'}
+          <div><div class="whatif-champ-label">Your national champion</div><div class="whatif-champ-name">${esc(champ.name || champ.shortName)}</div></div>
+        </div>` : ''}
+      <div class="bk-scroll">
+        <div class="bk-grid" style="--rounds:${result.rounds.length}">
+          ${result.rounds.map((r) => `
+            <div class="bk-round">
+              <h3 class="bk-round-title">${esc(r.label)}</h3>
+              <div class="bk-games">${r.games.map((g) => `
+                <div class="bk-game whatif-game ${g.placeholder ? 'placeholder' : 'pickable'}">
+                  ${whatIfTeam(g.away, g)}
+                  ${whatIfTeam(g.home, g)}
+                </div>`).join('')}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <p class="hub-count">Seeded from the ${esc(data.projected.poll)}. Just for fun: these picks stay on this device and don't count in the family challenge.</p>`;
   }
 
   function renderBowls(data) {
@@ -319,6 +385,24 @@
   }
   el('seasonPrev').addEventListener('click', () => shiftSeason(-1));
   el('seasonNext').addEventListener('click', () => shiftSeason(1));
+
+  el('hubBody').addEventListener('click', (e) => {
+    const toggle = e.target.closest('[data-whatif]');
+    const wi = e.target.closest('[data-wi-slot]');
+    const data = current();
+    if ((toggle || wi) && data) {
+      if (toggle && toggle.dataset.whatif === 'reset') saveWhatIf(data.season, {});
+      else if (toggle) state.whatIf = toggle.dataset.whatif === 'on';
+      if (wi) {
+        const picks = whatIfPicks(data.season);
+        if (picks[wi.dataset.wiSlot] === wi.dataset.wiTeam) delete picks[wi.dataset.wiSlot];
+        else picks[wi.dataset.wiSlot] = wi.dataset.wiTeam;
+        saveWhatIf(data.season, picks);
+      }
+      render();
+      return;
+    }
+  });
 
   el('hubBody').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-pick-game]');

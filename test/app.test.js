@@ -69,3 +69,19 @@ test('/healthz reports ok for the Docker healthcheck', async () => {
     await app.close();
   }
 });
+
+test('games to watch: a ranked team trailing late is an upset alert', () => {
+  const { loadShared } = require('./helpers');
+  const CFB = loadShared();
+  const team = (id, score, rank) => ({ id, score, curatedRank: rank });
+  const live = (period, away, home) => ({ status: { state: 'in', period }, away, home });
+  const upset = CFB.gameDrama(live(4, team('a', 17, null), team('h', 10, 12)), 'cfb');
+  assert.ok(upset.tags.some((t) => t.key === 'upset'));
+  assert.ok(upset.tags.some((t) => t.key === 'close'));
+  const blowout = CFB.gameDrama(live(2, team('a', 3, null), team('h', 42, 1)), 'cfb');
+  assert.deepEqual(blowout.tags, []);
+  assert.ok(upset.score > blowout.score);
+  assert.equal(CFB.gameDrama({ status: { state: 'pre' } }, 'cfb').score, 0);
+  const ot = CFB.gameDrama(live(5, team('a', 3, null), team('h', 3, null)), 'nhl');
+  assert.ok(ot.tags.some((t) => t.key === 'ot'));
+});

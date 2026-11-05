@@ -26,26 +26,82 @@
     const ahead = events.filter((e) => !e.status || e.status.state !== 'post');
     const past = events.filter((e) => e.status && e.status.state === 'post').reverse();
     list.innerHTML = `
-      ${ahead.length ? ahead.map(CFB.eventCardHtml).join('') : '<div class="empty-note">No upcoming events in the next two months.</div>'}
-      ${past.length ? `<h2 class="section-title list-divider">Recent results</h2>${past.map(CFB.eventCardHtml).join('')}` : ''}`;
+      <div class="game-list">${ahead.length ? ahead.map(CFB.eventCardHtml).join('') : '<div class="empty-note">No upcoming events in the next two months.</div>'}</div>
+      ${past.length ? `<h2 class="section-title list-divider">Recent results</h2><div class="game-list">${past.map(CFB.eventCardHtml).join('')}</div>` : ''}`;
+  }
+
+  // The schedule is grouped the way people read a scoreboard: your teams,
+  // then what's live (most gripping first), then what's next, then finals.
+  // Within each group ranked matchups come first.
+  const GAME_FILTER_KEY = 'tracker-game-filter';
+  function gameFilter() {
+    try { return localStorage.getItem(GAME_FILTER_KEY) || 'all'; } catch (e) { return 'all'; }
+  }
+
+  function initGameFilter() {
+    const bar = el('gameFilter');
+    bar.querySelectorAll('button').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.filter === gameFilter());
+      btn.addEventListener('click', () => {
+        try { localStorage.setItem(GAME_FILTER_KEY, btn.dataset.filter); } catch (e) { /* ignore */ }
+        bar.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b === btn));
+        renderGames();
+      });
+    });
+  }
+
+  function rankWeight(g) {
+    const r = (t) => (t && t.curatedRank && Number(t.curatedRank) <= 25 ? Number(t.curatedRank) : 99);
+    return Math.min(r(g.home), r(g.away)) + (r(g.home) < 99 && r(g.away) < 99 ? -30 : 0);
   }
 
   function renderGames() {
-    if (state.events) { renderEvents(); return; }
+    if (state.events) { el('gameFilter').hidden = true; renderEvents(); return; }
     const list = el('gameList');
     if (!state.games.length) {
+      el('gameFilter').hidden = true;
       list.innerHTML = '<div class="empty-note">No games found for this week.</div>';
       return;
     }
     const notableIds = new Set(state.notable.map((r) => String(r.event_id)));
-    // Games involving a followed team go first, in their original order.
     const followed = CFB.follows.ids();
     const isFollowedGame = (g) => (g.home && followed.has(String(g.home.id))) || (g.away && followed.has(String(g.away.id)));
-    const ordered = [...state.games.filter(isFollowedGame), ...state.games.filter((g) => !isFollowedGame(g))];
-    list.innerHTML = ordered.map((g) => CFB.gameCardHtml(g, {
-      followedIds: followed,
-      notable: notableIds.has(String(g.id)),
-    })).join('');
+    const isRanked = (g) => [g.home, g.away].some((t) => t && t.curatedRank && Number(t.curatedRank) <= 25);
+    const hasRanked = state.games.some(isRanked);
+    const hasLive = state.games.some((g) => g.status && g.status.state === 'in');
+    const filterBar = el('gameFilter');
+    filterBar.hidden = !(hasRanked || hasLive);
+    filterBar.querySelector('[data-filter="ranked"]').hidden = !hasRanked;
+    filterBar.querySelector('[data-filter="live"]').hidden = !hasLive;
+    let filter = gameFilter();
+    if ((filter === 'ranked' && !hasRanked) || (filter === 'live' && !hasLive)) filter = 'all';
+    filterBar.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.filter === filter));
+
+    let games = state.games;
+    if (filter === 'ranked') games = games.filter((g) => isRanked(g) || isFollowedGame(g));
+    if (filter === 'live') games = games.filter((g) => g.status && g.status.state === 'in');
+
+    const stateOf = (g) => (g.status && g.status.state) || 'pre';
+    const byRank = (a, b) => rankWeight(a) - rankWeight(b);
+    const mine = games.filter(isFollowedGame);
+    const rest = games.filter((g) => !isFollowedGame(g));
+    const groups = [
+      { key: 'mine', title: 'Your teams', games: mine },
+      { key: 'live', title: 'Live now', games: rest.filter((g) => stateOf(g) === 'in').sort((a, b) => CFB.gameDrama(b).score - CFB.gameDrama(a).score) },
+      { key: 'pre', title: 'Coming up', games: rest.filter((g) => stateOf(g) === 'pre').sort((a, b) => (new Date(a.date) - new Date(b.date)) || byRank(a, b)) },
+      { key: 'post', title: 'Final', games: rest.filter((g) => stateOf(g) === 'post').sort(byRank) },
+    ].filter((grp) => grp.games.length);
+
+    if (!groups.length) {
+      list.innerHTML = '<div class="empty-note">No games match this filter.</div>';
+      return;
+    }
+    const card = (g) => CFB.gameCardHtml(g, { followedIds: followed, notable: notableIds.has(String(g.id)) });
+    list.innerHTML = groups.map((grp) => `
+      <section class="game-group group-${grp.key}">
+        <h2 class="section-title group-title">${grp.key === 'live' ? '<span class="live-dot"></span>' : ''}${CFB.esc(grp.title)} <span class="group-count">${grp.games.length}</span></h2>
+        <div class="game-list">${grp.games.map(card).join('')}</div>
+      </section>`).join('');
     CFB.wireGameCardClicks(list);
   }
 
@@ -83,6 +139,15 @@
     const live = schedule.find((g) => g.status && g.status.state === 'in');
     const upcoming = schedule.find((g) => g.status && g.status.state === 'pre');
     const highlight = live || upcoming;
+    const side = (g, t) => (g.home && String(g.home.id) === String(t.id) ? g.home : g.away);
+    const other = (g, t) => (g.home && String(g.home.id) === String(t.id) ? g.away : g.home);
+    let liveScore = '';
+    if (live && live.home && live.away) {
+      const me = side(live, saved);
+      const them = other(live, saved);
+      liveScore = `<div class="hero-score"><span class="${Number(me.score) >= Number(them.score) ? 'lead' : ''}">${CFB.esc(me.score)}</span><span class="dash">&ndash;</span><span>${CFB.esc(them.score)}</span></div>`;
+    }
+    const countdown = !live && upcoming && upcoming.date ? untilLabel(upcoming.date) : '';
     return `
       ${team.logo ? `<img class="logo" src="${CFB.safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
       <div class="team-meta">
@@ -93,9 +158,22 @@
       <a class="next-game" href="${CFB.gameLink(highlight.id, highlight.source)}">
         <div class="label">${live ? 'Live Now' : 'Next Game'}</div>
         <div class="matchup">${CFB.esc(highlight.shortName || highlight.name)}</div>
-        <div class="when">${CFB.esc(CFB.statusLabel(highlight))}</div>
+        ${liveScore}
+        <div class="when">${CFB.esc(CFB.statusLabel(highlight))}${countdown ? ` &middot; <strong>${CFB.esc(countdown)}</strong>` : ''}</div>
       </a>` : ''}
       <button type="button" class="unfollow-btn" title="Unfollow" aria-label="Unfollow ${CFB.esc(team.name || 'team')}">&times;</button>`;
+  }
+
+  // "in 2d 4h", "in 45m": time left until kickoff.
+  function untilLabel(iso) {
+    const ms = new Date(iso).getTime() - Date.now();
+    if (!(ms > 0)) return '';
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `in ${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `in ${hours}h ${mins % 60}m`;
+    const days = Math.floor(hours / 24);
+    return days < 14 ? `in ${days}d ${hours % 24}h` : '';
   }
 
   async function renderMyTeams() {
@@ -111,6 +189,8 @@
       try {
         const data = await CFB.getJson(CFB.withSport(`/api/team/${encodeURIComponent(t.id)}?lite=1`));
         card.innerHTML = myTeamCardHtml(t, data);
+        const sched = (data && data.schedule) || [];
+        card.classList.toggle('is-live', sched.some((g) => g.status && g.status.state === 'in'));
         CFB.applyTeamColor(card, data.team && data.team.color);
       } catch (err) {
         // Keep the saved name/logo if the live lookup fails.
@@ -127,6 +207,35 @@
         });
       }
     });
+  }
+
+  // ‹ Week 10 › stepper. The Season / Week / Type selects still drive the
+  // load; they just live in a "Season & bowls" drawer now.
+  function updateWeekLabel() {
+    const weekSelect = el('weekSelect');
+    const typeSelect = el('seasonTypeSelect');
+    const typeOpt = typeSelect.options[typeSelect.selectedIndex];
+    const isPost = Number(typeSelect.value) === 3;
+    el('weekLabel').textContent = isPost
+      ? `${typeOpt ? typeOpt.textContent : 'Postseason'}`
+      : `Week ${weekSelect.value} · ${el('seasonSelect').value}`;
+    el('prevWeekBtn').disabled = isPost || weekSelect.selectedIndex <= 0;
+    el('nextWeekBtn').disabled = isPost || weekSelect.selectedIndex >= weekSelect.options.length - 1;
+  }
+
+  function initWeekStrip() {
+    const step = (delta) => {
+      const weekSelect = el('weekSelect');
+      const i = weekSelect.selectedIndex + delta;
+      if (i < 0 || i >= weekSelect.options.length) return;
+      weekSelect.selectedIndex = i;
+      updateWeekLabel();
+      loadWeek();
+    };
+    el('prevWeekBtn').addEventListener('click', () => step(-1));
+    el('nextWeekBtn').addEventListener('click', () => step(1));
+    ['seasonSelect', 'weekSelect', 'seasonTypeSelect'].forEach((id) => el(id).addEventListener('change', updateWeekLabel));
+    el('goBtn').addEventListener('click', () => { el('weekControls').querySelector('details').open = false; });
   }
 
   function populateSelectors(meta) {
@@ -164,6 +273,7 @@
       });
     }
     seasonTypeSelect.value = String(meta.seasonType || 2);
+    updateWeekLabel();
   }
 
   // ---- Day-based sports (NBA, MLB, NHL, college hoops) ----
@@ -228,18 +338,26 @@
   function scoreMap() {
     const map = new Map();
     for (const g of state.games || []) {
-      if (g && g.id) map.set(String(g.id), `${g.away && g.away.score}-${g.home && g.home.score}-${g.status && g.status.state}`);
+      if (g && g.id) map.set(String(g.id), { away: g.away && g.away.score, home: g.home && g.home.score, state: g.status && g.status.state });
     }
     return map;
   }
 
+  // Cards whose score changed since the last refresh flash, and the number
+  // that changed pops.
   function flashChanged(before) {
     if (!before) return;
-    const after = scoreMap();
-    after.forEach((v, id) => {
-      if (before.has(id) && before.get(id) !== v) {
-        document.querySelectorAll(`.game-card[data-id="${CSS.escape(id)}"]`).forEach((card) => card.classList.add('score-flash'));
-      }
+    scoreMap().forEach((v, id) => {
+      const old = before.get(id);
+      if (!old || (old.away === v.away && old.home === v.home && old.state === v.state)) return;
+      document.querySelectorAll(`.game-card[data-id="${CSS.escape(id)}"]`).forEach((card) => {
+        card.classList.add('score-flash');
+        ['away', 'home'].forEach((side) => {
+          if (old[side] === v[side]) return;
+          const score = card.querySelector(`.team-row[data-side="${side}"] .score`);
+          if (score) score.classList.add('score-bump');
+        });
+      });
     });
   }
 
@@ -257,8 +375,8 @@
     const before = silent ? scoreMap() : null;
 
     if (!silent) {
-      el('gameList').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
-      el('notableGrid').innerHTML = '<div class="empty-note">Loading&hellip;</div>';
+      el('gameList').innerHTML = `<div class="game-list">${CFB.skeletonCards(6)}</div>`;
+      el('notableGrid').innerHTML = CFB.skeletonCards(3);
     }
 
     try {
@@ -383,6 +501,32 @@
     return update;
   }
 
+  // Four headlines under the scores, so the home page reads like a front page.
+  async function loadHeadlines() {
+    const strip = el('headlineStrip');
+    const followed = CFB.follows.list();
+    const url = followed.length
+      ? CFB.withSport(`/api/news/teams?teams=${encodeURIComponent(followed.map((t) => t.id).join(','))}`)
+      : CFB.withSport('/api/news');
+    try {
+      let data = await CFB.getJson(url);
+      if (!(data.items || []).length && followed.length) data = await CFB.getJson(CFB.withSport('/api/news'));
+      const items = (data.items || []).filter((i) => CFB.safeUrl(i.link)).slice(0, 4);
+      if (!items.length) return;
+      el('headlineList').innerHTML = items.map((item) => `
+        <a class="headline-item" href="${CFB.safeUrl(item.link)}" target="_blank" rel="noopener noreferrer">
+          ${CFB.safeUrl(item.image) ? `<img src="${CFB.safeUrl(item.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+          <span class="headline-text">
+            <span class="headline-title">${CFB.esc(item.title)}</span>
+            <span class="headline-meta">${CFB.esc(item.source || '')}${item.pubDate ? ` &middot; ${timeAgo(item.pubDate)}` : ''}</span>
+          </span>
+        </a>`).join('');
+      strip.hidden = false;
+    } catch (err) {
+      // The strip just stays hidden.
+    }
+  }
+
   async function loadNews() {
     const list = el('newsList');
     list.innerHTML = '<div class="empty-note">Loading&hellip;</div>';
@@ -502,8 +646,16 @@
         populateSelectors({ season: new Date().getFullYear(), week: 1, seasonType: 2 });
       }
       el('goBtn').addEventListener('click', loadWeek);
+      initWeekStrip();
     }
     initTabs();
+    initGameFilter();
+    el('moreNewsBtn').addEventListener('click', () => {
+      const btn = document.querySelector('.tab-btn[data-tab="news"]');
+      btn.click();
+      btn.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    loadHeadlines();
     CFB.initDivisionToggle((group) => {
       state.group = group;
       loadWeek();

@@ -46,7 +46,7 @@
 </header>
 
 <main>
-  <section id="favoriteSection">
+  <section id="favoriteSection" class="today-hero">
     <h2 class="section-title">My Teams</h2>
     <div class="my-teams" id="myTeams"></div>
   </section>
@@ -55,16 +55,26 @@
     <div class="week-bar">
       <div class="division-toggle" id="divisionToggle"></div>
       <span class="week-controls" id="weekControls">
-        <label for="seasonSelect">Season</label>
-        <select id="seasonSelect"></select>
-        <label for="weekSelect">Week</label>
-        <select id="weekSelect"></select>
-        <label for="seasonTypeSelect">Type</label>
-        <select id="seasonTypeSelect">
-          <option value="2">Regular Season</option>
-          <option value="3">Postseason / Bowls</option>
-        </select>
-        <button id="goBtn">Go</button>
+        <span class="week-strip">
+          <button type="button" id="prevWeekBtn" class="week-step" aria-label="Previous week">&lsaquo;</button>
+          <span class="week-label" id="weekLabel" aria-live="polite">Week</span>
+          <button type="button" id="nextWeekBtn" class="week-step" aria-label="Next week">&rsaquo;</button>
+        </span>
+        <details class="week-more">
+          <summary>Season &amp; bowls</summary>
+          <span class="week-more-body">
+            <label for="seasonSelect">Season</label>
+            <select id="seasonSelect"></select>
+            <label for="weekSelect">Week</label>
+            <select id="weekSelect"></select>
+            <label for="seasonTypeSelect">Type</label>
+            <select id="seasonTypeSelect">
+              <option value="2">Regular Season</option>
+              <option value="3">Postseason / Bowls</option>
+            </select>
+            <button id="goBtn">Go</button>
+          </span>
+        </details>
       </span>
       <span class="day-controls" id="dayControls" hidden>
         <button id="prevDayBtn" aria-label="Previous day">&larr;</button>
@@ -83,9 +93,21 @@
     </div>
 
     <div class="tab-panel active" id="tab-schedule">
-      <div class="game-list" id="gameList">
-        <div class="empty-note">Loading&hellip;</div>
+      <div class="game-filter" id="gameFilter" hidden>
+        <button type="button" data-filter="all" class="active">All games</button>
+        <button type="button" data-filter="ranked">Top 25</button>
+        <button type="button" data-filter="live">Live</button>
       </div>
+      <div id="gameList">
+        <div class="game-list"></div>
+      </div>
+      <section class="headline-strip" id="headlineStrip" hidden>
+        <div class="headline-head">
+          <h2 class="section-title">Top headlines</h2>
+          <button type="button" class="link-btn" id="moreNewsBtn">More news &rsaquo;</button>
+        </div>
+        <div class="headline-list" id="headlineList"></div>
+      </section>
     </div>
 
     <div class="tab-panel" id="tab-notable">
