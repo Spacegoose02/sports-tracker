@@ -87,7 +87,8 @@ const CFB = (function () {
 
   // Sport picker row at the top of <main>, plus sport-aware nav links.
   // Changing sport reloads the current list page for the new sport; on a
-  // team or game page (which belong to one sport) it goes to the home page.
+  // team or game page (which belong to one sport) it goes to that sport's
+  // Scores page.
   function initSportBar() {
     const main = document.querySelector('main');
     if (!main || !sportList || sportList.length < 2) return;
@@ -104,12 +105,12 @@ const CFB = (function () {
       btn.addEventListener('click', () => {
         if (s.key === sportKey) return;
         try { localStorage.setItem(SPORT_STORAGE_KEY, s.key); } catch (e) { /* ignore */ }
-        const listPages = ['/', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html', '/leaders.html', '/lines.html', '/kids.html', '/compare.html'];
-        let page = listPages.includes(location.pathname) ? location.pathname : '/';
-        if (page === '/rankings.html' && !s.rankings) page = '/';
-        if (page === '/standings.html' && s.standings === false) page = '/';
-        if (page === '/leaders.html' && !s.leaders) page = '/';
-        if (page === '/compare.html' && s.teams === false) page = '/';
+        const listPages = ['/scores', '/index.html', '/upcoming.html', '/rankings.html', '/standings.html', '/leaders.html', '/lines.html', '/kids.html', '/compare.html'];
+        let page = listPages.includes(location.pathname) ? location.pathname : '/scores';
+        if (page === '/rankings.html' && !s.rankings) page = '/scores';
+        if (page === '/standings.html' && s.standings === false) page = '/scores';
+        if (page === '/leaders.html' && !s.leaders) page = '/scores';
+        if (page === '/compare.html' && s.teams === false) page = '/scores';
         location.href = `${page}?sport=${encodeURIComponent(s.key)}`;
       });
       bar.appendChild(btn);
@@ -270,7 +271,8 @@ const CFB = (function () {
     const kid = kidMode();
     return {
       primary: [
-        { href: '/', label: 'Scores', icon: '&#127967;', match: ['/', '/index.html'] },
+        { href: '/', label: 'Home', icon: '&#127968;', plain: true },
+        { href: '/scores', label: 'Scores', icon: '&#127967;', match: ['/scores', '/index.html'] },
         s.rankings ? { href: '/rankings.html', label: 'Rankings', icon: '&#128202;' } : null,
         s.standings !== false && s.teams !== false ? { href: '/standings.html', label: 'Standings', icon: '&#128203;' } : null,
         { href: '/brackets.html', label: 'Playoffs', icon: '&#127942;', cls: 'playoffs-link', plain: true },
@@ -309,10 +311,19 @@ const CFB = (function () {
       <div class="nav-more">
         <button type="button" class="nav-more-btn" aria-expanded="false" aria-controls="navMoreMenu">More <span aria-hidden="true">&#9662;</span></button>
         <div class="nav-more-menu" id="navMoreMenu" hidden>
+          ${items.primary.slice(4).map((i) => navLinkHtml({ ...i, cls: `${i.cls || ''} phone-only` }, true)).join('')}
           ${items.more.map((i) => navLinkHtml(i, true)).join('')}
         </div>
       </div>`;
     nav.insertBefore(links, nav.firstChild);
+
+    // The logo and site name go to the home page, like on most sites.
+    const brand = document.querySelector('header.top .brand');
+    if (brand && !brand.closest('a') && location.pathname !== '/') {
+      brand.classList.add('brand-home');
+      brand.title = 'Stat Scraps home';
+      brand.addEventListener('click', () => { location.href = '/'; });
+    }
 
     const menu = links.querySelector('.nav-more-menu');
     const moreBtn = links.querySelector('.nav-more-btn');
@@ -999,11 +1010,11 @@ const CFB = (function () {
   }
 
   // ---- Live ticker ---------------------------------------------------------
-  // A slim strip along the bottom of every page (except the home page and
-  // the TV wall, which show every score already) with the live games of the
+  // A slim strip along the bottom of every page (except the home page, the
+  // Scores page and the TV wall, which show every score already) with the live games of the
   // teams you follow and of ranked teams. Hidden when none are live.
   function initLiveTicker() {
-    const skip = ['/', '/index.html', '/wall.html', '/kids.html', '/admin.html', '/countdown.html'];
+    const skip = ['/', '/scores', '/index.html', '/wall.html', '/kids.html', '/admin.html', '/countdown.html'];
     if (skip.includes(location.pathname) || document.querySelector('.live-ticker')) return;
     if (!document.querySelector('main')) return;
     const bar = document.createElement('aside');

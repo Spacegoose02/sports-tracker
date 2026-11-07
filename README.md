@@ -233,6 +233,19 @@ always pinned at the top.
   `NEWS_FEEDS_JSON` below if you ever need to change which feeds it pulls
   from.
 
+## Home page
+
+`/` is an all-sports front page: your followed teams from every sport
+first (live score, next game or last result), a **Live now** row with the
+closest live games across every league, a card per league that's in season
+with its top games and live / upcoming / final counts, and mixed headlines.
+Leagues with no games this week are listed as off-season. It all comes from
+one call, `GET /api/home?teams=cfb:259,nba:25` (`src/home.js`), and
+refreshes every 30 seconds while anything is live.
+
+Each sport's full scoreboard (Schedule & Scores, Notable Games, News,
+Videos) is now at `/scores?sport=...`; `/index.html` still works too.
+
 ## Other sports
 
 A sport picker at the top of every page switches between **College

@@ -16,6 +16,7 @@
     { "src": "/img/statscraps-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
+    { "name": "Scores", "url": "/scores", "icons": [{ "src": "/img/statscraps-icon-192.png", "sizes": "192x192" }] },
     { "name": "Rankings", "url": "/rankings.html", "icons": [{ "src": "/img/statscraps-icon-192.png", "sizes": "192x192" }] },
     { "name": "Standings", "url": "/standings.html", "icons": [{ "src": "/img/statscraps-icon-192.png", "sizes": "192x192" }] },
     { "name": "Upcoming", "url": "/upcoming.html", "icons": [{ "src": "/img/statscraps-icon-192.png", "sizes": "192x192" }] }

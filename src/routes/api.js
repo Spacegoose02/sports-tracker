@@ -11,6 +11,7 @@ const lines = require('../lines');
 const recruiting = require('../recruiting');
 const race = require('../race');
 const search = require('../search');
+const home = require('../home');
 const overrides = require('../overrides');
 const { buildNotableFeed } = require('../notable');
 const { isSafeId } = require('../security');
@@ -46,6 +47,18 @@ const DATES_RE = /^\d{8}(-\d{8})?$/;
 
 router.get('/sports', (req, res) => {
   res.json({ defaultSport: DEFAULT_SPORT, sports: publicSportList() });
+});
+
+// Everything the all-sports home page shows, in one call (src/home.js).
+// ?teams=cfb:259,nba:25 adds the visitor's followed teams.
+router.get('/home', async (req, res) => {
+  try {
+    const data = await home.buildHome({ teams: home.parseTeams(req.query.teams) });
+    res.set('Cache-Control', 'no-cache');
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load the home page', detail: err.message });
+  }
 });
 
 function favoriteTeamId() {

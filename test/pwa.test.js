@@ -42,7 +42,7 @@ test('service worker precaches only files that exist', () => {
   const sw = fs.readFileSync(path.join(PUBLIC, 'sw.js'), 'utf8');
   const list = sw.match(/const PRECACHE = \[([\s\S]*?)\];/)[1].match(/'([^']+)'/g).map((s) => s.slice(1, -1));
   for (const url of list) {
-    const file = url === '/' ? 'index.html' : url.slice(1);
+    const file = url === '/' ? 'home.html' : url.slice(1);
     assert.ok(fs.existsSync(path.join(PUBLIC, file)), `${url} is precached but missing`);
   }
 });

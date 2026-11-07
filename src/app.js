@@ -84,7 +84,15 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {}, 
   app.use('/espn', createRelayRouter({ env, logger, ...relay }));
 
   const publicDir = path.join(__dirname, '..', 'public');
-  app.use(express.static(publicDir, { setHeaders: staticCacheHeaders }));
+  // The front page is the all-sports hub; each sport's scoreboard lives
+  // at /scores (index.html, which still answers at /index.html too).
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(publicDir, 'home.html'), { headers: { 'Cache-Control': 'no-cache' } });
+  });
+  app.get('/scores', (req, res) => {
+    res.sendFile(path.join(publicDir, 'index.html'), { headers: { 'Cache-Control': 'no-cache' } });
+  });
+  app.use(express.static(publicDir, { setHeaders: staticCacheHeaders, index: false }));
 
   app.get('/admin', (req, res) => {
     res.sendFile(path.join(publicDir, 'admin.html'));
