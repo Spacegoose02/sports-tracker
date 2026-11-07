@@ -96,7 +96,8 @@
       list.innerHTML = '<div class="empty-note">No games match this filter.</div>';
       return;
     }
-    const card = (g) => CFB.gameCardHtml(g, { followedIds: followed, notable: notableIds.has(String(g.id)) });
+    const canPick = !!(CFB.account.user() && CFB.sport().notable);
+    const card = (g) => CFB.gameCardHtml(g, { followedIds: followed, notable: notableIds.has(String(g.id)), notableToggle: canPick });
     list.innerHTML = groups.map((grp) => `
       <section class="game-group group-${grp.key}">
         <h2 class="section-title group-title">${grp.key === 'live' ? '<span class="live-dot"></span>' : ''}${CFB.esc(grp.title)} <span class="group-count">${grp.games.length}</span></h2>
@@ -105,10 +106,24 @@
     CFB.wireGameCardClicks(list);
   }
 
+  // Signed in: the Notable tab shows this account's own picks, and every
+  // card has a star to add or remove it. Signed out: the admin's site-wide
+  // picks, read-only.
   function renderNotable() {
     const grid = el('notableGrid');
+    const signedIn = !!CFB.account.user();
     if (!state.notable.length) {
-      grid.innerHTML = '<div class="empty-note">No notable games picked for this week yet. Add some in the admin section.</div>';
+      if (!signedIn) {
+        grid.innerHTML = '<div class="empty-note">No notable games picked for this week yet. <a href="/account.html">Sign in</a> to pick your own.</div>';
+        return;
+      }
+      grid.innerHTML = `
+        <div class="empty-note">
+          You haven't picked any notable games this week. Tap the &#9734; on any game in Schedule &amp; Scores to add it.
+          ${state.siteNotableCount ? `<div class="notable-actions"><button type="button" id="copySiteNotableBtn">Copy this week's site picks (${state.siteNotableCount})</button></div>` : ''}
+        </div>`;
+      const copyBtn = el('copySiteNotableBtn');
+      if (copyBtn) copyBtn.addEventListener('click', copySiteNotable);
       return;
     }
     // Match each pick against the loaded scoreboard so it renders with the
@@ -118,17 +133,83 @@
     const cards = state.notable.map((row) => {
       const game = state.games.find((g) => String(g.id) === String(row.event_id));
       if (game) {
-        return CFB.gameCardHtml(game, { followedIds: CFB.follows.ids(), notable: true });
+        return CFB.gameCardHtml(game, { followedIds: CFB.follows.ids(), notable: true, notableToggle: signedIn });
       }
       return `
         <div class="game-card" data-id="${CFB.esc(row.event_id)}" data-source="${CFB.esc(row.source)}">
-          <div class="status-row"><span class="notable-ribbon">Notable</span></div>
+          <div class="status-row"><span class="notable-ribbon">Notable</span>${signedIn ? `<button type="button" class="notable-toggle on" data-event-id="${CFB.esc(row.event_id)}" aria-pressed="true" title="Remove from your notable games">&#9733; Notable</button>` : ''}</div>
           <div class="team-row"><span class="team-name">${CFB.esc(row.game_name || 'Game')}</span></div>
           ${row.label ? `<div class="venue">${CFB.esc(row.label)}</div>` : ''}
         </div>`;
     });
     grid.innerHTML = cards.join('');
     CFB.wireGameCardClicks(grid);
+  }
+
+  async function loadNotable(sport) {
+    if (!sport.notable) return { picks: [], siteCount: 0 };
+    const q = `season=${state.season}&week=${state.week}`;
+    if (!CFB.account.user()) {
+      return { picks: await CFB.getJson(`/api/notable?${q}`).catch(() => []), siteCount: 0 };
+    }
+    const picks = await CFB.getJson(`/api/account/notable?${q}`).catch(() => []);
+    // Offer the site's picks when this account has none for the week.
+    const site = picks.length ? [] : await CFB.getJson(`/api/notable?${q}`).catch(() => []);
+    return { picks, siteCount: site.length };
+  }
+
+  async function copySiteNotable(e) {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      await CFB.account.postJson('/api/account/notable/import', { season: state.season, week: state.week });
+      state.notable = await CFB.getJson(`/api/account/notable?season=${state.season}&week=${state.week}`);
+      renderGames();
+      renderNotable();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = err.message || 'Could not copy the site picks';
+    }
+  }
+
+  // Star on a game card: add the game to this account's notable games, or
+  // take it off.
+  async function toggleNotable(btn) {
+    const eventId = btn.dataset.eventId;
+    const picked = state.notable.find((r) => String(r.event_id) === String(eventId));
+    btn.disabled = true;
+    try {
+      if (picked) {
+        await CFB.getJson(`/api/account/notable/${encodeURIComponent(picked.id)}`, { method: 'DELETE' });
+        state.notable = state.notable.filter((r) => r !== picked);
+      } else {
+        const game = state.games.find((g) => String(g.id) === String(eventId));
+        state.notable = await CFB.account.postJson('/api/account/notable', {
+          season: state.season,
+          week: state.week,
+          eventId: String(eventId),
+          source: (game && game.source) || 'espn',
+          gameName: game ? (game.shortName || game.name || null) : null,
+        });
+      }
+      renderGames();
+      renderNotable();
+    } catch (err) {
+      btn.disabled = false;
+      btn.title = err.message || 'Could not save';
+    }
+  }
+
+  function initNotableToggles() {
+    [el('gameList'), el('notableGrid')].forEach((container) => {
+      container.addEventListener('click', (e) => {
+        const btn = e.target.closest && e.target.closest('.notable-toggle');
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toggleNotable(btn);
+      });
+    });
   }
 
   // "My Teams": one card per team this visitor follows in the current
@@ -382,14 +463,13 @@
     try {
       const [scoreboard, notable] = await Promise.all([
         CFB.getJson(scoreboardUrl()),
-        sport.notable
-          ? CFB.getJson(`/api/notable?season=${state.season}&week=${state.week}`).catch(() => [])
-          : Promise.resolve([]),
+        loadNotable(sport),
       ]);
       if (seq !== loadSeq) return; // a newer load (e.g. a week change) won
       state.games = scoreboard.games || [];
       state.events = scoreboard.events || null;
-      state.notable = notable || [];
+      state.notable = notable.picks || [];
+      state.siteNotableCount = notable.siteCount || 0;
       state.favoriteTeamId = scoreboard.favoriteTeamId;
       el('sourceNote').textContent = sport.schedule === 'event'
         ? `${sport.label} · Events`
@@ -617,7 +697,7 @@
   }
 
   // Hide the pieces that only exist for college football: the pinned
-  // "My Team" card, admin-curated Notable Games, and the CFB YouTube feed.
+  // "My Team" card, Notable Games, and the CFB YouTube feed.
   function applySportLayout(sport) {
     document.title = sport.key === 'cfb' ? 'Stat Scraps' : `${sport.label} · Stat Scraps`;
     const isCfb = sport.key === 'cfb';
@@ -650,6 +730,7 @@
     }
     initTabs();
     initGameFilter();
+    initNotableToggles();
     el('moreNewsBtn').addEventListener('click', () => {
       const btn = document.querySelector('.tab-btn[data-tab="news"]');
       btn.click();

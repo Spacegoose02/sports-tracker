@@ -1,0 +1,70 @@
+# "My Teams" custom-api widget for Dynacat / Glance.
+#
+# One row per team you follow on your Stat Scraps account (any sport):
+# logo, record, and the live game if there is one, otherwise the next game
+# and the last result. Reads GET /api/account/teams with your private key.
+# Setup is the same as dynacat-notable-games-widget.yaml: set
+# STAT_SCRAPS_KEY in Dynacat's environment and fix the host below.
+# See docs/dashboards.md for the JSON shape.
+
+- type: custom-api
+  title: My Teams
+  cache: 1m
+  url: "http://YOUR-STAT-SCRAPS-HOST:PORT/api/account/teams"
+  headers:
+    Authorization: "Bearer ${STAT_SCRAPS_KEY}"
+  template: |
+    {{ $teams := .JSON.Array "teams" }}
+    {{ if eq (len $teams) 0 }}
+      <p class="color-subdue">Follow a team on Stat Scraps to see it here.</p>
+    {{ else }}
+    <ul class="list list-gap-10">
+      {{ range $t := $teams }}
+        <li class="sst-row">
+          {{ if ne ($t.String "logo") "" }}<img class="sst-logo" src="{{ $t.String "logo" }}">{{ end }}
+          <div class="sst-body">
+            <div class="sst-name">
+              <a class="color-highlight" href="{{ $t.String "url" }}" target="_blank" rel="noreferrer">
+                {{ if $t.Exists "rank" }}{{ if gt ($t.Int "rank") 0 }}<span class="sst-rank">#{{ $t.Int "rank" }}</span>{{ end }}{{ end }}
+                {{ $t.String "name" }}
+              </a>
+              <span class="sst-record">{{ $t.String "record" }}</span>
+            </div>
+            {{ if $t.Exists "liveGame.id" }}
+              <div class="sst-line">
+                <span class="sst-live">&#9679; LIVE</span>
+                {{ $t.String "liveGame.away.abbreviation" }} {{ $t.String "liveGame.away.score" }}
+                &ndash;
+                {{ $t.String "liveGame.home.score" }} {{ $t.String "liveGame.home.abbreviation" }}
+                <span class="color-subdue">{{ $t.String "liveGame.status.shortDetail" }}</span>
+              </div>
+            {{ else }}
+              {{ if $t.Exists "nextGame.id" }}
+                <div class="sst-line">
+                  Next: {{ $t.String "nextGame.shortName" }}
+                  <span class="color-subdue">{{ $t.String "nextGame.status.shortDetail" }}{{ if ne ($t.String "nextGame.broadcast") "" }} &middot; {{ $t.String "nextGame.broadcast" }}{{ end }}</span>
+                </div>
+              {{ end }}
+              {{ if $t.Exists "lastGame.id" }}
+                <div class="sst-line color-subdue">
+                  Last: {{ $t.String "lastGame.away.abbreviation" }} {{ $t.String "lastGame.away.score" }}
+                  &ndash;
+                  {{ $t.String "lastGame.home.score" }} {{ $t.String "lastGame.home.abbreviation" }}
+                </div>
+              {{ end }}
+            {{ end }}
+          </div>
+        </li>
+      {{ end }}
+    </ul>
+    {{ end }}
+    <style>
+      .sst-row { display: flex; align-items: center; gap: 10px; }
+      .sst-logo { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+      .sst-body { min-width: 0; flex: 1; }
+      .sst-name { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+      .sst-rank { color: var(--glance-accent-color); margin-right: 4px; }
+      .sst-record { color: var(--glance-muted-text); font-weight: 400; flex-shrink: 0; }
+      .sst-line { font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sst-live { color: #dc2626; font-weight: 800; }
+    </style>

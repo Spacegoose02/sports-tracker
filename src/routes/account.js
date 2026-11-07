@@ -1,6 +1,7 @@
 // User accounts: email + password, SSO (Tinyauth or any OpenID provider),
-// followed teams stored on the account, game alerts, the calendar feed and
-// the "my teams" API that Den Duty reads.
+// followed teams and notable games stored on the account, game alerts, the
+// calendar feed, and the keyed read-only APIs that Den Duty, Home Assistant
+// and Glance/Dynacat dashboards read (see docs/dashboards.md).
 //
 //   /api/account/...      JSON API used by the site (session cookie)
 //   /auth/sso/...         SSO redirect flow
@@ -16,6 +17,7 @@ const { buildIcs, loadSchedules, myTeamsSummary } = require('../calendar');
 const { rateLimit, isSafeId, safeHttpUrl } = require('../security');
 const { getSport } = require('../sports');
 const recapLib = require('../recap');
+const { buildNotableFeed } = require('../notable');
 
 const SESSION_DAYS = 30;
 const MIN_PASSWORD = 8;
@@ -44,12 +46,27 @@ function publicUser(user) {
   };
 }
 
-// Signed-in user from the session, or from "Authorization: Bearer <feed
-// key>" so other apps (Den Duty, Home Assistant) can read without a cookie.
-function userFromKeyOrSession(req) {
+// Signed-in user from the session, or from the private feed key so other
+// apps (Den Duty, Home Assistant, Glance/Dynacat dashboards) can read
+// without a cookie. The key goes in "Authorization: Bearer <key>"; read-only
+// routes that pass allowQuery also take ?key=<key> for widgets that can't
+// send headers (the header is better: URLs end up in logs).
+function userFromKeyOrSession(req, { allowQuery = false } = {}) {
   const header = String(req.get('authorization') || '');
-  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
+  let token = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
+  if (!token && allowQuery && typeof req.query.key === 'string') token = req.query.key.trim();
   return token ? db.getUserByFeedToken(token) : currentUser(req);
+}
+
+const KEY_HELP = 'Sign in or send Authorization: Bearer <feed key>';
+
+// Season/week from a query or body; null when missing or out of range.
+function seasonWeek(src) {
+  const season = Number(src && src.season);
+  const week = Number(src && src.week);
+  if (!Number.isInteger(season) || season < 2000 || season > 2100) return null;
+  if (!Number.isInteger(week) || week < 1 || week > 30) return null;
+  return { season, week };
 }
 
 function signIn(req, user) {
@@ -102,6 +119,8 @@ function feedLinks(req, env, user) {
     webcalUrl: ics.replace(/^https?:/, 'webcal:'),
     teamsApiUrl: `${base}/api/account/teams`,
     recapApiUrl: `${base}/api/account/recap`,
+    notableApiUrl: `${base}/api/account/notable/feed`,
+    dashboardApiUrl: `${base}/api/account/dashboard`,
     feedKey: user.feed_token,
   };
 }
@@ -159,11 +178,11 @@ function createAccountRouter({ env = process.env, recapper = null } = {}) {
     res.json({ ok: true });
   });
 
-  // Everything below needs a signed-in user, except /teams, which also
-  // takes the private feed key so another app (Den Duty) can read it.
+  // The read-only routes from here to requireUser also take the private
+  // feed key, so other apps (Den Duty, Home Assistant, dashboards) can read.
   router.get('/teams', async (req, res) => {
-    const user = userFromKeyOrSession(req);
-    if (!user) return res.status(401).json({ error: 'Sign in or send Authorization: Bearer <feed key>' });
+    const user = userFromKeyOrSession(req, { allowQuery: true });
+    if (!user) return res.status(401).json({ error: KEY_HELP });
     try {
       const teams = await myTeamsSummary(db.listFollows(user.id), { baseUrl: baseUrl(req, env) });
       res.set('Cache-Control', 'private, max-age=30');
@@ -176,13 +195,108 @@ function createAccountRouter({ env = process.env, recapper = null } = {}) {
   // Scrappy's latest daily recap and the recap settings. Home Assistant's
   // recap sensor and Den Duty read this with the feed key.
   router.get('/recap', (req, res) => {
-    const user = userFromKeyOrSession(req);
-    if (!user) return res.status(401).json({ error: 'Sign in or send Authorization: Bearer <feed key>' });
+    const user = userFromKeyOrSession(req, { allowQuery: true });
+    if (!user) return res.status(401).json({ error: KEY_HELP });
     res.set('Cache-Control', 'private, no-cache');
     return res.json({ user: { displayName: publicUser(user).displayName }, ...recapLib.recapState(user) });
   });
 
+  // This account's notable games for one week (the rows only). The home
+  // page matches them against the scoreboard it already has.
+  router.get('/notable', (req, res) => {
+    const user = userFromKeyOrSession(req, { allowQuery: true });
+    if (!user) return res.status(401).json({ error: KEY_HELP });
+    const sw = seasonWeek(req.query);
+    if (!sw) return res.status(400).json({ error: 'season and week are required' });
+    res.set('Cache-Control', 'private, no-cache');
+    return res.json(db.listUserNotableGames(user.id, sw.season, sw.week));
+  });
+
+  // This account's notable games with live scores, grouped by week. Same
+  // shape as the public /api/notable/feed; built for dashboard widgets.
+  // ?weeks=3 (max 8), ?season=&startWeek= default to the current week.
+  router.get('/notable/feed', async (req, res) => {
+    const user = userFromKeyOrSession(req, { allowQuery: true });
+    if (!user) return res.status(401).json({ error: KEY_HELP });
+    try {
+      const feed = await buildNotableFeed((season, week) => db.listUserNotableGames(user.id, season, week), req.query);
+      res.set('Cache-Control', 'private, max-age=30');
+      return res.json({ user: { displayName: publicUser(user).displayName }, ...feed });
+    } catch (err) {
+      return res.status(502).json({ error: 'Could not load notable games feed', detail: err.message });
+    }
+  });
+
+  // Everything a personal dashboard shows, in one call: followed teams
+  // (live, next and last game), notable games with live scores, and
+  // Scrappy's latest recap. ?weeks= is passed to the notable feed.
+  router.get('/dashboard', async (req, res) => {
+    const user = userFromKeyOrSession(req, { allowQuery: true });
+    if (!user) return res.status(401).json({ error: KEY_HELP });
+    const [teams, notable] = await Promise.all([
+      myTeamsSummary(db.listFollows(user.id), { baseUrl: baseUrl(req, env) }).catch(() => null),
+      buildNotableFeed((season, week) => db.listUserNotableGames(user.id, season, week), req.query).catch(() => null),
+    ]);
+    const liveTeams = (teams || []).filter((t) => t.liveGame).length;
+    res.set('Cache-Control', 'private, max-age=30');
+    return res.json({
+      user: { displayName: publicUser(user).displayName },
+      generatedAt: new Date().toISOString(),
+      counts: {
+        teams: teams ? teams.length : 0,
+        teamsLive: liveTeams,
+        notable: notable ? notable.counts.games : 0,
+        notableLive: notable ? notable.counts.live : 0,
+      },
+      teams: teams || [],
+      notable,
+      recap: db.getRecap(user.id),
+      errors: [!teams && 'teams', !notable && 'notable'].filter(Boolean),
+    });
+  });
+
   router.use(requireUser);
+
+  router.post('/notable', (req, res) => {
+    const body = req.body || {};
+    const sw = seasonWeek(body);
+    if (!sw || !body.eventId) return res.status(400).json({ error: 'season, week, and eventId are required' });
+    if (!isSafeId(String(body.eventId))) return res.status(400).json({ error: 'Invalid eventId' });
+    if (body.source && !['espn', 'ncaa-api'].includes(body.source)) return res.status(400).json({ error: 'Invalid source' });
+    const rows = db.addUserNotableGame(req.user.id, {
+      ...sw,
+      eventId: String(body.eventId),
+      source: body.source,
+      label: cleanText(body.label, 120),
+      gameName: cleanText(body.gameName, 120),
+    });
+    if (!rows) return res.status(409).json({ error: `You can pick up to ${db.MAX_NOTABLE_PER_WEEK} notable games a week.` });
+    return res.json(rows);
+  });
+
+  router.delete('/notable/:id', (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid id' });
+    db.removeUserNotableGame(req.user.id, id);
+    return res.json({ ok: true });
+  });
+
+  router.post('/notable/reorder', (req, res) => {
+    const body = req.body || {};
+    const sw = seasonWeek(body);
+    if (!sw || !Array.isArray(body.orderedIds)) return res.status(400).json({ error: 'season, week, and orderedIds[] are required' });
+    return res.json(db.reorderUserNotableGames(req.user.id, sw.season, sw.week, body.orderedIds.slice(0, 100).map(Number)));
+  });
+
+  // Copies the admin's site-wide picks into this account: one week when
+  // season and week are given, otherwise every week. Existing picks stay.
+  router.post('/notable/import', (req, res) => {
+    const body = req.body || {};
+    const sw = body.season || body.week ? seasonWeek(body) : {};
+    if (!sw) return res.status(400).json({ error: 'Invalid season or week' });
+    return res.json({ added: db.copySiteNotableToUser(req.user.id, sw) });
+  });
+
 
   router.patch('/me', (req, res) => {
     const { displayName, alertStart, alertEnd, recapEnabled, recapTime, recapTimeZone } = req.body || {};

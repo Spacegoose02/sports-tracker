@@ -715,7 +715,9 @@ const CFB = (function () {
         <div class="status-row">
           <span class="${isLive ? 'live-dot' : ''}">${esc(statusLabel(game))}</span>
           <span style="display:flex;align-items:center;gap:6px;">
-            ${opts.notable ? '<span class="notable-ribbon">Notable</span>' : ''}
+            ${opts.notableToggle
+    ? `<button type="button" class="notable-toggle ${opts.notable ? 'on' : ''}" data-event-id="${esc(game.id)}" aria-pressed="${opts.notable ? 'true' : 'false'}" title="${opts.notable ? 'Remove from your notable games' : 'Add to your notable games'}">${opts.notable ? '&#9733; Notable' : '&#9734;'}</button>`
+    : opts.notable ? '<span class="notable-ribbon">Notable</span>' : ''}
             ${game.broadcast ? `<span class="card-tv" title="TV channel">&#128250; ${esc(game.broadcast)}</span>` : ''}
           </span>
         </div>
@@ -774,7 +776,9 @@ const CFB = (function () {
   function wireGameCardClicks(container) {
     container.querySelectorAll('.game-card').forEach((card) => {
       card.style.cursor = 'pointer';
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
+        // The notable star has its own handler (app.js).
+        if (e.target.closest && e.target.closest('.notable-toggle')) return;
         location.href = gameLink(card.dataset.id, card.dataset.source);
       });
     });

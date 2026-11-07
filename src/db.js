@@ -1,5 +1,5 @@
-// SQLite persistence for what has to survive a restart: the admin-curated
-// "Notable Games" picks, user accounts with their followed teams and push
+// SQLite persistence for what has to survive a restart: "Notable Games"
+// picks (each account's own, plus the admin's site-wide defaults), user accounts with their followed teams and push
 // subscriptions, and which game alerts were already sent. Schedules and
 // scores are fetched live and cached in memory, so they never touch disk.
 
@@ -27,6 +27,23 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(season, week, event_id)
   );
+
+  -- Each account's own notable games. notable_games above holds the
+  -- admin's site-wide picks, which visitors who aren't signed in see.
+  CREATE TABLE IF NOT EXISTS user_notable_games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    season INTEGER NOT NULL,
+    week INTEGER NOT NULL,
+    event_id TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'espn',
+    label TEXT,
+    game_name TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, season, week, event_id)
+  );
+  CREATE INDEX IF NOT EXISTS user_notable_week ON user_notable_games (user_id, season, week);
 
   -- A user signs in with email + password, with SSO (oidc_sub), or both.
   -- feed_token is the private key in their calendar link and the Den Duty
@@ -154,6 +171,80 @@ function reorderNotableGames(season, week, orderedIds) {
   });
   tx(orderedIds);
   return listNotableGames(season, week);
+}
+
+// ---- Each account's notable games ----------------------------------------
+
+const MAX_NOTABLE_PER_WEEK = 40;
+
+function listUserNotableGames(userId, season, week) {
+  return db
+    .prepare('SELECT * FROM user_notable_games WHERE user_id = ? AND season = ? AND week = ? ORDER BY sort_order ASC, id ASC')
+    .all(userId, season, week);
+}
+
+// Returns the week's list, or null when the week is already full.
+function addUserNotableGame(userId, { season, week, eventId, source, label, gameName, sortOrder }) {
+  const existing = db.prepare('SELECT id FROM user_notable_games WHERE user_id = ? AND season = ? AND week = ? AND event_id = ?')
+    .get(userId, season, week, eventId);
+  if (!existing) {
+    const count = db.prepare('SELECT COUNT(*) AS n FROM user_notable_games WHERE user_id = ? AND season = ? AND week = ?')
+      .get(userId, season, week).n;
+    if (count >= MAX_NOTABLE_PER_WEEK) return null;
+  }
+  const nextOrder = db.prepare('SELECT COALESCE(MAX(sort_order) + 1, 0) AS n FROM user_notable_games WHERE user_id = ? AND season = ? AND week = ?')
+    .get(userId, season, week).n;
+  db.prepare(`
+    INSERT INTO user_notable_games (user_id, season, week, event_id, source, label, game_name, sort_order)
+    VALUES (@userId, @season, @week, @eventId, @source, @label, @gameName, @sortOrder)
+    ON CONFLICT(user_id, season, week, event_id) DO UPDATE SET
+      label = excluded.label,
+      game_name = COALESCE(excluded.game_name, user_notable_games.game_name)
+  `).run({
+    userId,
+    season,
+    week,
+    eventId,
+    source: source || 'espn',
+    label: label || null,
+    gameName: gameName || null,
+    sortOrder: Number.isInteger(sortOrder) ? sortOrder : nextOrder,
+  });
+  return listUserNotableGames(userId, season, week);
+}
+
+function removeUserNotableGame(userId, id) {
+  return db.prepare('DELETE FROM user_notable_games WHERE id = ? AND user_id = ?').run(id, userId).changes > 0;
+}
+
+function reorderUserNotableGames(userId, season, week, orderedIds) {
+  const update = db.prepare('UPDATE user_notable_games SET sort_order = ? WHERE id = ? AND user_id = ? AND season = ? AND week = ?');
+  db.transaction((ids) => {
+    ids.forEach((id, idx) => update.run(idx, id, userId, season, week));
+  })(orderedIds);
+  return listUserNotableGames(userId, season, week);
+}
+
+// Copies the admin's site-wide picks into an account (all weeks, or one
+// season/week), keeping any picks the account already has. Returns how
+// many were added.
+function copySiteNotableToUser(userId, { season, week } = {}) {
+  const where = [];
+  const args = [];
+  if (season) { where.push('season = ?'); args.push(season); }
+  if (week) { where.push('week = ?'); args.push(week); }
+  const rows = db.prepare(`SELECT * FROM notable_games ${where.length ? `WHERE ${where.join(' AND ')}` : ''}`).all(...args);
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO user_notable_games (user_id, season, week, event_id, source, label, game_name, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  let added = 0;
+  db.transaction(() => {
+    rows.forEach((r) => {
+      added += insert.run(userId, r.season, r.week, r.event_id, r.source, r.label, r.game_name, r.sort_order).changes;
+    });
+  })();
+  return added;
 }
 
 // ---- Users ---------------------------------------------------------------
@@ -452,6 +543,12 @@ module.exports = {
   alertSent,
   markAlertSent,
   listNotableGames,
+  listUserNotableGames,
+  addUserNotableGame,
+  removeUserNotableGame,
+  reorderUserNotableGames,
+  copySiteNotableToUser,
+  MAX_NOTABLE_PER_WEEK,
   addNotableGame,
   removeNotableGame,
   reorderNotableGames,

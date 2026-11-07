@@ -513,15 +513,20 @@ Scrappy is the site's raccoon mascot and sports guru, living in a chat bubble in
 
 The server side is `src/scrappy.js` (the prompt and tools) and `src/routes/scrappy.js`; the bubble is `public/js/scrappy.js` and `public/css/scrappy.css`.
 
-## Pulling Notable Games into a Dynacat / Glance dashboard
+## Dashboards (Dynacat / Glance)
 
-If you run a [Glance](https://github.com/glanceapp/glance)-based dashboard
-(what you're calling Dynacat), `dynacat-notable-games-widget.yaml` in this
-repo is a ready-to-paste `custom-api` widget that replaces a hand-maintained
-per-week matchup list with one call to cfb-tracker's `/api/notable/feed`.
-Picking notable games then happens in `/admin` here instead of editing your
-dashboard's YAML every week. Open that file for the full widget block and
-setup notes — you just need to point it at this container's host:port.
+Every signed-in account has a private, read-only feed key (Account page,
+"Connect other apps"). Send it as `Authorization: Bearer <key>` and these
+return JSON a Glance/Dynacat `custom-api` widget can render:
+
+- `/api/account/dashboard`: teams, notable games and Scrappy's recap in one call
+- `/api/account/notable/feed?weeks=3`: your notable games with live scores
+- `/api/account/teams`: your followed teams with live, next and last game
+- `/api/account/recap`: Scrappy's latest daily recap
+
+Ready-to-paste widgets: `dynacat-notable-games-widget.yaml` and
+`dynacat-my-teams-widget.yaml`. Full field list and setup:
+[docs/dashboards.md](docs/dashboards.md).
 
 ## Home Assistant scorecards
 
@@ -727,11 +732,13 @@ and search for the team, or check the URL on ESPN's team page
 
 - **Home page (`/`)** — pick a season/week/season-type, see the full
   scoreboard with your favorite team pinned first, a "Notable Games"
-  section pulled from the admin picks for that week, and click any game
-  card for live box score / leaders / latest drive.
+  section, and click any game card for live box score / leaders / latest
+  drive. Signed in, Notable Games is your own list: tap the star on any
+  game card to add or remove it. Signed out, it shows the admin's picks.
 - **Admin page (`/admin`)** — log in with `ADMIN_PASSWORD`, pick a week,
-  and toggle which games are "notable." Notes/labels are optional (e.g.
-  "ACC opener", "Top 10 matchup").
+  and toggle which games are the site's default "notable" picks (what
+  signed-out visitors see; users can copy them into their account).
+  Notes/labels are optional (e.g. "ACC opener", "Top 10 matchup").
 - **Radio and TV (`/admin`)** — fix the TV channel or radio stations when
   ESPN is wrong or missing. Save a change for one game (TV channels,
   national radio, an extra watch link, a note) or for a team in any sport

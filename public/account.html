@@ -130,13 +130,28 @@
 
     <section class="account-section">
       <h2 class="section-title">Connect other apps</h2>
-      <p class="account-note">Apps like Den Duty and Home Assistant can show your teams and Scrappy's recap. Give them this key; it only allows reading your teams, their games and your recap.</p>
+      <p class="account-note">Apps like Den Duty, Home Assistant and your Glance/Dynacat dashboard can show your teams, notable games and Scrappy's recap. Give them this key; it only allows reading, never changing anything.</p>
       <input type="text" class="copy-field" id="feedKey" readonly aria-label="Private key" />
       <div class="link-row">
         <button type="button" class="secondary-btn" id="copyKeyBtn">Copy key</button>
         <button type="button" class="secondary-btn danger" id="resetKeyBtn">Make a new key</button>
       </div>
       <p class="account-note">A new key also changes your calendar link, so you'd need to subscribe again.</p>
+    </section>
+
+    <section class="account-section">
+      <h2 class="section-title">Dashboards (Glance, Dynacat)</h2>
+      <p class="account-note">Point a <code>custom-api</code> widget at one of these links and send your key as <code>Authorization: Bearer &lt;key&gt;</code>. They return JSON with live scores, so the widget updates on its own. Ready-made widget YAML is in the repo under <code>docs/dashboards.md</code>.</p>
+      <dl class="api-list">
+        <dt>Everything in one call</dt>
+        <dd><input type="text" class="copy-field" id="dashboardApiUrl" readonly aria-label="Dashboard API link" /></dd>
+        <dt>Your notable games</dt>
+        <dd><input type="text" class="copy-field" id="notableApiUrl" readonly aria-label="Notable games API link" /></dd>
+        <dt>Your teams</dt>
+        <dd><input type="text" class="copy-field" id="teamsApiUrl" readonly aria-label="Teams API link" /></dd>
+        <dt>Scrappy's recap</dt>
+        <dd><input type="text" class="copy-field" id="recapApiUrl" readonly aria-label="Recap API link" /></dd>
+      </dl>
     </section>
   </div>
 </main>
