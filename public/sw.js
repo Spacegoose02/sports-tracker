@@ -12,7 +12,7 @@
  *
  * Bump VERSION to throw away every old cache on the next visit.
  */
-const VERSION = 'v10';
+const VERSION = 'v11';
 const STATIC_CACHE = `cfb-static-${VERSION}`;
 const PAGE_CACHE = `cfb-pages-${VERSION}`;
 const API_CACHE = `cfb-api-${VERSION}`;
@@ -24,6 +24,8 @@ const PRECACHE = [
   '/css/styles.css',
   '/js/shared.js',
   '/js/app.js',
+  '/js/home.js',
+  '/css/home.css',
   '/js/kids-core.js',
   '/js/kids.js',
   '/css/kids.css',

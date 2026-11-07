@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Stat Scraps</title>
+<meta name="description" content="Scores, stats, schedules and news for college football, the NFL, NBA, college basketball, MLB, NHL, UFC and NASCAR." />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/statscraps-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/statscraps-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/scrappy.css" />
+<script src="/js/scrappy.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/brand.css" />
+<link rel="stylesheet" href="/css/kids.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/a11y.css" />
+<link rel="stylesheet" href="/css/home.css" />
+<script src="/js/theme-boot.js"></script>
+<script src="/js/i18n.js"></script>
+<script src="/js/i18n-es.js"></script>
+<script src="/js/a11y.js" defer></script>
+<script src="/js/theme-picker.js" defer></script>
+</head>
+<body class="home-page">
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/scrappy-head.png" alt="Stat Scraps" />
+    </div>
+    <div>
+      <h1>Stat Scraps</h1>
+      <div class="subtitle" id="sourceNote">Every sport, today</div>
+    </div>
+  </div>
+  <nav class="top-nav"></nav>
+</header>
+
+<main>
+  <section class="home-hero">
+    <div>
+      <h2 class="home-date" id="homeDate">Today</h2>
+      <p class="home-summary" id="homeSummary" aria-live="polite">Loading what's on&hellip;</p>
+    </div>
+    <nav class="league-jump" id="leagueJump" aria-label="Go to a sport"></nav>
+  </section>
+
+  <section class="home-section" id="myTeamsSection">
+    <div class="home-section-head">
+      <h2 class="section-title">My teams</h2>
+      <a class="home-more" href="/account.html">Manage &rsaquo;</a>
+    </div>
+    <div class="home-teams" id="homeTeams"></div>
+  </section>
+
+  <section class="home-section" id="liveSection" hidden>
+    <div class="home-section-head">
+      <h2 class="section-title"><span class="live-dot"></span>Live now</h2>
+      <span class="home-note" id="liveNote"></span>
+    </div>
+    <div class="home-live" id="homeLive"></div>
+  </section>
+
+  <section class="home-section">
+    <div class="home-section-head">
+      <h2 class="section-title">Around the leagues</h2>
+    </div>
+    <div class="home-leagues" id="homeLeagues">
+      <div class="empty-note">Loading&hellip;</div>
+    </div>
+    <div class="home-offseason" id="homeOffseason" hidden></div>
+  </section>
+
+  <section class="home-section" id="headlinesSection" hidden>
+    <div class="home-section-head">
+      <h2 class="section-title">Top headlines</h2>
+    </div>
+    <div class="headline-list home-headlines" id="homeHeadlines"></div>
+  </section>
+</main>
+
+<footer class="foot">Stat Scraps</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/kids-core.js"></script>
+<script src="/js/kids.js"></script>
+<script src="/js/home.js"></script>
+</body>
+</html>

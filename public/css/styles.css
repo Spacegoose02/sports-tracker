@@ -1347,6 +1347,11 @@ nav.top-nav .nav-more-menu a[aria-current="page"] { color: var(--accent); font-w
 
 /* Phones: a bottom tab bar replaces the top links. */
 .bottom-tabs { display: none; }
+header.top .brand.brand-home { cursor: pointer; }
+
+/* Main links that don't fit the phone tab bar are listed in More there
+   (on phones the menu opens as a sheet on <body>, outside the nav). */
+nav.top-nav .nav-more-menu a.nav-menu-link.phone-only { display: none; }
 @media (max-width: 720px) {
   nav.top-nav a.nav-main-link, nav.top-nav .nav-more-btn { display: none; }
   .bottom-tabs {
