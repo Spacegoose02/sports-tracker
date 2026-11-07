@@ -359,6 +359,39 @@ h2.section-title {
 .team-row .wl-badge.win { background: var(--win-soft); color: var(--win); }
 .team-row .wl-badge.loss { background: var(--loss-soft); color: var(--loss); }
 
+.notable-toggle {
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 7px;
+  white-space: nowrap;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.notable-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.notable-toggle.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.notable-toggle:disabled { opacity: 0.5; cursor: wait; }
+.notable-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; justify-content: center; }
+.notable-actions button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  cursor: pointer;
+}
+.notable-actions button:hover { border-color: var(--accent); color: var(--accent); }
 .notable-ribbon {
   display: inline-block;
   font-size: 0.65rem;
@@ -1783,3 +1816,6 @@ body.search-open { overflow: hidden; }
   .search-overlay { padding: 8px; }
   .search-panel { max-height: calc(100vh - 16px); }
 }
+
+/* Admin: short explainer under a section title. */
+.admin-note { color: var(--text-dim); font-size: 0.85rem; line-height: 1.45; margin: -4px 0 12px; }

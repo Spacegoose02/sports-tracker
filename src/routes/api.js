@@ -12,6 +12,7 @@ const recruiting = require('../recruiting');
 const race = require('../race');
 const search = require('../search');
 const overrides = require('../overrides');
+const { buildNotableFeed } = require('../notable');
 const { isSafeId } = require('../security');
 const { getSport, DEFAULT_SPORT, publicSportList } = require('../sports');
 
@@ -251,58 +252,18 @@ router.get('/notable', (req, res) => {
   res.json(db.listNotableGames(season, week));
 });
 
-// Notable games, fully enriched with live scoreboard data (scores, status,
-// broadcast, venue, logos — the same shape /api/scoreboard's games use) and
-// grouped by week, in one response. Built for external dashboard widgets
-// (e.g. a Glance/Dynacat "custom-api" widget) so they don't have to
-// hand-maintain a list of matchups per week or make N follow-up requests —
-// picking notable games stays in this app's /admin UI, and this endpoint
-// is the single URL a dashboard widget points at.
+// The admin's site-wide notable games, enriched with live scoreboard data
+// and grouped by week (src/notable.js). Signed-in users have their own
+// picks at /api/account/notable/feed, which is the one a personal
+// dashboard should use.
 //
-// Query params: season (required), startWeek (defaults to the current
-// week from /api/meta), weeks (how many consecutive weeks to include,
-// default 1, max 8), seasontype (default 2).
+// Query params: season, startWeek (both default to the current week),
+// weeks (how many consecutive weeks, default 1, max 8), seasontype
+// (default 2).
 router.get('/notable/feed', async (req, res) => {
   try {
-    const seasontype = req.query.seasontype ? Number(req.query.seasontype) : 2;
-    let season = req.query.season ? Number(req.query.season) : undefined;
-    let startWeek = req.query.startWeek ? Number(req.query.startWeek) : undefined;
-
-    if (!season || !startWeek) {
-      const current = await ds.getScoreboard({ seasontype });
-      season = season || current.season;
-      startWeek = startWeek || current.week;
-    }
-
-    const weekCount = Math.min(Math.max(Number(req.query.weeks) || 1, 1), 8);
-
-    const weeks = await Promise.all(
-      Array.from({ length: weekCount }, (_, i) => startWeek + i).map(async (week) => {
-        const picks = db.listNotableGames(season, week);
-        if (!picks.length) return { week, games: [] };
-        let scoreboard;
-        try {
-          scoreboard = await ds.getScoreboard({ year: season, week, seasontype });
-        } catch (err) {
-          return { week, games: [], error: 'Could not load scores for this week' };
-        }
-        const games = picks
-          .map((pick) => {
-            const game = scoreboard.games.find((g) => String(g.id) === String(pick.event_id));
-            if (!game) return null;
-            return { ...game, label: pick.label || null };
-          })
-          .filter(Boolean);
-        return { week, games: overrides.applyToGames(games, DEFAULT_SPORT) };
-      })
-    );
-
-    res.json({
-      season,
-      favoriteTeamId: favoriteTeamId(),
-      favoriteTeamName: favoriteTeamName(),
-      weeks,
-    });
+    const feed = await buildNotableFeed((season, week) => db.listNotableGames(season, week), req.query);
+    res.json({ ...feed, favoriteTeamId: favoriteTeamId(), favoriteTeamName: favoriteTeamName() });
   } catch (err) {
     res.status(502).json({ error: 'Could not load notable games feed', detail: err.message });
   }

@@ -188,6 +188,9 @@
     el('webcalLink').href = feed.webcalUrl;
     el('calendarUrl').value = feed.calendarUrl;
     el('feedKey').value = feed.feedKey;
+    ['dashboardApiUrl', 'notableApiUrl', 'teamsApiUrl', 'recapApiUrl'].forEach((id) => {
+      if (el(id)) el(id).value = feed[id] || '';
+    });
   }
 
   async function copy(text, button) {

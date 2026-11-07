@@ -56,3 +56,6 @@
 .recap-headline { font-weight: 700; margin-bottom: 6px; }
 .recap-text { white-space: pre-line; line-height: 1.5; font-size: 0.92rem; }
 .recap-meta { color: var(--text-dim); font-size: 0.75rem; margin-top: 8px; }
+.api-list { margin: 10px 0 0; }
+.api-list dt { font-size: 0.82rem; font-weight: 700; margin-top: 10px; }
+.api-list dd { margin: 4px 0 0; }
