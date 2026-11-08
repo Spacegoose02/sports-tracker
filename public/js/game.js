@@ -454,7 +454,7 @@
       if (detail.status && detail.status.state === 'post') loadHighlights();
       // Advanced box score (college football): once mid-game, again at the end.
       const advState = detail.status && detail.status.state;
-      if (window.CFBAdvanced && advState !== 'pre' && ui.advancedFor !== advState) {
+      if (typeof CFBAdvanced !== 'undefined' && advState !== 'pre' && ui.advancedFor !== advState) {
         ui.advancedFor = advState;
         CFBAdvanced.loadGame(el('gameAdvanced'), gameId);
       }

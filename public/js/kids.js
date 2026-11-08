@@ -510,6 +510,9 @@ const Kids = (function () {
     div.className = 'kids-toast';
     div.setAttribute('role', 'status');
     div.textContent = text;
+    // Stack on top of any toast still showing.
+    const showing = document.querySelectorAll('.kids-toast').length;
+    if (showing) div.style.bottom = `${20 + showing * 58}px`;
     document.body.appendChild(div);
     setTimeout(() => div.remove(), 5000);
   }

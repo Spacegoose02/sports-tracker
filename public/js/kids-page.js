@@ -421,7 +421,7 @@
           <strong>${esc(o.name)}</strong>
           <span class="gd-note">${unlocked.has(o.key) ? esc(o.desc) : `Level ${o.level}`}</span>
         </button>`).join('')}</div>
-      ${recent.length ? `<h2 class="section-title">Latest XP</h2><ol class="leaderboard">${recent.map((l) => `<li><span>${esc(l.reason)}</span><strong>+${esc(l.points)}</strong></li>`).join('')}</ol>` : ''}
+      ${recent.length ? `<h2 class="section-title">Latest XP</h2><ol class="leaderboard">${recent.map((l) => `<li><span class="lb-place">&#11088;</span><span class="lb-name">${esc(l.reason)}</span><span class="lb-score">+${esc(l.points)} XP</span></li>`).join('')}</ol>` : ''}
       <div id="leagueXp"></div>`;
     box.querySelectorAll('[data-outfit]').forEach((b) => b.addEventListener('click', () => {
       Kids.xp.setOutfit(b.dataset.outfit);

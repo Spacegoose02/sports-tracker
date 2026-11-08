@@ -273,7 +273,7 @@
       const rows = (res && res.rows) || [];
       box.innerHTML = rows.length ? `
         <h3>🏅 League XP this game</h3>
-        <ol class="leaderboard">${rows.map((r) => `<li><span>${esc(r.emoji || '⭐')} ${esc(r.name)} <span class="gd-note">(${esc(r.member)}, level ${esc(r.level)})</span></span><strong>${esc(r.game)} XP</strong></li>`).join('')}</ol>` : '';
+        <ol class="leaderboard league-board">${rows.map((r, i) => `<li><span class="lb-place">${i === 0 && r.game ? '&#128081;' : i + 1}</span><span class="lb-name">${esc(r.emoji || '⭐')} ${esc(r.name)} <span class="lb-member">${esc(r.member)} &middot; level ${esc(r.level)}</span></span><span class="lb-score">${esc(r.game)} XP</span></li>`).join('')}</ol>` : '';
     } catch (e) { /* keep the last board */ }
   }
 

@@ -10,7 +10,7 @@
 
   function moveHtml(r) {
     if (r.isNew) return '<span class="award-move new" title="New this week">NEW</span>';
-    if (!r.lastWeek) return '';
+    if (!r.lastWeek) return '<span class="award-move"></span>';
     const d = r.lastWeek - r.rank;
     if (!d) return '<span class="award-move same" title="Same as last week">&ndash;</span>';
     return `<span class="award-move ${d > 0 ? 'up' : 'down'}" title="Last week: ${r.lastWeek}">${d > 0 ? '&#9650;' : '&#9660;'}${Math.abs(d)}</span>`;

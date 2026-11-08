@@ -1020,7 +1020,7 @@ const CFB = (function () {
   // Scores page and the TV wall, which show every score already) with the live games of the
   // teams you follow and of ranked teams. Hidden when none are live.
   function initLiveTicker() {
-    const skip = ['/', '/scores', '/index.html', '/wall.html', '/kids.html', '/admin.html', '/countdown.html'];
+    const skip = ['/', '/scores', '/index.html', '/wall.html', '/multiview.html', '/kids.html', '/admin.html', '/countdown.html'];
     if (skip.includes(location.pathname) || document.querySelector('.live-ticker')) return;
     if (!document.querySelector('main')) return;
     const bar = document.createElement('aside');
