@@ -1824,3 +1824,7 @@ body.search-open { overflow: hidden; }
 
 /* Admin: short explainer under a section title. */
 .admin-note { color: var(--text-dim); font-size: 0.85rem; line-height: 1.45; margin: -4px 0 12px; }
+
+/* Golf leaderboard scores on event cards. */
+.golf-score { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
+.golf-score.under { color: var(--win); }

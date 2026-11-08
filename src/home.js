@@ -30,8 +30,8 @@ const MAX_TEAMS = 12;
 
 // Regulation periods and what counts as a close margin, by sport. Mirrors
 // gameDrama in public/js/shared.js, which tags cards on the Scores page.
-const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, mcbb: 2, nhl: 3, mlb: 9 };
-const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, mcbb: 6, nhl: 1, mlb: 2 };
+const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, wnba: 4, mcbb: 2, nhl: 3, mlb: 9, epl: 2, mls: 2, ucl: 2 };
+const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, wnba: 6, mcbb: 6, nhl: 1, mlb: 2, epl: 1, mls: 1, ucl: 1 };
 
 function rankOf(team) {
   const r = team && Number(team.curatedRank);

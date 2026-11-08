@@ -11,10 +11,11 @@
   // Which kind of game a sport key is, for words and point values.
   const FAMILY = {
     cfb: 'football', nfl: 'football',
-    nba: 'basketball', mcbb: 'basketball',
+    nba: 'basketball', mcbb: 'basketball', wnba: 'basketball',
     mlb: 'baseball',
     nhl: 'hockey',
-    ufc: 'fighting', nascar: 'racing',
+    epl: 'soccer', mls: 'soccer', ucl: 'soccer',
+    ufc: 'fighting', nascar: 'racing', f1: 'racing', golf: 'golf',
   };
   function family(sportKey) {
     return FAMILY[sportKey] || 'other';
@@ -67,6 +68,19 @@
       [/faceoff/i, 'Faceoff! The referee drops the puck between two players to start play.'],
       [/hit\b|hits/i, 'A big hit! Bumping into players is allowed in hockey.'],
     ],
+    soccer: [
+      [/own goal/i, 'Own goal! A player accidentally knocked the ball into their own net, so the other team gets the point.'],
+      [/penalty/i, /goal|scores|converted/i, 'Penalty kick goal! After a foul in the box, a player got a free shot with only the goalie to beat.'],
+      [/saved|save/i, 'Save! The goalkeeper stopped the shot.'],
+      [/goal!|scores|goal\b/i, 'GOAL! The ball went into the net. Every goal is worth 1.'],
+      [/red card/i, 'Red card! A player broke a big rule and has to leave the game, so their team plays with one fewer player.'],
+      [/yellow card/i, 'Yellow card! The referee warned a player. Two yellows means they have to leave the game.'],
+      [/corner/i, 'Corner kick! The ball went out past the goal line, so the attacking team kicks it in from the corner.'],
+      [/offside/i, 'Offside! An attacker was sneaking behind the defenders too early, which is against the rules.'],
+      [/foul/i, 'Foul! A player tripped or pushed someone, so the other team gets a free kick.'],
+      [/substitution/i, 'Substitution! A tired player comes off and a fresh one comes on.'],
+      [/attempt|shot/i, 'A shot! A player tried to score.'],
+    ],
     baseball: [
       [/homer|home run/i, "Home run! The batter hit the ball out of the park and gets to run all the way around the bases. Everyone on base scores too!"],
       [/struck out|strikes out|strikeout/i, 'Strikeout! The batter got three strikes, so they are out.'],
@@ -108,7 +122,7 @@
       if (points === 2) return 'TWO POINTS!';
       return 'SCORE!';
     }
-    if (fam === 'hockey') return points > 1 ? `${points} GOALS!` : 'GOAL!';
+    if (fam === 'hockey' || fam === 'soccer') return points > 1 ? `${points} GOALS!` : 'GOAL!';
     if (fam === 'baseball') return points > 1 ? `${points} RUNS SCORE!` : 'RUN SCORES!';
     if (fam === 'basketball') return points === 3 ? 'THREE!' : 'BUCKET!';
     return 'SCORE!';
@@ -361,6 +375,14 @@
       { q: 'Where does a player go after a penalty?', answer: 'Penalty box', wrong: ['Dugout', 'End zone', 'Locker room'] },
       { q: 'How many points is a goal?', answer: '1', wrong: ['2', '3', '6'] },
       { q: 'What do you call three goals by one player in a game?', answer: 'Hat trick', wrong: ['Triple play', 'Grand slam', 'Three-peat'] },
+    ],
+    soccer: [
+      { q: 'How many players does each soccer team have on the field?', answer: '11', wrong: ['9', '5', '15'] },
+      { q: 'Who is the only player allowed to use their hands?', answer: 'Goalkeeper', wrong: ['Striker', 'Captain', 'Referee'] },
+      { q: 'How long is each half of a pro soccer game?', answer: '45 minutes', wrong: ['30 minutes', '20 minutes', '60 minutes'] },
+      { q: 'What card means a player has to leave the game?', answer: 'Red card', wrong: ['Yellow card', 'Green card', 'Blue card'] },
+      { q: 'What do you call it when a game ends with the same score?', answer: 'A draw', wrong: ['A shutout', 'A walk', 'A safety'] },
+      { q: 'How many points does a team get in the standings for a win?', answer: '3', wrong: ['2', '1', '4'] },
     ],
     baseball: [
       { q: 'How many strikes make an out?', answer: '3', wrong: ['2', '4', '5'] },

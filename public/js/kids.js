@@ -365,7 +365,7 @@ const Kids = (function () {
     const ctx = audio();
     if (!ctx || ctx.state === 'suspended') return;
     if (event.kind === 'win') playWin(ctx);
-    else if (KidsCore.family(sportKey) === 'hockey') playHorn(ctx);
+    else if (['hockey', 'soccer'].includes(KidsCore.family(sportKey))) playHorn(ctx);
     else playCharge(ctx);
   }
 

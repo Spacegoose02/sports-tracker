@@ -30,8 +30,12 @@ const LEAGUE_SLUGS = {
   'mens-college-basketball': 'mcbb',
   mlb: 'mlb',
   nhl: 'nhl',
+  wnba: 'wnba',
+  'eng.1': 'epl',
+  'usa.1': 'mls',
+  'uefa.champions': 'ucl',
 };
-const LEAGUE_IDS = { 23: 'cfb', 28: 'nfl', 46: 'nba', 41: 'mcbb', 10: 'mlb', 90: 'nhl' };
+const LEAGUE_IDS = { 23: 'cfb', 28: 'nfl', 46: 'nba', 41: 'mcbb', 10: 'mlb', 90: 'nhl', 59: 'wnba', 700: 'epl', 770: 'mls', 775: 'ucl' };
 
 function normalize(s) {
   return String(s || '')

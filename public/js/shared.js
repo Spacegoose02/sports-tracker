@@ -763,9 +763,9 @@ const CFB = (function () {
     } else if (event.race) {
       body = event.race.length
         ? `<ol class="race-order">${event.race.map((d) => `
-            <li class="${d.winner ? 'winner' : ''}"><span class="race-place">${esc(d.place || '')}</span>${d.number ? `<span class="car-number">#${esc(d.number)}</span>` : ''}<span>${esc(d.name)}</span></li>`).join('')}
+            <li class="${d.winner ? 'winner' : ''}"><span class="race-place">${esc(d.position || d.place || '')}</span>${d.number ? `<span class="car-number">#${esc(d.number)}</span>` : ''}<span>${esc(d.name)}</span>${d.score ? `<span class="golf-score ${String(d.score).startsWith('-') ? 'under' : ''}">${esc(d.score)}</span>` : ''}</li>`).join('')}
           </ol>${event.fieldSize > event.race.length ? `<div class="bout-meta">Top ${event.race.length} of ${esc(event.fieldSize)}</div>` : ''}`
-        : '<div class="bout-meta">Running order appears once the race starts.</div>';
+        : (event.kind === 'golf' ? '<div class="bout-meta">The leaderboard appears once play starts.</div>' : '<div class="bout-meta">Running order appears once the race starts.</div>');
     }
     return `
       <div class="game-card event-card ${isLive ? 'is-live' : ''}">
@@ -901,8 +901,8 @@ const CFB = (function () {
   // How gripping a live game is right now, 0 to ~130: close score, late in
   // the game, a ranked team in trouble. Drives the "Live now" sort order on
   // the home page and the Upset alert / Nail-biter tags on game cards.
-  const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, wnba: 4, cbb: 2, wcbb: 4, nhl: 3, mlb: 9 };
-  const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, wnba: 6, cbb: 6, wcbb: 6, nhl: 1, mlb: 2 };
+  const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, wnba: 4, mcbb: 2, cbb: 2, wcbb: 4, nhl: 3, mlb: 9, epl: 2, mls: 2, ucl: 2 };
+  const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, wnba: 6, mcbb: 6, cbb: 6, wcbb: 6, nhl: 1, mlb: 2, epl: 1, mls: 1, ucl: 1 };
 
   function gameDrama(game, sportKeyArg) {
     const key = sportKeyArg || sportKey;
@@ -974,6 +974,10 @@ const CFB = (function () {
     nba: { regulation: 4, label: (i) => `Q${i + 1}`, extra: (i) => (i === 4 ? 'OT' : `${i - 3}OT`) },
     wnba: { regulation: 4, label: (i) => `Q${i + 1}`, extra: (i) => (i === 4 ? 'OT' : `${i - 3}OT`) },
     cbb: { regulation: 2, label: (i) => `H${i + 1}`, extra: (i) => (i === 2 ? 'OT' : `${i - 1}OT`) },
+    mcbb: { regulation: 2, label: (i) => `H${i + 1}`, extra: (i) => (i === 2 ? 'OT' : `${i - 1}OT`) },
+    epl: { regulation: 2, label: (i) => (i === 0 ? '1st' : '2nd'), extra: (i) => (i === 2 ? 'ET1' : i === 3 ? 'ET2' : 'PK') },
+    mls: { regulation: 2, label: (i) => (i === 0 ? '1st' : '2nd'), extra: (i) => (i === 2 ? 'ET1' : i === 3 ? 'ET2' : 'PK') },
+    ucl: { regulation: 2, label: (i) => (i === 0 ? '1st' : '2nd'), extra: (i) => (i === 2 ? 'ET1' : i === 3 ? 'ET2' : 'PK') },
     wcbb: { regulation: 4, label: (i) => `Q${i + 1}`, extra: (i) => (i === 4 ? 'OT' : `${i - 3}OT`) },
   };
 
