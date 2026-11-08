@@ -188,6 +188,7 @@ module.exports = {
   getRecruits,
   getClassRankings,
   hasCfbd,
+  cfbd,
   defaultYear,
   validYear,
   // Exported for tests.

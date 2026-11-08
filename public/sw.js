@@ -29,6 +29,8 @@ const PRECACHE = [
   '/js/kids-core.js',
   '/js/gameday-core.js',
   '/js/kids.js',
+  '/js/gameday.js',
+  '/js/advanced.js',
   '/css/kids.css',
   '/js/pwa.js',
   '/js/theme-boot.js',

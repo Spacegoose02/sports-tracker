@@ -133,3 +133,28 @@
 .race-chip.race-help { background: var(--accent-soft); color: var(--accent); }
 .race-chip.race-out { background: var(--bg-elev-2); color: var(--text-dim); }
 .race-foot { color: var(--text-dim); font-size: 0.8rem; margin-top: 16px; }
+
+/* ---- Award races (awards.html) ----------------------------------------- */
+.award-blurb { color: var(--text-dim); margin: 8px 0 12px; }
+.award-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.award-row { display: grid; grid-template-columns: 2ch 3.5ch 52px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); background: var(--bg-elev); border: 1px solid var(--border); }
+.award-row.is-followed { border-color: var(--favorite); }
+.award-rank { font-weight: 800; font-size: 1.2rem; text-align: right; }
+.award-move { font-size: 0.75rem; font-weight: 800; }
+.award-move.up { color: var(--win); }
+.award-move.down { color: var(--loss); }
+.award-move.same { color: var(--text-dim); }
+.award-move.new { color: var(--accent); }
+.award-photo { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: var(--bg-elev-2); display: block; }
+.award-who { min-width: 0; display: grid; gap: 2px; }
+.award-who a { font-weight: 700; }
+.award-who small { color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+.award-who small img { width: 16px; height: 16px; }
+.award-stats { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 0.82rem; color: var(--text-dim); }
+.award-stats b { color: var(--text); }
+.award-points { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.1rem; }
+@media (max-width: 520px) {
+  .award-row { grid-template-columns: 2ch 40px 1fr auto; }
+  .award-move { display: none; }
+  .award-photo { width: 40px; height: 40px; }
+}

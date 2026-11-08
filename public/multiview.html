@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Multiview &middot; Stat Scraps</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/statscraps-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/statscraps-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#05070b" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/wall.css" />
+<link rel="stylesheet" href="/css/multiview.css" />
+<link rel="stylesheet" href="/css/a11y.css" />
+<script src="/js/theme-boot.js"></script>
+<script src="/js/i18n.js"></script>
+<script src="/js/i18n-es.js"></script>
+<script src="/js/a11y.js" defer></script>
+</head>
+<body class="multiview">
+<div class="mv-shell">
+  <header class="mv-bar">
+    <a class="wall-brand" href="/" title="Back to Stat Scraps"><img src="/img/scrappy-head.png" alt="" /><span>Multiview</span></a>
+    <div class="mv-layouts" role="group" aria-label="How many games">
+      <button type="button" data-mv-n="2">2</button>
+      <button type="button" data-mv-n="4">4</button>
+    </div>
+    <button type="button" class="mv-pick-btn" id="mvPickBtn" aria-expanded="false" aria-controls="mvPicker">Choose games</button>
+    <button type="button" class="mv-pick-btn" id="mvFull" title="Full screen (F)">&#x26F6;</button>
+  </header>
+
+  <section class="mv-picker" id="mvPicker" hidden>
+    <p class="mv-help">Tap games to show them. Live games are listed first; your teams are starred.</p>
+    <div class="mv-choices" id="mvChoices"></div>
+  </section>
+
+  <main class="mv-grid" id="mvGrid" aria-live="polite">
+    <div class="wall-empty">Loading games&hellip;</div>
+  </main>
+</div>
+
+<script src="/js/shared.js"></script>
+<script src="/js/wall.js"></script>
+<script src="/js/multiview.js"></script>
+</body>
+</html>
