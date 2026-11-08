@@ -40,6 +40,9 @@ function publicUser(user) {
     sso: !!user.oidc_sub,
     alertStart: !!user.alert_start,
     alertEnd: !!user.alert_end,
+    alertScore: !!user.alert_score,
+    alertClose: !!user.alert_close,
+    alertUpset: !!user.alert_upset,
     recapEnabled: !!user.recap_enabled,
     recapTime: recapLib.cleanTime(user.recap_time) || '07:30',
     recapTimeZone: recapLib.isValidTimeZone(user.recap_tz) ? user.recap_tz : 'America/New_York',
@@ -299,13 +302,16 @@ function createAccountRouter({ env = process.env, recapper = null } = {}) {
 
 
   router.patch('/me', (req, res) => {
-    const { displayName, alertStart, alertEnd, recapEnabled, recapTime, recapTimeZone } = req.body || {};
+    const { displayName, alertStart, alertEnd, alertScore, alertClose, alertUpset, recapEnabled, recapTime, recapTimeZone } = req.body || {};
     if (recapTime !== undefined && !recapLib.cleanTime(recapTime)) return res.status(400).json({ error: 'Pick a recap time like 07:30.' });
     if (recapTimeZone !== undefined && !recapLib.isValidTimeZone(recapTimeZone)) return res.status(400).json({ error: 'Unknown time zone.' });
     const user = db.updateUser(req.user.id, {
       displayName: displayName !== undefined ? cleanText(displayName, 60) : undefined,
       alertStart: typeof alertStart === 'boolean' ? alertStart : undefined,
       alertEnd: typeof alertEnd === 'boolean' ? alertEnd : undefined,
+      alertScore: typeof alertScore === 'boolean' ? alertScore : undefined,
+      alertClose: typeof alertClose === 'boolean' ? alertClose : undefined,
+      alertUpset: typeof alertUpset === 'boolean' ? alertUpset : undefined,
       recapEnabled: typeof recapEnabled === 'boolean' ? recapEnabled : undefined,
       recapTime: recapTime !== undefined ? recapLib.cleanTime(recapTime) : undefined,
       recapTz: recapTimeZone !== undefined ? recapTimeZone : undefined,

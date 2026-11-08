@@ -89,6 +89,9 @@
     renderFollows();
     el('alertStart').checked = info.user.alertStart;
     el('alertEnd').checked = info.user.alertEnd;
+    el('alertScore').checked = !!info.user.alertScore;
+    el('alertClose').checked = !!info.user.alertClose;
+    el('alertUpset').checked = !!info.user.alertUpset;
     renderFeed(info.feed);
     renderRecapSettings(info.user);
     loadRecap();
@@ -216,7 +219,7 @@
     location.href = '/';
   });
 
-  ['alertStart', 'alertEnd'].forEach((id) => {
+  ['alertStart', 'alertEnd', 'alertScore', 'alertClose', 'alertUpset'].forEach((id) => {
     el(id).addEventListener('change', async () => {
       try {
         await CFB.account.postJson('/api/account/me', { [id]: el(id).checked }, 'PATCH');

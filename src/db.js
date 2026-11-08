@@ -132,6 +132,11 @@ function addColumn(table, column, definition) {
 addColumn('users', 'recap_enabled', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('users', 'recap_time', "TEXT NOT NULL DEFAULT '07:30'");
 addColumn('users', 'recap_tz', "TEXT NOT NULL DEFAULT 'America/New_York'");
+// Smarter alerts, all opt-in: every score by a followed team, close finishes
+// and upsets brewing in any game of a sport the person follows.
+addColumn('users', 'alert_score', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'alert_close', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'alert_upset', 'INTEGER NOT NULL DEFAULT 0');
 
 function listNotableGames(season, week) {
   return db
@@ -290,6 +295,9 @@ function updateUser(userId, fields) {
     displayName: 'display_name',
     alertStart: 'alert_start',
     alertEnd: 'alert_end',
+    alertScore: 'alert_score',
+    alertClose: 'alert_close',
+    alertUpset: 'alert_upset',
     recapEnabled: 'recap_enabled',
     recapTime: 'recap_time',
     recapTz: 'recap_tz',
@@ -383,12 +391,25 @@ function pushSubscriptionsForUser(userId) {
     .map((r) => ({ endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } }));
 }
 
-// Push subscriptions of users who follow either team and want this kind of
-// alert ('start' or 'end').
+const ALERT_COLUMNS = { start: 'alert_start', end: 'alert_end', score: 'alert_score', close: 'alert_close', upset: 'alert_upset' };
+
+// Push subscriptions of users who want this kind of alert ('start', 'end',
+// 'score', 'close' or 'upset'). Team alerts go to followers of either team;
+// 'close' and 'upset' cover any game, so they go to everyone who follows at
+// least one team in that sport.
 function alertRecipients(sport, teamIds, kind) {
+  const column = ALERT_COLUMNS[kind];
+  if (!column) return [];
+  if (kind === 'close' || kind === 'upset') {
+    return db.prepare(`
+      SELECT DISTINCT p.endpoint, p.p256dh, p.auth, u.id AS user_id
+      FROM push_subscriptions p
+      JOIN users u ON u.id = p.user_id
+      WHERE u.${column} = 1 AND EXISTS (SELECT 1 FROM user_follows f WHERE f.user_id = u.id AND f.sport = ?)
+    `).all(sport).map((r) => ({ userId: r.user_id, endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } }));
+  }
   const ids = teamIds.filter(Boolean).map(String);
   if (!ids.length) return [];
-  const column = kind === 'start' ? 'alert_start' : 'alert_end';
   return db.prepare(`
     SELECT DISTINCT p.endpoint, p.p256dh, p.auth, u.id AS user_id
     FROM push_subscriptions p
