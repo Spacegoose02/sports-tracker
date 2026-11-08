@@ -223,7 +223,8 @@
     const side = (g, t) => (g.home && String(g.home.id) === String(t.id) ? g.home : g.away);
     const other = (g, t) => (g.home && String(g.home.id) === String(t.id) ? g.away : g.home);
     let liveScore = '';
-    if (live && live.home && live.away) {
+    const scored = (t) => t && t.score !== null && t.score !== undefined && t.score !== '';
+    if (live && live.home && live.away && scored(live.home) && scored(live.away)) {
       const me = side(live, saved);
       const them = other(live, saved);
       liveScore = `<div class="hero-score"><span class="${Number(me.score) >= Number(them.score) ? 'lead' : ''}">${CFB.esc(me.score)}</span><span class="dash">&ndash;</span><span>${CFB.esc(them.score)}</span></div>`;

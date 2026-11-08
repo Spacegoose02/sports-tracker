@@ -5,6 +5,7 @@
 
 const ds = require('./datasource');
 const { getSport } = require('./sports');
+const { freshenGames } = require('./livescores');
 
 // Typical game length per sport, for the calendar entry's end time.
 const DURATION_MIN = { cfb: 210, nfl: 195, nba: 150, mcbb: 135, mlb: 180, nhl: 165 };
@@ -153,7 +154,10 @@ async function myTeamsSummary(follows, { baseUrl = '', upcoming = 3, now = Date.
   return Promise.all(schedules.map(async ({ follow, games }) => {
     const sport = getSport(follow.sport);
     const info = await ds.getTeamInfo(String(follow.id), follow.sport).catch(() => null);
-    const sorted = games.filter((g) => g && g.date).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+    // The schedule has no live scores; swap in the live copy of any game
+    // that's under way.
+    const current = await freshenGames(games, follow.sport, { ds, now }).catch(() => games);
+    const sorted = current.filter((g) => g && g.date).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
     const live = sorted.find((g) => g.status && g.status.state === 'in') || null;
     const ahead = sorted.filter((g) => g.status && g.status.state === 'pre' && Date.parse(g.date) >= now - 6 * 60 * 60 * 1000);
     const past = sorted.filter((g) => g.status && g.status.state === 'post');
