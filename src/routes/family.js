@@ -139,6 +139,31 @@ function createFamilyRouter({ deps } = {}) {
     }
   });
 
+  router.get('/leagues/:id/xp', memberOnly, (req, res) => {
+    const since = Number(req.query.since);
+    const game = family.chatGameKey(req.query.game);
+    res.set('Cache-Control', 'private, no-store');
+    res.json(family.xpStandings(leagueId(req), { since: Number.isFinite(since) ? since : undefined, game }));
+  });
+
+  // ---- Watch party chat ------------------------------------------------------
+  const chatLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, keyGenerator: (req) => `chat:${req.user.id}` });
+  router.get('/leagues/:id/chat', memberOnly, (req, res) => {
+    const game = family.chatGameKey(req.query.game);
+    if (!game) return res.status(400).json({ error: 'game is required, like cfb:401628374' });
+    res.set('Cache-Control', 'private, no-store');
+    return res.json({ messages: family.listChat(leagueId(req), game, { after: req.query.after, userId: req.user.id }), reactions: family.CHAT_REACTIONS });
+  });
+
+  router.post('/leagues/:id/chat', memberOnly, chatLimiter, (req, res) => {
+    const body = req.body || {};
+    const game = family.chatGameKey(body.game);
+    if (!game) return res.status(400).json({ error: 'game is required' });
+    const message = family.postChat(leagueId(req), game, req.user, { text: body.text, playerId: body.playerId });
+    if (!message) return res.status(400).json({ error: 'Say something first.' });
+    return res.json({ message });
+  });
+
   router.get('/leagues/:id/bracket', memberOnly, async (req, res) => {
     const sport = String(req.query.sport || 'cfb');
     if (!brackets.SPORTS.includes(sport)) return res.status(400).json({ error: 'sport must be cfb or mcbb' });

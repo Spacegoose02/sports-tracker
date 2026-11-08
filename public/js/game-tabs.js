@@ -28,7 +28,9 @@
     if (chosen && filled.has(chosen)) { show(chosen); return; }
     // Before kickoff the matchup is the interesting part; after, the game.
     const pre = document.body.dataset.gameState === 'pre';
-    const order = pre ? ['matchup', 'cast', 'watch', 'box'] : ['cast', 'box', 'matchup', 'watch'];
+    const order = pre ? ['matchup', 'cast', 'watch', 'box', 'play', 'chat'] : ['cast', 'box', 'matchup', 'watch', 'play', 'chat'];
+    // Kid mode opens on the games (bingo, call it, score guess).
+    if (document.body.classList.contains('kid-mode')) order.unshift('play');
     const first = order.find((k) => filled.has(k));
     if (first) show(first);
     if (!userPicked) chosen = null;

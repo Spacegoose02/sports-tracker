@@ -439,6 +439,7 @@
       el('gameBoxScore').innerHTML = CFBGame.boxScoreHtml(detail);
       el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail, { playByPlay: false });
       renderKidExplainer(detail);
+      window.dispatchEvent(new CustomEvent('tracker:game-loaded', { detail }));
 
       el('gameInjuries').innerHTML = CFBGame.injuriesHtml(detail);
       el('gameForm').innerHTML = CFBGame.recentFormHtml(detail);

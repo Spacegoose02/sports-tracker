@@ -436,6 +436,12 @@ function normalizeRace(event, kind) {
   return { ...shell, kind: kind || 'racing', race: order.slice(0, 10), fieldSize: order.length, totalLaps };
 }
 
+function headshotUrl(athlete) {
+  const h = athlete && athlete.headshot;
+  if (typeof h === 'string') return h;
+  return (h && typeof h.href === 'string' && h.href) || null;
+}
+
 function golfScore(raw) {
   if (raw === undefined || raw === null || raw === '') return null;
   if (typeof raw === 'object') return raw.displayValue || (raw.value !== undefined ? String(raw.value) : null);
@@ -508,6 +514,10 @@ async function getGameSummary(eventId, sport) {
       id: header.id,
       sport: cfg.key,
       date: (comp && comp.date) || header.date || null,
+      // For pick'em week labels made from the game page.
+      season: (header.season && header.season.year) || null,
+      seasonType: (header.season && header.season.type) || null,
+      week: header.week || null,
       venue: (comp && comp.venue && comp.venue.fullName) || null,
       broadcast: (comp && comp.broadcasts && comp.broadcasts[0] && comp.broadcasts[0].names && comp.broadcasts[0].names[0]) || null,
       status: comp && comp.status && {
@@ -542,6 +552,11 @@ async function getGameSummary(eventId, sport) {
           name: cat.displayName,
           athlete: cat.leaders && cat.leaders[0] && cat.leaders[0].athlete && cat.leaders[0].athlete.displayName,
           value: cat.leaders && cat.leaders[0] && cat.leaders[0].displayValue,
+          // For player links and the kids' trading cards.
+          athleteId: (cat.leaders && cat.leaders[0] && cat.leaders[0].athlete && cat.leaders[0].athlete.id) || null,
+          headshot: headshotUrl(cat.leaders && cat.leaders[0] && cat.leaders[0].athlete),
+          position: (cat.leaders && cat.leaders[0] && cat.leaders[0].athlete && cat.leaders[0].athlete.position
+            && cat.leaders[0].athlete.position.abbreviation) || null,
         })),
       })),
       boxscore: json.boxscore

@@ -309,6 +309,11 @@
     const who = currentId() || 'family';
     const newBest = trivia.score > (best[who] || 0);
     if (newBest) { best[who] = trivia.score; Kids.store.set('trivia-best', best); }
+    // XP for trivia: 3 per right answer, once a day.
+    if (Kids.xp && trivia.score) {
+      const day = new Date().toISOString().slice(0, 10);
+      Kids.xp.award({ key: `trivia:${day}`, points: Math.min(40, trivia.score * 3 + (trivia.score === total ? 10 : 0)), reason: `Trivia: ${trivia.score} of ${total}` });
+    }
     const cheer = trivia.score === total ? 'PERFECT! You know your stuff! &#127942;'
       : trivia.score >= total * 0.7 ? 'Great job! &#11088;'
         : 'Good try! Play again to beat your score.';
@@ -374,6 +379,8 @@
         btn.classList.add('active');
         el(`tab-${btn.dataset.tab}`).classList.add('active');
         if (btn.dataset.tab === 'stickers') renderStickers();
+        if (btn.dataset.tab === 'level') renderLevel();
+        if (btn.dataset.tab === 'cards') renderCards();
       });
     });
   }
@@ -382,6 +389,93 @@
     renderPlayers();
     renderPickem();
     renderStickers();
+    renderLevel();
+    renderCards();
+  }
+
+  // ---- Level up: XP, streak and Scrappy's closet --------------------------------
+  const GC = window.GamedayCore;
+  function renderLevel() {
+    const box = el('levelBox');
+    if (!box || !GC) return;
+    const player = Kids.players.current();
+    const rec = Kids.xp.record();
+    const lv = GC.levelFor(rec.total);
+    const outfit = GC.OUTFITS.find((o) => o.key === rec.outfit) || GC.OUTFITS[0];
+    const unlocked = new Set(GC.unlockedOutfits(rec.total).map((o) => o.key));
+    const recent = (rec.log || []).slice(-8).reverse();
+    box.innerHTML = `
+      <div class="level-hero">
+        <span class="gd-scrappy" aria-hidden="true">🦝${outfit.emoji}</span>
+        <div style="flex:1">
+          <div class="level-num">${player ? `${esc(player.emoji)} ${esc(player.name)}: ` : ''}Level ${lv.level}</div>
+          <div class="gd-level">${lv.xp} XP &middot; ${lv.next - lv.xp} XP to level ${lv.level + 1}${rec.streak && rec.streak.days ? ` &middot; &#128293; ${rec.streak.days}-day streak (best ${rec.streak.best})` : ''}</div>
+          <div class="xp-bar"><span style="width:${Math.round(lv.progress * 100)}%"></span></div>
+        </div>
+      </div>
+      <p class="kids-help">Earn XP by coming back every day, making picks, playing Game Day Bingo and Call it! on a game's Play tab, guessing final scores, acing trivia and collecting trading cards. Every few levels Scrappy unlocks something new to wear.</p>
+      <h2 class="section-title">Scrappy's closet</h2>
+      <div class="closet">${GC.OUTFITS.map((o) => `
+        <button type="button" data-outfit="${esc(o.key)}" aria-pressed="${o.key === outfit.key}" ${unlocked.has(o.key) ? '' : 'disabled'}>
+          <span class="closet-emoji">${unlocked.has(o.key) ? o.emoji : '&#128274;'}</span>
+          <strong>${esc(o.name)}</strong>
+          <span class="gd-note">${unlocked.has(o.key) ? esc(o.desc) : `Level ${o.level}`}</span>
+        </button>`).join('')}</div>
+      ${recent.length ? `<h2 class="section-title">Latest XP</h2><ol class="leaderboard">${recent.map((l) => `<li><span>${esc(l.reason)}</span><strong>+${esc(l.points)}</strong></li>`).join('')}</ol>` : ''}
+      <div id="leagueXp"></div>`;
+    box.querySelectorAll('[data-outfit]').forEach((b) => b.addEventListener('click', () => {
+      Kids.xp.setOutfit(b.dataset.outfit);
+      renderLevel();
+    }));
+    loadLeagueXp();
+  }
+
+  async function loadLeagueXp() {
+    const box = el('leagueXp');
+    if (!box || !CFB.account.user()) return;
+    try {
+      const current = Leagues.selected(await Leagues.list());
+      if (!current) return;
+      const since = GC.weekStart(Date.now());
+      const data = await CFB.getJson(`/api/family/leagues/${current.id}/xp?since=${since}`);
+      const rows = data.rows || [];
+      if (!rows.length) return;
+      box.innerHTML = `
+        <h2 class="section-title">${esc(current.name)}: XP this week</h2>
+        <ol class="leaderboard league-board">${rows.map((r, i) => {
+          const o = GC.OUTFITS.find((x) => x.key === r.outfit) || GC.OUTFITS[0];
+          return `<li><span class="lb-place">${i === 0 && r.week ? '&#128081;' : i + 1}</span><span class="lb-name">${esc(r.emoji)} ${esc(r.name)} <span class="lb-member">${esc(r.member)} &middot; level ${esc(r.level)} ${o.emoji}${r.streak > 1 ? ` &middot; &#128293;${esc(r.streak)}` : ''}</span></span><span class="lb-score">${esc(r.week)} XP</span></li>`;
+        }).join('')}</ol>`;
+    } catch (e) { /* the rest of the tab still works */ }
+  }
+
+  // ---- Card binder ------------------------------------------------------------------
+  function renderCards() {
+    const box = el('cardBinder');
+    if (!box || !GC) return;
+    const list = Kids.cards.forPlayer().slice().reverse();
+    const counts = Object.fromEntries(Object.keys(GC.RARITY).map((r) => [r, list.filter((c) => c.rarity === r).length]));
+    box.innerHTML = `
+      <p class="kids-help">Collect a trading card for each star player in a game you watch live on its game page, or a game you pick right. Big games make rare, epic and legendary cards. Tap a card to flip it and see the stats.</p>
+      <p class="gd-note">${list.length} cards &middot; ${Object.entries(counts).map(([r, n]) => `${esc(GC.RARITY[r].label)}: ${n}`).join(' &middot; ')}</p>
+      ${list.length ? `<div class="tc-binder">${list.map((c) => `
+        <div class="tc tc-${esc(c.rarity)}" style="--tc:${esc(c.color || '#3a6ea5')}" tabindex="0" role="button" aria-label="${esc(c.name)}, ${esc(c.rarity)} card. ${esc(c.stat || '')} ${esc(c.line || '')}">
+          <div class="tc-inner">
+            <div class="tc-front">
+              <div class="tc-rarity">${esc(GC.RARITY[c.rarity].label)}</div>
+              ${c.headshot ? `<img class="tc-photo" src="${CFB.safeUrl(c.headshot)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="tc-photo tc-photo-empty">&#129437;</div>'}
+              <div class="tc-name">${esc(c.name)}</div>
+              <div class="tc-team">${c.teamLogo ? `<img src="${CFB.safeUrl(c.teamLogo)}" alt="" onerror="this.style.display='none'">` : ''}${esc(c.team || '')}${c.position ? ` &middot; ${esc(c.position)}` : ''}</div>
+            </div>
+            <div class="tc-back">
+              <div class="tc-stat">${esc(c.stat || 'Big game')}</div>
+              <div class="tc-line">${esc(c.line || '')}</div>
+              ${c.opponent ? `<div class="tc-vs">vs ${esc(c.opponent)}</div>` : ''}
+              ${c.date ? `<div class="tc-vs">${esc(new Date(c.date).toLocaleDateString())}</div>` : ''}
+              <a class="tc-vs" href="/game.html?id=${encodeURIComponent(c.gameId)}&amp;source=espn&amp;sport=${encodeURIComponent(c.sport)}">See the game</a>
+            </div>
+          </div>
+        </div>`).join('')}</div>` : '<div class="empty-note">No cards yet. Open a live game and keep watching until it ends!</div>'}`;
   }
 
   // ---- Family league ------------------------------------------------------------
@@ -447,6 +541,9 @@
     CFB.initSportBar();
     renderPlayers();
     renderStickers();
+    if (Kids.xp) Kids.xp.touchStreak();
+    renderLevel();
+    renderCards();
     loadPickem().then(renderLeague);
   });
 })();

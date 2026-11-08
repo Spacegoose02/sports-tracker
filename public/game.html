@@ -55,6 +55,8 @@
     <button type="button" class="tab-btn" role="tab" data-gtab="box">Box Score</button>
     <button type="button" class="tab-btn" role="tab" data-gtab="matchup">Matchup</button>
     <button type="button" class="tab-btn" role="tab" data-gtab="watch">Watch &amp; Listen</button>
+    <button type="button" class="tab-btn" role="tab" data-gtab="play">&#127922; Play</button>
+    <button type="button" class="tab-btn" role="tab" data-gtab="chat">&#128172; Chat</button>
   </div>
 
   <div class="game-tab-panel" data-gpanel="cast" role="tabpanel">
@@ -82,17 +84,27 @@
     <div id="gameWatch"></div>
     <div id="gameRadio"></div>
   </div>
+
+  <div class="game-tab-panel" data-gpanel="play" role="tabpanel">
+    <div id="gamePlay"></div>
+  </div>
+
+  <div class="game-tab-panel" data-gpanel="chat" role="tabpanel">
+    <div id="gameChat"></div>
+  </div>
 </main>
 
 <footer class="foot">Stat Scraps</footer>
 
 <script src="/js/shared.js"></script>
 <script src="/js/kids-core.js"></script>
+<script src="/js/gameday-core.js"></script>
 <script src="/js/kids.js"></script>
 <script src="/js/game-sections.js"></script>
 <script src="/js/game-live.js"></script>
 <script src="/js/game.js"></script>
 <script src="/js/radio.js"></script>
+<script src="/js/gameday.js"></script>
 <script src="/js/game-tabs.js"></script>
 </body>
 </html>

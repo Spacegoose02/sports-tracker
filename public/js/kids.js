@@ -107,6 +107,7 @@ const Kids = (function () {
           p.result = r;
           changed = true;
           if (KidsCore.pickOutcome(p) === 'right') {
+            xp.award({ key: `pick:${p.sport}:${p.gameId}`, points: 20, reason: 'Right pick!', game: `${p.sport}:${p.gameId}` }, playerId, { quiet: true });
             const team = [p.away, p.home].find((t) => t && String(t.id) === String(p.teamId)) || {};
             const opponent = [p.away, p.home].find((t) => t && String(t.id) !== String(p.teamId)) || {};
             stickers.add({ sport: p.sport, gameId: p.gameId, teamId: p.teamId, name: team.name, logo: team.logo, color: team.color, reason: 'picked', label: opponent.name ? `${p.spread !== undefined && p.spread !== null ? 'Covered vs' : 'Beat'} ${opponent.name}` : 'Picked right' }, playerId);
@@ -169,7 +170,7 @@ const Kids = (function () {
   }
 
   // ---- Saving to the account ----------------------------------------------------
-  const SYNCED = ['players', 'picks', 'stickers', 'brackets'];
+  const SYNCED = ['players', 'picks', 'stickers', 'brackets', 'xp', 'cards'];
   let synced = false;
 
   function isEmpty(v) {
@@ -485,12 +486,118 @@ const Kids = (function () {
     setTimeout(() => div.remove(), 5000);
   }
 
+  // ---- XP, levels, streaks and Scrappy's outfits -----------------------------
+  // xp[playerId] = { total, log, streak, outfit } (see gameday-core.js).
+  // With no players yet, XP goes to the shared "family" record.
+  const GC = typeof GamedayCore !== 'undefined' ? GamedayCore : null;
+  const owner = (playerId) => playerId || (players.current() && players.current().id) || 'family';
+  const localDay = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const xp = {
+    all() { return store.get('xp', {}); },
+    record(playerId) { return xp.all()[owner(playerId)] || { total: 0, log: [] }; },
+    level(playerId) { return GC ? GC.levelFor(xp.record(playerId).total) : { level: 1, xp: 0, progress: 0 }; },
+    // award: { key, points, reason, game }. Each key pays once.
+    award(award, playerId, { quiet } = {}) {
+      if (!GC) return false;
+      const id = owner(playerId);
+      const all = xp.all();
+      const before = GC.levelFor((all[id] && all[id].total) || 0).level;
+      const res = GC.addXp(all[id], award);
+      if (!res.added) return false;
+      all[id] = res.record;
+      store.set('xp', all);
+      const after = GC.levelFor(res.record.total).level;
+      if (after > before) {
+        const outfit = GC.OUTFITS.find((o) => o.level === after);
+        toast(`Level ${after}! ${outfit ? `${outfit.emoji} Scrappy unlocked the ${outfit.name}!` : 'Keep it up!'}`);
+        confetti('#f5a623');
+      } else if (!quiet) {
+        toast(`+${res.entry.points} XP · ${res.entry.reason}`);
+      }
+      return true;
+    },
+    // Counts today toward the streak, once a day, and pays the streak bonus.
+    touchStreak(playerId) {
+      if (!GC) return null;
+      const id = owner(playerId);
+      const all = xp.all();
+      const rec = all[id] || { total: 0, log: [] };
+      const today = localDay();
+      const next = GC.updateStreak(rec.streak, today);
+      if (rec.streak && rec.streak.last === today) return next;
+      all[id] = Object.assign({}, rec, { streak: next });
+      store.set('xp', all);
+      xp.award({ key: `streak:${today}`, points: GC.streakBonus(next.days), reason: next.days > 1 ? `${next.days} days in a row!` : 'Daily visit' }, id);
+      return next;
+    },
+    setOutfit(key, playerId) {
+      const id = owner(playerId);
+      const all = xp.all();
+      all[id] = Object.assign({ total: 0, log: [] }, all[id], { outfit: key });
+      store.set('xp', all);
+    },
+  };
+
+  // ---- Player trading cards ------------------------------------------------------
+  const cards = {
+    all() { return store.get('cards', {}); },
+    forPlayer(playerId) { return cards.all()[owner(playerId)] || []; },
+    // Adds cards the player doesn't have yet; returns the new ones.
+    add(list, playerId) {
+      const id = owner(playerId);
+      const all = cards.all();
+      const mine = all[id] || [];
+      const have = new Set(mine.map((c) => c.id));
+      const fresh = (list || []).filter((c) => c && c.id && !have.has(c.id)).map((c) => Object.assign({}, c, { at: Date.now() }));
+      if (!fresh.length) return [];
+      all[id] = [...mine, ...fresh].slice(-300);
+      store.set('cards', all);
+      fresh.forEach((c) => xp.award({ key: `card:${c.id}`, points: GC ? GC.RARITY[c.rarity].xp : 5, reason: `${c.rarity} card: ${c.name}`, game: `${c.sport}:${c.gameId}` }, id, { quiet: true }));
+      const best = fresh.slice().sort((a, b) => Object.keys(GC ? GC.RARITY : {}).indexOf(b.rarity) - Object.keys(GC ? GC.RARITY : {}).indexOf(a.rarity))[0];
+      toast(fresh.length === 1 ? `New ${best.rarity} card: ${best.name}!` : `${fresh.length} new trading cards, including ${best.name} (${best.rarity})!`);
+      return fresh;
+    },
+  };
+
+  // ---- Read it out loud ------------------------------------------------------------
+  // Uses the browser's own voice (no server, nothing sent anywhere).
+  const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
+  function speak(text, { lang } = {}) {
+    if (!canSpeak || !text) return false;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(String(text));
+      u.lang = lang || (document.documentElement.lang === 'es' ? 'es-US' : 'en-US');
+      u.rate = 0.95;
+      u.pitch = 1.1;
+      window.speechSynthesis.speak(u);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // Tap a trading card (or press Enter on it) to flip it.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('click', (e) => {
+      const card = e.target.closest && e.target.closest('.tc');
+      if (card && !(e.target.closest('a'))) card.classList.toggle('flipped');
+    });
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('tc')) {
+        e.preventDefault();
+        e.target.classList.toggle('flipped');
+      }
+    });
+  }
+
   initHeader();
   unlockAudioOnTap();
 
   return {
     store, settings, setSetting, players, picks, stickers, brackets,
-    awardWatched, watchScores, celebrate, toast,
+    awardWatched, watchScores, celebrate, toast, xp, cards, speak, canSpeak,
     ready, isSynced: () => synced,
   };
 })();

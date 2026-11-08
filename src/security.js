@@ -56,10 +56,10 @@ function securityHeaders(req, res, next) {
 // Fixed-window, in-memory rate limiter keyed by client IP. Good enough for a
 // single self-hosted container; it slows password guessing on /admin to a
 // crawl without pulling in a dependency.
-function rateLimit({ windowMs, max, now = () => Date.now() }) {
+function rateLimit({ windowMs, max, now = () => Date.now(), keyGenerator = null }) {
   const hits = new Map();
   return function rateLimitMiddleware(req, res, next) {
-    const key = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
+    const key = (keyGenerator && keyGenerator(req)) || req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
     const t = now();
     let entry = hits.get(key);
     if (!entry || t >= entry.resetAt) {
