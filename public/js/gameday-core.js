@@ -470,8 +470,30 @@
     return `The ${name(lead)} lead the ${name(trail)}, ${ls} to ${ts}.`;
   }
 
+  // "The Hokies play the Hurricanes on Saturday at 3:30 PM." `when` is
+  // already formatted for the listener's time zone.
+  function spokenNext(teamName, game, teamId, when) {
+    if (!game || !game.home || !game.away) return '';
+    const name = (t) => t.nickname || t.shortName || t.name || 'their opponent';
+    const opp = String(game.home.id) === String(teamId) ? game.away : game.home;
+    return `The ${teamName} play the ${name(opp)} ${when}.`;
+  }
+
+  // Everything to say for a list of followed teams (from /api/home's
+  // `teams`): live games first, then the last result or the next game.
+  function spokenTeams(teams, fmtWhen) {
+    const lines = [];
+    (teams || []).forEach((t) => {
+      const label = t.nickname || (t.name || '').split(' ').slice(-1)[0] || t.name;
+      if (t.liveGame) lines.push(spokenScore(t.liveGame));
+      else if (t.lastGame && t.lastGame.date && Date.now() - Date.parse(t.lastGame.date) < 36 * 3600 * 1000) lines.push(spokenScore(t.lastGame));
+      else if (t.nextGame) lines.push(spokenNext(label, t.nextGame, t.id, fmtWhen ? fmtWhen(t.nextGame.date) : 'soon'));
+    });
+    return lines.filter(Boolean);
+  }
+
   return {
-    family, seeded, SQUARES, BINGO_SIZE, squareMatches, bingoCard, markedSquares, bingoLines,
+    family, seeded, spokenNext, spokenTeams, SQUARES, BINGO_SIZE, squareMatches, bingoCard, markedSquares, bingoLines,
     playKind, CALL_OPTIONS, CALL_POINTS, playsAfter, resolveCall,
     guessError, guessPoints, closestGuesses,
     levelFor, OUTFITS, unlockedOutfits, updateStreak, streakBonus, addXp, xpSince, xpForGame, weekStart,

@@ -280,6 +280,34 @@ const Kids = (function () {
     });
     paint();
     nav.appendChild(btn);
+
+    // Kid mode: Scrappy reads your teams' scores out loud.
+    if (CFB.kidMode() && canSpeak && GC) {
+      const speakBtn = document.createElement('button');
+      speakBtn.type = 'button';
+      speakBtn.className = 'kid-mode-btn';
+      speakBtn.textContent = '🔊 Read my scores';
+      speakBtn.addEventListener('click', readMyScores);
+      nav.appendChild(speakBtn);
+    }
+  }
+
+  async function readMyScores() {
+    const followed = CFB.follows.all().filter((t) => t.sport && t.id);
+    if (!followed.length) { speak('Follow a team first, and I will tell you how they are doing!'); return; }
+    speak('Let me check on your teams.');
+    try {
+      const teamsParam = followed.map((t) => `${t.sport}:${t.id}`).join(',');
+      const data = await CFB.getJson(`/api/home?teams=${encodeURIComponent(teamsParam)}`);
+      const when = (iso) => {
+        const d = new Date(iso);
+        return `on ${d.toLocaleDateString(undefined, { weekday: 'long' })} at ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+      };
+      const lines = GC.spokenTeams((data && data.myTeams) || [], when);
+      speak(lines.length ? lines.join(' ') : 'No games for your teams right now.');
+    } catch (e) {
+      speak('Sorry, I could not get the scores right now.');
+    }
   }
 
   // ---- Celebrations ------------------------------------------------------------
