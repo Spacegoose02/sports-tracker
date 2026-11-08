@@ -34,7 +34,17 @@
 
   function conferenceHtml(conf, favoriteTeamId) {
     if (!conf.entries || !conf.entries.length) return '';
-    const columns = COLUMNS.filter((c) => conf.entries.some((e) => e[c.key]));
+    // Soccer tables: games played up front, goals instead of points for and
+    // against, and sorted by points the way every league table is.
+    const soccer = CFB.sport().kind === 'soccer';
+    const SOCCER_LABELS = { overall: 'W-L-D', pointsFor: 'GF', pointsAgainst: 'GA', differential: 'GD' };
+    const columns = (soccer ? [{ key: 'played', label: 'GP' }, ...COLUMNS] : COLUMNS)
+      .filter((c) => conf.entries.some((e) => e[c.key]))
+      .map((c) => (soccer && SOCCER_LABELS[c.key] ? { ...c, label: SOCCER_LABELS[c.key] } : c));
+    if (soccer) {
+      const num = (v) => Number(String(v || '').replace('+', '')) || 0;
+      conf = { ...conf, entries: conf.entries.slice().sort((a, b) => num(b.points) - num(a.points) || num(b.differential) - num(a.differential)) };
+    }
     return `
       <div class="conference-block">
         <h3>${CFB.esc(conf.name)}</h3>

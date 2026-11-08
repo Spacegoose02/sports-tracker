@@ -10,6 +10,7 @@ const matchup = require('../matchup');
 const lines = require('../lines');
 const recruiting = require('../recruiting');
 const race = require('../race');
+const awards = require('../awards');
 const search = require('../search');
 const home = require('../home');
 const overrides = require('../overrides');
@@ -204,6 +205,17 @@ router.get('/race', async (req, res) => {
     res.json(await race.getRaces({ year, group }));
   } catch (err) {
     res.status(502).json({ error: 'Could not load the conference races', detail: err.message });
+  }
+});
+
+// Award races (Heisman watch and friends, NFL MVP...): built from season
+// stat leaders, see src/awards.js.
+router.get('/awards', async (req, res) => {
+  try {
+    const data = await awards.getAwards({ sport: req.sport.key });
+    res.json(data || { sport: req.sport.key, awards: [] });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load the award races', detail: err.message });
   }
 });
 

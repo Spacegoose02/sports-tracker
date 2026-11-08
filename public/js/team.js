@@ -196,7 +196,7 @@
   }
 
   // Roster and news load the first time their tab is opened.
-  const lazy = { roster: loadRoster, news: loadNews };
+  const lazy = { roster: loadRoster, news: loadNews, stats: () => { if (typeof CFBAdvanced !== 'undefined') CFBAdvanced.loadTeam(el('teamAdvanced'), teamId); } };
 
   function showTab(name) {
     document.querySelectorAll('#teamTabs .tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));

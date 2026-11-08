@@ -47,4 +47,10 @@ SPORT_ICONS = {
     "nhl": "mdi:hockey-puck",
     "ufc": "mdi:boxing-glove",
     "nascar": "mdi:flag-checkered",
+    "wnba": "mdi:basketball",
+    "epl": "mdi:soccer",
+    "mls": "mdi:soccer",
+    "ucl": "mdi:soccer",
+    "f1": "mdi:go-kart-track",
+    "golf": "mdi:golf",
 }

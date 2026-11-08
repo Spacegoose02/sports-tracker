@@ -250,8 +250,11 @@ Videos) is now at `/scores?sport=...`; `/index.html` still works too.
 
 A sport picker at the top of every page switches between **College
 Football** (the default), **NFL**, **NBA**, **men's college basketball**,
-**MLB** and **NHL**. Every page and API route takes `?sport=` (`cfb`, `nfl`,
-`nba`, `mcbb`, `mlb`, `nhl`), so links are shareable, and the last sport you
+**MLB**, **NHL**, **WNBA**, the **Premier League**, **MLS** and the
+**Champions League**, plus **UFC**, **NASCAR**, **Formula 1** and the **PGA
+Tour**. Every page and API route takes `?sport=` (`cfb`, `nfl`, `nba`,
+`mcbb`, `mlb`, `nhl`, `wnba`, `epl`, `mls`, `ucl`, `ufc`, `nascar`, `f1`,
+`golf`), so links are shareable, and the last sport you
 picked is remembered in your browser. Leaving `sport` off means college
 football, so existing bookmarks and the Dynacat widget keep working.
 
@@ -266,6 +269,13 @@ football, so existing bookmarks and the Dynacat widget keep working.
   football keeps your RSS feeds and the Videos tab.
 - The pinned favorite team (`FAVORITE_TEAM_ID`) and Notable Games stay
   college-football features.
+- **Soccer** (`epl`, `mls`, `ucl`) works like the other team sports. Draws
+  are normal, league tables are sorted by points with games played and
+  goals for, against and difference, and kids get soccer explanations,
+  trivia and a goal horn.
+- **Formula 1** (`f1`) lists race weekends like NASCAR, and the **PGA
+  Tour** (`golf`) lists tournaments with the top of the leaderboard and
+  each player's score to par.
 - **UFC** (`ufc`) and **NASCAR Cup Series** (`nascar`) list events instead
   of games: each UFC card shows every fight (main event first, winner and
   method once it's over), and each NASCAR race shows the top 10 of the
@@ -308,6 +318,11 @@ every page, or `/account.html`) adds:
   site on **HTTPS**; on iPhone, add the site to the Home Screen and open it
   from there first. The server checks scores once a minute
   (`GAME_ALERTS=false` turns the checker off).
+- **More alerts, all off until you turn them on:** every score by a team
+  you follow ("TOUCHDOWN! Hokies", "GOAL! Arsenal"; not basketball, which
+  scores too often), **close games** late in any game of a sport you
+  follow a team in (a one-score game in the last quarter, half or period),
+  and **upsets brewing** (a ranked team losing in the second half).
 - **Calendar.** **Add to calendar** subscribes your phone's calendar to a
   private feed of every game for every team you follow
   (`/calendar/<key>.ics`). New games and kickoff changes update on their
@@ -476,6 +491,52 @@ window.addEventListener('tracker:score', (e) => {
 
 The saved data goes through `Kids.store` (see `public/js/kids.js`). Listen for `tracker:kids-data` to know when something changed, and wait for `Kids.ready` before reading saved data on page load.
 
+### Game day games (the Play tab)
+
+Every game page has a **Play** tab (the first tab in kid mode):
+
+- **Game Day Bingo**: a 4x4 card of things like Touchdown, Interception,
+  Punt and Penalty flag (goals, cards and corners for soccer; dunks and
+  steals for basketball...). Squares fill in by themselves from the
+  play-by-play. Four in a row is a BINGO (30 XP), the whole card 100. Each
+  player gets their own card for each game.
+- **Call it!** During a live game, guess the next play (run, pass or kick,
+  football) for 10 XP, and who scores next for 25 XP.
+- **Guess the final score** before kickoff. An exact score is worth 50 XP,
+  close guesses less, plus 10 for the right winner. The guess also saves
+  as that player's pick'em pick, and the family league leaderboard counts
+  who had the closest guess in each game.
+- **Trading cards**: a game's stars (top passer, rusher, scorer...) become
+  collectible cards once the game ends, for a player who watched it live
+  on its game page or picked the winner. Big games make rare, epic and
+  legendary cards. Tap a card to flip it. The **Cards** tab on the Kids
+  page is the binder.
+- **League XP**: signed in and in a family league, the tab shows everyone's
+  XP for this game.
+
+### Levels, streaks and Scrappy's closet
+
+Picks, bingo, play calls, score guesses, trivia, cards and coming back
+every day all earn **XP**. The **Level up** tab on the Kids page shows each
+player's level, their daily streak (10 XP a day, 50 more every 7th day in a
+row), their latest XP, and the league's XP this week. New levels unlock
+outfits for Scrappy (a foam finger, team scarf, cool shades, coach headset,
+crown...) that show up next to the player's name.
+
+### Watch party chat
+
+The game page's **Chat** tab is a chat for your family league during the
+game, with quick emoji reactions. Post as yourself or as one of your Kids
+Zone players. Messages are plain text, members only, 20 a minute, and the
+newest 300 per game are kept.
+
+### Read it out loud
+
+In kid mode, **Read my scores** in the header has Scrappy say how your
+teams are doing (live score, last result or next game), and the "What just
+happened?" box on a game page has a **Read it to me** button. It uses the
+browser's own voice, so nothing is sent anywhere.
+
 ## Playoffs and brackets
 
 `/brackets.html` (the 🏆 Playoffs link in the header) is the postseason hub:
@@ -498,7 +559,7 @@ A family league is a group of accounts. Start one on the Kids Zone's Pick'em tab
 
 League standings are worked out on the server from ESPN's final scores, and only count picks saved to the account before kickoff, so nobody can pick after the fact. A pick made while signed out counts in the league once it's saved to the account before the game starts. The league owner can make a new code (the old one stops working) and remove members; when the owner leaves, the longest-standing member takes over.
 
-API (signed in): `GET /api/family/data`, `POST /api/family/data/merge`, `PUT /api/family/data/:key`, `GET|POST /api/family/leagues`, `POST /api/family/leagues/join`, `GET /api/family/leagues/:id/leaderboard?sport=&week=`, `GET /api/family/leagues/:id/bracket?sport=&season=`. See `src/routes/family.js`.
+API (signed in): `GET /api/family/data`, `POST /api/family/data/merge`, `PUT /api/family/data/:key`, `GET|POST /api/family/leagues`, `POST /api/family/leagues/join`, `GET /api/family/leagues/:id/leaderboard?sport=&week=`, `GET /api/family/leagues/:id/bracket?sport=&season=`, `GET /api/family/leagues/:id/xp?since=&game=`, `GET|POST /api/family/leagues/:id/chat?game=&after=`. Saved keys are `players`, `picks`, `stickers`, `brackets`, `xp` and `cards`. See `src/routes/family.js`.
 
 ## TV wall mode
 
@@ -507,6 +568,34 @@ API (signed in): `GET /api/family/data`, `POST /api/family/data/merge`, `PUT /ap
 - Options in the URL: `?sports=cfb,nfl` (default: every sport you follow a team in), `?every=15` (seconds per game, 5 to 120, default 12) and `?mine=1` (only your teams' games).
 - Keys: Left and Right step through games, Space pauses, F goes full screen. The controls and cursor hide after a few seconds.
 - The page asks the browser to keep the screen awake while it's open.
+
+## Multiview
+
+`/multiview.html` (in the More menu) shows two or four games at once, each
+drawn like the TV wall (live field, diamond or score by period). It fills
+itself with the best live games, your teams first, or tap **Choose games**.
+The picks are kept in the link (`?games=cfb:401,nfl:9&n=4`), so a
+bookmark opens the same games. F goes full screen.
+
+## Award races
+
+`/awards.html` (Heisman watch for college football, MVP race for the NFL)
+ranks players for the Heisman, Davey O'Brien, Doak Walker, Biletnikoff and
+Nagurski awards, and the NFL MVP and offensive and defensive player of the
+year. Nobody publishes these as data, so it's Stat Scraps' own projection
+from ESPN's season stat leaders: a points formula per award, plus a bonus
+for a ranked team (college) or a winning record (NFL). A snapshot is saved
+each week, so arrows show who moved up or down. `GET /api/awards?sport=cfb`.
+
+## Advanced college football stats
+
+With `CFBD_API_KEY` set (the same free key as the recruiting tabs), a
+college team's **Season Stats** tab adds SP+ (overall, offense, defense)
+and offense and defense EPA per play, success rate, explosiveness and havoc
+rate, each with its national rank, and a game's **Box Score** tab adds an
+advanced box score for both teams. `GET /api/team/:id/advanced?sport=cfb`
+and `GET /api/game/:id/advanced?sport=cfb`; without a key they answer
+`{ "available": false, "reason": "no-key" }`.
 
 ## Highlights
 

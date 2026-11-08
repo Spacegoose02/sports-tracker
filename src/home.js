@@ -28,34 +28,7 @@ const MAX_HEADLINES = 12;
 const HEADLINES_PER_LEAGUE = 3;
 const MAX_TEAMS = 12;
 
-// Regulation periods and what counts as a close margin, by sport. Mirrors
-// gameDrama in public/js/shared.js, which tags cards on the Scores page.
-const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, mcbb: 2, nhl: 3, mlb: 9 };
-const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, mcbb: 6, nhl: 1, mlb: 2 };
-
-function rankOf(team) {
-  const r = team && Number(team.curatedRank);
-  return r && r <= 25 ? r : null;
-}
-
-// How gripping a live game is right now, 0 to ~130 (see shared.js).
-function liveDrama(game, sport) {
-  if (!game.home || !game.away) return 0;
-  const h = Number(game.home.score);
-  const a = Number(game.away.score);
-  if (Number.isNaN(h) || Number.isNaN(a)) return 0;
-  const regulation = REG_PERIODS[sport] || 4;
-  const close = CLOSE_MARGIN[sport] || 8;
-  const period = Number(game.status && game.status.period) || 1;
-  const overtime = period > regulation;
-  const lateness = overtime ? 1.1 : Math.min(1, period / regulation);
-  const closeness = Math.max(0, 1 - Math.abs(h - a) / (close * 2));
-  const hr = rankOf(game.home);
-  const ar = rankOf(game.away);
-  const trailing = h < a ? { me: hr, them: ar } : a < h ? { me: ar, them: hr } : null;
-  const upset = !!(trailing && trailing.me && (!trailing.them || trailing.them - trailing.me >= 5));
-  return Math.round(closeness * 60 + lateness * 30 + (upset ? 25 : 0) + (hr && ar ? 10 : 0) + (overtime ? 10 : 0));
-}
+const { rankOf, liveDrama } = require('./drama');
 
 // Ranked teams make a game worth more, two ranked teams more still.
 function rankBonus(game) {

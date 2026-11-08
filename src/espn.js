@@ -332,7 +332,7 @@ async function getEvents(cfg, params) {
   const key = `espn:${cfg.key}:events:${params.toString()}`;
   return cache.getOrFetch(key, async () => {
     const json = await fetchJson(`${baseFor(cfg.key)}/scoreboard?${params.toString()}`);
-    const events = (json.events || []).map((e) => (cfg.format === 'card' ? normalizeCard(e) : normalizeRace(e)));
+    const events = (json.events || []).map((e) => (cfg.format === 'card' ? normalizeCard(e) : normalizeRace(e, cfg.kind)));
     events.sort((a, b) => Date.parse(a.date || 0) - Date.parse(b.date || 0));
     return {
       sport: cfg.key,
@@ -410,7 +410,7 @@ function normalizeCard(event) {
 // A race weekend: keep the race itself (not practice or qualifying), with
 // its running order (finishing order once it's over). Before the start the
 // competitor list is just the entry list, so it's dropped.
-function normalizeRace(event) {
+function normalizeRace(event, kind) {
   const comps = event.competitions || [];
   const race = comps.find((c) => c.type && /^race$/i.test(c.type.abbreviation || '')) || comps[comps.length - 1];
   const shell = eventShell(event, race);
@@ -422,13 +422,30 @@ function normalizeRace(event) {
       shortName: c.athlete.shortName || c.athlete.displayName || null,
       number: (c.vehicle && c.vehicle.number) || null,
       winner: !!c.winner,
+      // Golf: the to-par score ("-12", "E") and the leaderboard spot ("T3").
+      score: golfScore(c.score),
+      position: (c.status && c.status.position && c.status.position.displayName) || null,
+      // F1: the constructor, when ESPN names one.
+      team: (c.team && (c.team.displayName || c.team.name)) || (c.vehicle && c.vehicle.manufacturer) || null,
     }))
     .sort((a, b) => (a.place || 999) - (b.place || 999));
   if (shell.status.state === 'pre') order = [];
   // Lap counts, when ESPN has them (the period is the current lap while a
   // race is running).
   const totalLaps = Number((race && (race.laps || (race.format && race.format.regulation && race.format.regulation.periods))) || 0) || null;
-  return { ...shell, race: order.slice(0, 10), fieldSize: order.length, totalLaps };
+  return { ...shell, kind: kind || 'racing', race: order.slice(0, 10), fieldSize: order.length, totalLaps };
+}
+
+function headshotUrl(athlete) {
+  const h = athlete && athlete.headshot;
+  if (typeof h === 'string') return h;
+  return (h && typeof h.href === 'string' && h.href) || null;
+}
+
+function golfScore(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  if (typeof raw === 'object') return raw.displayValue || (raw.value !== undefined ? String(raw.value) : null);
+  return String(raw);
 }
 
 // Full-season schedule for one team (used for the pinned favorite team and
@@ -497,6 +514,10 @@ async function getGameSummary(eventId, sport) {
       id: header.id,
       sport: cfg.key,
       date: (comp && comp.date) || header.date || null,
+      // For pick'em week labels made from the game page.
+      season: (header.season && header.season.year) || null,
+      seasonType: (header.season && header.season.type) || null,
+      week: header.week || null,
       venue: (comp && comp.venue && comp.venue.fullName) || null,
       broadcast: (comp && comp.broadcasts && comp.broadcasts[0] && comp.broadcasts[0].names && comp.broadcasts[0].names[0]) || null,
       status: comp && comp.status && {
@@ -531,6 +552,11 @@ async function getGameSummary(eventId, sport) {
           name: cat.displayName,
           athlete: cat.leaders && cat.leaders[0] && cat.leaders[0].athlete && cat.leaders[0].athlete.displayName,
           value: cat.leaders && cat.leaders[0] && cat.leaders[0].displayValue,
+          // For player links and the kids' trading cards.
+          athleteId: (cat.leaders && cat.leaders[0] && cat.leaders[0].athlete && cat.leaders[0].athlete.id) || null,
+          headshot: headshotUrl(cat.leaders && cat.leaders[0] && cat.leaders[0].athlete),
+          position: (cat.leaders && cat.leaders[0] && cat.leaders[0].athlete && cat.leaders[0].athlete.position
+            && cat.leaders[0].athlete.position.abbreviation) || null,
         })),
       })),
       boxscore: json.boxscore
@@ -775,6 +801,7 @@ function parseStandings(json) {
         differential: statByName.differential || statByName.pointDifferential || null,
         seed: statByName.playoffSeed || null,
         clincher: statByName.clincher || null,
+        played: statByName.gamesPlayed || null,
       };
     });
     return {

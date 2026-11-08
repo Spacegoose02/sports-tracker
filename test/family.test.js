@@ -79,7 +79,7 @@ test('kids data: merge on sign-in, server pick times, removals, cleaning', async
     await call('/api/account/signup', { method: 'POST', body: { email: 'mom@example.com', password: 'go-hokies-1', displayName: 'Mom' } });
 
     let data = (await (await call('/api/family/data')).json()).data;
-    assert.deepStrictEqual(data, { players: [], picks: {}, stickers: {}, brackets: {} });
+    assert.deepStrictEqual(data, { players: [], picks: {}, stickers: {}, brackets: {}, xp: {}, cards: {} });
 
     // What this browser saved while signed out.
     const local = {

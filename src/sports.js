@@ -17,6 +17,8 @@
 //             and no standings.
 //   leaders:  season stat leaders page (default on for team sports).
 //   fantasy:  weekly fantasy football scores built from box scores.
+//   kind:     the game family (football, soccer, golf...), for words, kid
+//             explanations and drawings that are the same across leagues.
 
 const SPORTS = {
   cfb: {
@@ -97,6 +99,62 @@ const SPORTS = {
     notable: false,
     periodPrefix: 'P',
   },
+  wnba: {
+    key: 'wnba',
+    label: 'WNBA',
+    shortLabel: 'WNBA',
+    path: 'basketball/wnba',
+    schedule: 'day',
+    groups: null,
+    rankings: false,
+    field: false,
+    notable: false,
+    periodPrefix: 'Q',
+  },
+  // Soccer: draws are normal, standings are by points, and the clock is
+  // minutes ("67'"). Every league is the same shape under soccer/<slug>.
+  epl: {
+    key: 'epl',
+    label: 'Premier League',
+    shortLabel: 'EPL',
+    path: 'soccer/eng.1',
+    schedule: 'day',
+    groups: null,
+    rankings: false,
+    field: false,
+    notable: false,
+    leaders: false,
+    kind: 'soccer',
+    periodPrefix: 'H',
+  },
+  mls: {
+    key: 'mls',
+    label: 'MLS',
+    shortLabel: 'MLS',
+    path: 'soccer/usa.1',
+    schedule: 'day',
+    groups: null,
+    rankings: false,
+    field: false,
+    notable: false,
+    leaders: false,
+    kind: 'soccer',
+    periodPrefix: 'H',
+  },
+  ucl: {
+    key: 'ucl',
+    label: 'Champions League',
+    shortLabel: 'UCL',
+    path: 'soccer/uefa.champions',
+    schedule: 'day',
+    groups: null,
+    rankings: false,
+    field: false,
+    notable: false,
+    leaders: false,
+    kind: 'soccer',
+    periodPrefix: 'H',
+  },
   ufc: {
     key: 'ufc',
     label: 'UFC',
@@ -127,6 +185,46 @@ const SPORTS = {
     notable: false,
     periodPrefix: 'Lap ',
   },
+  f1: {
+    key: 'f1',
+    label: 'Formula 1',
+    shortLabel: 'F1',
+    path: 'racing/f1',
+    schedule: 'event',
+    format: 'race',
+    groups: null,
+    rankings: false,
+    standings: false,
+    teams: false,
+    field: false,
+    notable: false,
+    periodPrefix: 'Lap ',
+  },
+  // Golf: a tournament is one event with a leaderboard (to-par scores), so
+  // it reuses the race layout with a score beside each name.
+  golf: {
+    key: 'golf',
+    label: 'PGA Tour',
+    shortLabel: 'Golf',
+    path: 'golf/pga',
+    schedule: 'event',
+    format: 'race',
+    groups: null,
+    rankings: false,
+    standings: false,
+    teams: false,
+    field: false,
+    notable: false,
+    kind: 'golf',
+    periodPrefix: 'Rd ',
+  },
+};
+
+const KINDS = {
+  cfb: 'football', nfl: 'football',
+  nba: 'basketball', mcbb: 'basketball', wnba: 'basketball',
+  mlb: 'baseball', nhl: 'hockey',
+  ufc: 'fighting', nascar: 'racing', f1: 'racing',
 };
 
 // Team sports get these defaults unless they say otherwise.
@@ -136,6 +234,7 @@ for (const sport of Object.values(SPORTS)) {
   if (sport.teams === undefined) sport.teams = true;
   if (sport.leaders === undefined) sport.leaders = sport.format === 'game';
   if (sport.fantasy === undefined) sport.fantasy = false;
+  if (sport.kind === undefined) sport.kind = KINDS[sport.key] || 'other';
 }
 
 const DEFAULT_SPORT = 'cfb';

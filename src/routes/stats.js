@@ -5,6 +5,8 @@
 const express = require('express');
 const players = require('../players');
 const leaders = require('../leaders');
+const advanced = require('../advanced');
+const ds = require('../datasource');
 const { isSafeId } = require('../security');
 const { getSport, DEFAULT_SPORT } = require('../sports');
 
@@ -39,6 +41,30 @@ router.get('/player/:id', withSport, async (req, res) => {
     res.json(await players.getPlayer(req.params.id, req.sport.key));
   } catch (err) {
     res.status(502).json({ error: 'Could not load player', detail: err.message });
+  }
+});
+
+// Advanced college football stats (SP+, EPA, success rate) from
+// CollegeFootballData.com; { available: false, reason: 'no-key' } without
+// CFBD_API_KEY.
+router.get('/team/:id/advanced', withSport, async (req, res) => {
+  if (req.sport.key !== 'cfb') return res.json({ available: false, reason: 'sport' });
+  try {
+    const info = await ds.getTeamInfo(req.params.id, 'cfb');
+    const teamName = (info && (info.location || info.shortName || info.name)) || null;
+    if (!teamName) return res.json({ available: false, reason: 'not-found' });
+    return res.json(await advanced.teamAdvanced({ teamName, year: optionalNumber(req.query.season) }));
+  } catch (err) {
+    return res.status(502).json({ error: 'Could not load advanced stats', detail: err.message });
+  }
+});
+
+router.get('/game/:id/advanced', withSport, async (req, res) => {
+  if (req.sport.key !== 'cfb') return res.json({ available: false, reason: 'sport' });
+  try {
+    return res.json(await advanced.gameAdvanced(req.params.id));
+  } catch (err) {
+    return res.status(502).json({ error: 'Could not load advanced stats', detail: err.message });
   }
 });
 

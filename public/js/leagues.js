@@ -207,7 +207,7 @@ const Leagues = (function () {
           <span class="lb-name">${esc(r.emoji)} ${esc(r.name)} <span class="lb-member">${esc(r.member)}</span></span>
           <span class="lb-score">${kind === 'bracket'
             ? `${r.points} pt${r.points === 1 ? '' : 's'}${r.pending ? ` &middot; ${r.possible} pts possible` : ''}`
-            : `${r.right} right${r.wrong ? ` &middot; ${r.wrong} wrong` : ''}${r.pending ? ` &middot; ${r.pending} waiting` : ''}`}</span>
+            : `${r.right} right${r.wrong ? ` &middot; ${r.wrong} wrong` : ''}${r.pending ? ` &middot; ${r.pending} waiting` : ''}${r.closest ? ` &middot; &#127919; ${r.closest} closest guess${r.closest === 1 ? '' : 'es'}` : ''}`}</span>
         </li>`).join('')}
     </ol>`;
   }

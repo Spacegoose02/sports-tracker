@@ -17,6 +17,7 @@ const { getSport } = require('./sports');
 const espn = require('./espn');
 const KidsCore = require('../public/js/kids-core.js');
 const BracketsCore = require('../public/js/brackets-core.js');
+const GamedayCore = require('../public/js/gameday-core.js');
 const brackets = require('./brackets');
 
 db.exec(`
@@ -44,15 +45,31 @@ db.exec(`
     PRIMARY KEY (league_id, user_id)
   );
   CREATE INDEX IF NOT EXISTS league_members_user ON league_members (user_id);
+
+  -- Watch party chat: messages league members post on a game's page.
+  CREATE TABLE IF NOT EXISTS league_chat (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    league_id INTEGER NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+    game TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    emoji TEXT,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS league_chat_game ON league_chat (league_id, game, id);
 `);
 
-const KEYS = ['players', 'picks', 'stickers', 'brackets'];
+const KEYS = ['players', 'picks', 'stickers', 'brackets', 'xp', 'cards'];
 const MAX_PLAYERS = 12;
 const MAX_PICKS = 1500; // per player
 const MAX_BRACKET_PICKS = 300; // per player
 const MAX_STICKERS = 500; // per player, same as the browser
 const MAX_LEAGUES = 10; // per account
 const MAX_MEMBERS = 40; // per league
+const MAX_CARDS = 300; // per player
+const MAX_XP_LOG = 200; // per player, same as the browser
+const MAX_AWARD = 100; // XP for one thing
 
 // ---- Cleaning what the browser sends ---------------------------------------
 
@@ -138,7 +155,17 @@ function cleanPick(raw) {
     ranks,
     result,
     ...(spread !== null ? { spread } : {}),
+    ...(cleanGuess(raw.guess) ? { guess: cleanGuess(raw.guess) } : {}),
   };
+}
+
+// A final-score guess: { away, home }, whole numbers.
+function cleanGuess(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const a = Number(raw.away);
+  const h = Number(raw.home);
+  if (!Number.isInteger(a) || !Number.isInteger(h) || a < 0 || h < 0 || a > 300 || h > 300) return null;
+  return { away: a, home: h };
 }
 
 function cleanBracketPick(raw) {
@@ -215,14 +242,140 @@ function cleanStickerMap(raw) {
   return out;
 }
 
+// XP: { [playerId]: { total, log: [{ key, points, reason, at, game }],
+// streak: { last, days, best }, outfit } }. Points are capped per award;
+// the browser can't hand itself a big number in one go.
+function cleanXpRecord(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const seen = new Set();
+  const log = (Array.isArray(raw.log) ? raw.log : []).map((l) => {
+    const key = l && text(l.key, 120);
+    const points = Number(l && l.points);
+    if (!key || seen.has(key) || !Number.isInteger(points) || points <= 0 || points > MAX_AWARD) return null;
+    seen.add(key);
+    const at = Number(l.at);
+    return {
+      key, points,
+      reason: text(l.reason, 80) || '',
+      at: Number.isFinite(at) && at > 0 ? at : Date.now(),
+      game: typeof l.game === 'string' && /^[a-z0-9]{2,10}:[A-Za-z0-9_-]{1,40}$/.test(l.game) ? l.game : null,
+    };
+  }).filter(Boolean).slice(-MAX_XP_LOG);
+  const total = Number(raw.total);
+  const logSum = log.reduce((s, l) => s + l.points, 0);
+  const st = raw.streak && typeof raw.streak === 'object' ? raw.streak : null;
+  const day = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+  const int = (v, max) => (Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= max ? Number(v) : 0);
+  return {
+    total: Number.isInteger(total) && total >= logSum && total < 10000000 ? total : logSum,
+    log,
+    streak: st && day(st.last) ? { last: day(st.last), days: int(st.days, 10000), best: int(st.best, 10000) } : null,
+    outfit: typeof raw.outfit === 'string' && GamedayCore.OUTFITS.some((o) => o.key === raw.outfit) ? raw.outfit : null,
+  };
+}
+
+function cleanXpMap(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  Object.entries(raw).slice(0, MAX_PLAYERS + 1).forEach(([playerId, rec]) => {
+    const pid = safeId(playerId);
+    const clean = pid && cleanXpRecord(rec);
+    if (clean) out[pid] = clean;
+  });
+  return out;
+}
+
+// Union of two records' logs. The total grows by the awards the stored
+// copy hasn't seen, so two devices earning at once both count.
+function mergeXpRecord(stored, incoming) {
+  if (!stored) return incoming;
+  if (!incoming) return stored;
+  const known = new Set(stored.log.map((l) => l.key));
+  const fresh = incoming.log.filter((l) => !known.has(l.key));
+  const log = [...stored.log, ...fresh].sort((a, b) => a.at - b.at).slice(-MAX_XP_LOG);
+  const later = (a, b) => (!a ? b : !b ? a : a.last >= b.last ? a : b);
+  return {
+    total: stored.total + fresh.reduce((s, l) => s + l.points, 0),
+    log,
+    streak: later(stored.streak, incoming.streak),
+    outfit: incoming.outfit || stored.outfit || null,
+  };
+}
+
+function mergeXpMaps(stored, incoming, keepPlayers) {
+  const out = {};
+  const players = keepPlayers || [...new Set([...Object.keys(stored), ...Object.keys(incoming)])];
+  players.forEach((pid) => {
+    const m = mergeXpRecord(stored[pid] || null, incoming[pid] || null);
+    if (m) out[pid] = m;
+  });
+  return out;
+}
+
+const RARITIES = Object.keys(GamedayCore.RARITY);
+function cleanCard(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const sport = sportKey(raw.sport);
+  const gameId = safeId(raw.gameId);
+  const name = text(raw.name, 80);
+  if (!sport || !gameId || !name) return null;
+  const athleteId = safeId(raw.athleteId);
+  const at = Number(raw.at);
+  return {
+    id: `${sport}:${gameId}:${athleteId || name}`.slice(0, 160),
+    sport, gameId, athleteId, name,
+    headshot: safeHttpUrl(raw.headshot),
+    position: text(raw.position, 10),
+    stat: text(raw.stat, 40),
+    line: text(raw.line, 80),
+    team: text(raw.team, 80),
+    teamId: safeId(raw.teamId),
+    teamLogo: safeHttpUrl(raw.teamLogo),
+    color: color(raw.color),
+    opponent: text(raw.opponent, 80),
+    date: isoDate(raw.date),
+    rarity: RARITIES.includes(raw.rarity) ? raw.rarity : 'common',
+    at: Number.isFinite(at) && at > 0 ? at : Date.now(),
+  };
+}
+
+function cleanCardMap(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  Object.entries(raw).slice(0, MAX_PLAYERS + 1).forEach(([owner, list]) => {
+    const id = safeId(owner);
+    if (!id || !Array.isArray(list)) return;
+    out[id] = list.map(cleanCard).filter(Boolean).slice(-MAX_CARDS);
+  });
+  return out;
+}
+
+function mergeCardMaps(stored, incoming, keepOwners) {
+  const out = {};
+  const owners = keepOwners || [...new Set([...Object.keys(stored), ...Object.keys(incoming)])];
+  owners.forEach((owner) => {
+    const seen = new Set();
+    const list = [...(stored[owner] || []), ...(incoming[owner] || [])].filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+    list.sort((a, b) => (a.at || 0) - (b.at || 0));
+    out[owner] = list.slice(-MAX_CARDS);
+  });
+  return out;
+}
+
 const CLEAN = {
   players: cleanPlayers,
   picks: (raw) => cleanPickMap(raw, cleanPick, MAX_PICKS),
   brackets: (raw) => cleanPickMap(raw, cleanBracketPick, MAX_BRACKET_PICKS),
   stickers: cleanStickerMap,
+  xp: cleanXpMap,
+  cards: cleanCardMap,
 };
 
-const EMPTY = { players: () => [], picks: () => ({}), stickers: () => ({}), brackets: () => ({}) };
+const EMPTY = { players: () => [], picks: () => ({}), stickers: () => ({}), brackets: () => ({}), xp: () => ({}), cards: () => ({}) };
 
 // ---- Merging -----------------------------------------------------------------
 
@@ -299,6 +452,8 @@ const saveKidsKey = db.transaction((userId, key, raw, now = Date.now()) => {
   if (key === 'players') return writeKey(userId, key, incoming);
   const stored = readKey(userId, key);
   if (key === 'stickers') return writeKey(userId, key, mergeStickerMaps(stored, incoming, Object.keys(incoming)));
+  if (key === 'xp') return writeKey(userId, key, mergeXpMaps(stored, incoming, Object.keys(incoming)));
+  if (key === 'cards') return writeKey(userId, key, mergeCardMaps(stored, incoming, Object.keys(incoming)));
   const max = key === 'picks' ? MAX_PICKS : MAX_BRACKET_PICKS;
   const merged = mergePickMaps(stored, incoming, { prefer: 'incoming', keepPlayers: Object.keys(incoming), now });
   Object.keys(merged).forEach((pid) => { merged[pid] = trimPicks(merged[pid], max); });
@@ -313,6 +468,8 @@ const mergeKidsData = db.transaction((userId, raw, now = Date.now()) => {
   const players = cleanPlayers([...stored.players, ...cleanPlayers(local.players)]);
   writeKey(userId, 'players', players);
   writeKey(userId, 'stickers', mergeStickerMaps(stored.stickers, CLEAN.stickers(local.stickers)));
+  writeKey(userId, 'xp', mergeXpMaps(stored.xp, CLEAN.xp(local.xp)));
+  writeKey(userId, 'cards', mergeCardMaps(stored.cards, CLEAN.cards(local.cards)));
   ['picks', 'brackets'].forEach((key) => {
     const max = key === 'picks' ? MAX_PICKS : MAX_BRACKET_PICKS;
     const merged = mergePickMaps(stored[key], CLEAN[key](local[key]), { prefer: 'stored', now });
@@ -486,8 +643,24 @@ async function weeklyLeaderboard(leagueId, { sport, weekKey } = {}, deps = realD
   everyone.forEach(({ player, data }) => Object.values(data.picks[player.id] || {}).filter(inWeek).forEach((p) => gameIds.add(String(p.gameId))));
   const games = gameIds.size ? await weekGames(group, gameIds, deps) : new Map();
 
+  // Closest final-score guess in the league for each finished game.
+  const closest = new Map();
+  gameIds.forEach((gid) => {
+    const game = games.get(gid);
+    const res = game && KidsCore.gameResult(game);
+    if (!res || !game.away || !game.home) return;
+    const start = Date.parse(game.date);
+    const entries = [];
+    everyone.forEach(({ player, data }) => {
+      const p = (data.picks[player.id] || {})[`${group.sport}:${gid}`];
+      if (p && p.guess && p.pickedAt && Number.isFinite(start) && p.pickedAt < start) entries.push({ id: player.id, guess: p.guess });
+    });
+    const best = GamedayCore.closestGuesses(entries, { away: game.away.score, home: game.home.score });
+    best.ids.forEach((id) => closest.set(id, (closest.get(id) || 0) + 1));
+  });
+
   const rows = everyone.map(({ user, player, data }) => {
-    const stats = { right: 0, wrong: 0, pending: 0, total: 0, late: 0 };
+    const stats = { right: 0, wrong: 0, pending: 0, total: 0, late: 0, closest: closest.get(player.id) || 0 };
     Object.values(data.picks[player.id] || {}).filter(inWeek).forEach((p) => {
       const game = games.get(String(p.gameId));
       const start = Date.parse((game && game.date) || p.date);
@@ -504,12 +677,82 @@ async function weeklyLeaderboard(leagueId, { sport, weekKey } = {}, deps = realD
     });
     return { userId: user.id, member: memberName(user), playerId: player.id, name: player.name, emoji: player.emoji, ...stats };
   });
-  rows.sort((a, b) => b.right - a.right || a.wrong - b.wrong || String(a.name).localeCompare(String(b.name)));
+  rows.sort((a, b) => b.right - a.right || a.wrong - b.wrong || b.closest - a.closest || String(a.name).localeCompare(String(b.name)));
   return {
     week: { key: group.key, label: group.label, sport: group.sport },
     weeks: weekList.map((g) => ({ key: g.key, label: g.label, sport: g.sport })),
     rows,
   };
+}
+
+// XP standings for a league: everyone's level and total, XP since `since`
+// (the start of this week) and, with `game` ("cfb:401..."), XP earned
+// during that game (bingo, play calls, score guesses).
+function xpStandings(leagueId, { since, game } = {}) {
+  const rows = leaguePlayers(leagueId).map(({ user, player, data }) => {
+    const rec = (data.xp || {})[player.id] || { total: 0, log: [] };
+    const lv = GamedayCore.levelFor(rec.total);
+    return {
+      userId: user.id,
+      member: memberName(user),
+      playerId: player.id,
+      name: player.name,
+      emoji: player.emoji,
+      total: rec.total || 0,
+      level: lv.level,
+      outfit: rec.outfit || null,
+      streak: (rec.streak && rec.streak.days) || 0,
+      week: Number.isFinite(since) ? GamedayCore.xpSince(rec, since) : 0,
+      game: game ? GamedayCore.xpForGame(rec, game) : 0,
+    };
+  });
+  const by = game ? 'game' : 'week';
+  rows.sort((a, b) => b[by] - a[by] || b.total - a.total || String(a.name).localeCompare(String(b.name)));
+  return { rows };
+}
+
+// ---- Watch party chat ----------------------------------------------------------
+
+const CHAT_KEEP = 300; // newest messages kept per league and game
+const CHAT_MAX_LEN = 280;
+const CHAT_REACTIONS = ['🎉', '😱', '🔥', '👏', '😭', '🙌', '😂', '🦝'];
+
+function chatGameKey(value) {
+  return typeof value === 'string' && /^[a-z0-9]{2,10}:[A-Za-z0-9_-]{1,40}$/.test(value) ? value : null;
+}
+
+// Who a message is from: one of the account's Kids Zone players when the
+// browser names one, otherwise the account's own name.
+function chatAuthor(user, playerId) {
+  const players = readKey(user.id, 'players');
+  const player = playerId ? players.find((p) => p.id === playerId) : null;
+  if (player) return { name: player.name, emoji: player.emoji };
+  return { name: memberName(user), emoji: null };
+}
+
+function listChat(leagueId, game, { after = 0, userId } = {}) {
+  const rows = db.prepare(`
+    SELECT * FROM (
+      SELECT id, user_id, name, emoji, body, created_at FROM league_chat
+      WHERE league_id = ? AND game = ? AND id > ? ORDER BY id DESC LIMIT 100
+    ) ORDER BY id ASC
+  `).all(leagueId, game, Number(after) || 0);
+  return rows.map((r) => ({ id: r.id, name: r.name, emoji: r.emoji, text: r.body, at: r.created_at, mine: r.user_id === userId }));
+}
+
+// Plain text only (the page never renders it as HTML), one line, trimmed.
+function postChat(leagueId, game, user, { text: raw, playerId } = {}, now = Date.now()) {
+  const body = typeof raw === 'string' ? raw.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, CHAT_MAX_LEN) : '';
+  if (!body) return null;
+  const who = chatAuthor(user, safeId(playerId));
+  const info = db.prepare('INSERT INTO league_chat (league_id, game, user_id, name, emoji, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(leagueId, game, user.id, who.name, who.emoji, body, now);
+  db.prepare(`
+    DELETE FROM league_chat WHERE league_id = ? AND game = ? AND id <= (
+      SELECT id FROM league_chat WHERE league_id = ? AND game = ? ORDER BY id DESC LIMIT 1 OFFSET ?
+    )
+  `).run(leagueId, game, leagueId, game, CHAT_KEEP);
+  return { id: Number(info.lastInsertRowid), name: who.name, emoji: who.emoji, text: body, at: now, mine: true };
 }
 
 function weekOrder(g) {
@@ -553,5 +796,12 @@ module.exports = {
   resetCode,
   weeklyLeaderboard,
   bracketStandings,
+  xpStandings,
+  listChat,
+  postChat,
+  chatGameKey,
+  CHAT_REACTIONS,
+  cleanXpMap,
+  mergeXpMaps,
   publicLeague,
 };

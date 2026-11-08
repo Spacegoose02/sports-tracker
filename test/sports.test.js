@@ -150,7 +150,7 @@ test('API lists sports and rejects unknown sports and bad dates', async () => {
   await withApi(async (url) => {
     const list = await (await fetch(`${url}/api/sports`)).json();
     assert.strictEqual(list.defaultSport, 'cfb');
-    assert.deepStrictEqual(list.sports.map((s) => s.key), ['cfb', 'nfl', 'nba', 'mcbb', 'mlb', 'nhl', 'ufc', 'nascar']);
+    assert.deepStrictEqual(list.sports.map((s) => s.key), ['cfb', 'nfl', 'nba', 'mcbb', 'mlb', 'nhl', 'wnba', 'epl', 'mls', 'ucl', 'ufc', 'nascar', 'f1', 'golf']);
     assert.strictEqual((await fetch(`${url}/api/scoreboard?sport=curling`)).status, 400);
     assert.strictEqual((await fetch(`${url}/api/scoreboard?sport=nba&dates=tomorrow`)).status, 400);
   });

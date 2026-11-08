@@ -8,7 +8,7 @@ const { getSport } = require('./sports');
 const { freshenGames } = require('./livescores');
 
 // Typical game length per sport, for the calendar entry's end time.
-const DURATION_MIN = { cfb: 210, nfl: 195, nba: 150, mcbb: 135, mlb: 180, nhl: 165 };
+const DURATION_MIN = { cfb: 210, nfl: 195, nba: 150, wnba: 135, mcbb: 135, mlb: 180, nhl: 165, epl: 120, mls: 120, ucl: 120 };
 
 // Loads each followed team's season schedule. Teams in sports without
 // teams (UFC, NASCAR) and unknown sports are skipped; one team failing

@@ -1,0 +1,13 @@
+/* ---- Advanced CFB stats (team and game pages) --------------------------- */
+.adv-box { margin: 8px 0 18px; }
+.adv-sub { font-size: 0.8rem; color: var(--text-dim); font-weight: 500; }
+.adv-sp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.adv-sp > div { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center; display: grid; }
+.adv-big { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.adv-label { font-size: 0.8rem; color: var(--text-dim); }
+.adv-rank { font-size: 0.75rem; font-weight: 700; padding: 1px 6px; border-radius: var(--radius-pill); background: var(--bg-elev-2); color: var(--text-dim); margin-left: 4px; }
+.adv-rank.good { background: var(--win-soft); color: var(--win); }
+.adv-rank.bad { background: var(--loss-soft); color: var(--loss); }
+.adv-note { font-size: 0.8rem; color: var(--text-dim); }
+.adv-table td { text-align: center; font-variant-numeric: tabular-nums; }
+.adv-table td.adv-win { font-weight: 800; color: var(--win); }

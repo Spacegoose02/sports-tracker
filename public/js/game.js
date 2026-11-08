@@ -179,7 +179,10 @@
       box.className = 'kid-explainer';
       el('gameSituation').insertAdjacentElement('afterend', box);
     }
-    box.innerHTML = items.map((i) => `
+    const canRead = typeof Kids !== 'undefined' && Kids.canSpeak;
+    const said = window.GamedayCore ? GamedayCore.spokenScore(Object.assign({}, detail, { away: (detail.teams || []).find((t) => t.homeAway === 'away'), home: (detail.teams || []).find((t) => t.homeAway === 'home') })) : '';
+    box.dataset.speak = [said, ...items.map((i) => i.text)].filter(Boolean).join(' ');
+    box.innerHTML = (canRead ? '<button type="button" class="speak-btn" data-speak-box>&#128266; Read it to me</button>' : '') + items.map((i) => `
       <div class="kid-explainer-item">
         <div class="kid-explainer-title">${CFB.esc(i.title)}</div>
         <div class="kid-explainer-text">${CFB.esc(i.text)}</div>
@@ -227,6 +230,8 @@
   }
 
   document.addEventListener('click', (e) => {
+    const speakBtn = e.target.closest && e.target.closest('[data-speak-box]');
+    if (speakBtn && typeof Kids !== 'undefined') Kids.speak(el('kidExplainer').dataset.speak);
     const tab = e.target.closest && e.target.closest('[data-box-tab]');
     if (tab) selectBoxTab(tab.dataset.boxTab);
     const chip = e.target.closest && e.target.closest('[data-feed-filter]');
@@ -439,6 +444,7 @@
       el('gameBoxScore').innerHTML = CFBGame.boxScoreHtml(detail);
       el('gameDetailSections').innerHTML = CFB.gameDetailSectionsHtml(detail, { playByPlay: false });
       renderKidExplainer(detail);
+      window.dispatchEvent(new CustomEvent('tracker:game-loaded', { detail }));
 
       el('gameInjuries').innerHTML = CFBGame.injuriesHtml(detail);
       el('gameForm').innerHTML = CFBGame.recentFormHtml(detail);
@@ -446,6 +452,12 @@
 
       if (!ui.matchupLoaded) loadMatchup();
       if (detail.status && detail.status.state === 'post') loadHighlights();
+      // Advanced box score (college football): once mid-game, again at the end.
+      const advState = detail.status && detail.status.state;
+      if (typeof CFBAdvanced !== 'undefined' && advState !== 'pre' && ui.advancedFor !== advState) {
+        ui.advancedFor = advState;
+        CFBAdvanced.loadGame(el('gameAdvanced'), gameId);
+      }
       scheduleNext(detail);
     } catch (err) {
       // Keep showing the last good data during a live game; just retry.
