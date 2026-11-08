@@ -16,6 +16,7 @@ const overrides = require('../overrides');
 const { buildNotableFeed } = require('../notable');
 const { isSafeId } = require('../security');
 const { getSport, DEFAULT_SPORT, publicSportList } = require('../sports');
+const { freshenGames } = require('../livescores');
 
 const router = express.Router();
 
@@ -152,7 +153,7 @@ router.get('/team/:id', async (req, res) => {
     res.json({
       sport,
       team: info,
-      schedule: schedule ? overrides.applyToGames(schedule.games, sport) : [],
+      schedule: schedule ? overrides.applyToGames(await freshenGames(schedule.games, sport).catch(() => schedule.games), sport) : [],
       stats: stats ? stats.categories : [],
       isFavorite: isCfb(req) && String(teamId) === String(favoriteTeamId()),
     });

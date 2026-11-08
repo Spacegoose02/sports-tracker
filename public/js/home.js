@@ -94,7 +94,7 @@
         const ahead = Number(mine.score) >= Number(them.score);
         body = `
           <div class="ht-label live"><span class="live-dot"></span>Live</div>
-          <div class="ht-score"><span class="${ahead ? 'lead' : ''}">${esc(mine.score)}</span><span class="dash">&ndash;</span><span>${esc(them.score)}</span></div>
+          ${hasScore(mine) && hasScore(them) ? `<div class="ht-score"><span class="${ahead ? 'lead' : ''}">${esc(mine.score)}</span><span class="dash">&ndash;</span><span>${esc(them.score)}</span></div>` : ''}
           <div class="ht-line">${vs} ${esc(teamName(them))} &middot; ${esc(CFB.statusLabel(slim))}</div>`;
       } else if (t.nextGame) {
         body = `
@@ -114,6 +114,10 @@
         </a>`;
     }
     return `<a class="home-team" href="${esc(teamUrl(t.sport, t.id))}" style="${teamColor(t.color)}">${teamHead(t)}${body}</a>`;
+  }
+
+  function hasScore(team) {
+    return !!team && team.score !== null && team.score !== undefined && team.score !== '';
   }
 
   function teamColor(color) {
