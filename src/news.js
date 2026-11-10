@@ -10,11 +10,51 @@ const { safeHttpUrl } = require('./security');
 // NEWS_FEEDS_JSON env var (a JSON array of { "name": "...", "url": "..." }),
 // e.g. to point at a private RSS bridge. Keep private feed URLs/tokens in
 // .env or your container config, never in this file.
+//
+// Outlets without a public RSS feed of their own (On3, 247Sports, The
+// Athletic) come in through Google News searches limited to their site.
+// Google News names the real outlet in <source>, so each story still shows
+// "On3" or "247Sports", not "Google News".
+function googleNewsUrl(query) {
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+}
+
 const DEFAULT_FEEDS = [
   { name: 'ESPN', url: 'https://www.espn.com/espn/rss/ncf/news' },
   { name: 'CBS Sports', url: 'https://www.cbssports.com/rss/headlines/college-football/' },
   { name: 'Yahoo Sports', url: 'https://sports.yahoo.com/college-football/rss.xml' },
+  { name: 'On3', url: googleNewsUrl('college football site:on3.com when:2d') },
+  { name: '247Sports', url: googleNewsUrl('college football site:247sports.com when:2d') },
+  { name: 'The Athletic', url: googleNewsUrl('college football site:nytimes.com/athletic when:3d') },
+  { name: 'Sports Illustrated', url: googleNewsUrl('college football site:si.com when:2d') },
 ];
+
+// Other sports start from ESPN's league headlines (src/espn.js getNews) and
+// add these searches so the tab isn't one outlet. Keys match src/sports.js.
+const SPORT_QUERIES = {
+  nfl: 'NFL',
+  nba: 'NBA',
+  mcbb: '"college basketball"',
+  mlb: 'MLB',
+  nhl: 'NHL',
+  wnba: 'WNBA',
+  epl: '"Premier League"',
+  mls: 'MLS soccer',
+  ucl: '"Champions League"',
+  ufc: 'UFC',
+  nascar: 'NASCAR',
+  f1: '"Formula 1"',
+  golf: '"PGA Tour"',
+};
+
+function sportFeeds(sportKey) {
+  const q = SPORT_QUERIES[sportKey];
+  if (!q) return [];
+  return [
+    { name: 'The Athletic', url: googleNewsUrl(`${q} site:nytimes.com/athletic when:2d`) },
+    { name: 'News', url: googleNewsUrl(`${q} when:1d`) },
+  ];
+}
 
 function getFeeds() {
   if (process.env.NEWS_FEEDS_JSON) {
@@ -235,23 +275,118 @@ async function getNews() {
   return cache.getOrFetch(key, async () => {
     const feeds = getFeeds();
     const results = await Promise.all(feeds.map(fetchFeed));
-    const merged = results.flat();
-    merged.sort((a, b) => {
-      const ta = a.pubDate ? new Date(a.pubDate).getTime() : 0;
-      const tb = b.pubDate ? new Date(b.pubDate).getTime() : 0;
-      return tb - ta;
-    });
-    const trimmed = merged.slice(0, 40);
-
-    if (process.env.NEWS_FETCH_OG_IMAGES !== '0') {
-      await mapWithConcurrency(trimmed, 6, async (item) => {
-        const og = await fetchOgImageCached(item.link);
-        if (og) item.image = og;
-      });
-    }
-
+    const trimmed = mergeItems(results.flat(), 40);
+    await addOgImages(trimmed);
     return trimmed;
   }, 10 * 60 * 1000);
 }
 
-module.exports = { getNews, parseRss };
+async function addOgImages(items) {
+  if (process.env.NEWS_FETCH_OG_IMAGES === '0') return;
+  // Google News links are redirects with no og:image of their own.
+  await mapWithConcurrency(items.filter((i) => !i.image && !/news\.google\.com/i.test(i.link)), 6, async (item) => {
+    const og = await fetchOgImageCached(item.link);
+    if (og) item.image = og;
+  });
+}
+
+// "Ohio State's defense, explained" and "Ohio State’s Defense Explained"
+// are one story picked up by two feeds; keep the first (the newest).
+function titleKey(title) {
+  return String(title || '').toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Newest first, one copy of each story (by link and by title), capped.
+function mergeItems(items, limit = 40) {
+  const sorted = items.filter(Boolean).slice().sort((a, b) => (b.pubDate ? Date.parse(b.pubDate) : 0) - (a.pubDate ? Date.parse(a.pubDate) : 0));
+  const links = new Set();
+  const titles = new Set();
+  const out = [];
+  for (const item of sorted) {
+    const tk = titleKey(item.title);
+    if (links.has(item.link) || (tk && titles.has(tk))) continue;
+    links.add(item.link);
+    if (tk) titles.add(tk);
+    out.push(item);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+// Headlines for any sport: college football's own feeds, or ESPN's league
+// headlines (passed in, so this file doesn't depend on src/espn.js) plus
+// the searches in SPORT_QUERIES.
+async function getSportNews(sportKey, espnLoader) {
+  if (sportKey === 'cfb') return getNews();
+  return cache.getOrFetch(`news:sport:${sportKey}`, async () => {
+    const [espnItems, ...feedItems] = await Promise.all([
+      espnLoader ? espnLoader().catch(() => []) : [],
+      ...sportFeeds(sportKey).map(fetchFeed),
+    ]);
+    return mergeItems([...espnItems, ...feedItems.flat()], 40);
+  }, 10 * 60 * 1000);
+}
+
+// --- Team and conference filters -------------------------------------------
+
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Words that name a team in a headline: "Virginia Tech Hokies", "Virginia
+// Tech", "Hokies". Short or generic pieces are left out so "Tech" alone
+// doesn't match every Tech.
+const GENERIC = new Set(['state', 'tech', 'university', 'college', 'city', 'united', 'team']);
+function teamTerms(team) {
+  if (!team) return [];
+  const terms = [team.name, team.shortName, team.location, team.nickname]
+    .filter(Boolean)
+    .map((s) => String(s).trim())
+    .filter((s) => s.length >= 4 && !GENERIC.has(s.toLowerCase()));
+  return [...new Set(terms)];
+}
+
+// "Southeastern Conference" / "SEC", "Big Ten Conference" / "Big Ten".
+function conferenceTerms(conf) {
+  if (!conf) return [];
+  const terms = [conf.name, conf.abbreviation, conf.name && conf.name.replace(/\s+Conference$/i, '')]
+    .filter(Boolean)
+    .map((s) => String(s).trim())
+    .filter((s) => s.length >= 3 && !/independents?/i.test(s));
+  return [...new Set(terms)];
+}
+
+function mentionsAny(item, terms) {
+  if (!terms.length) return false;
+  const text = `${item.title || ''} ${item.summary || ''}`;
+  return terms.some((t) => {
+    // Abbreviations (SEC, ACC) must match in capitals; names don't care.
+    const flags = /^[A-Z0-9&-]{2,5}$/.test(t) ? '' : 'i';
+    return new RegExp(`(^|[^A-Za-z0-9])${escapeRe(t)}([^A-Za-z0-9]|$)`, flags).test(text);
+  });
+}
+
+function filterByTerms(items, terms) {
+  return (items || []).filter((item) => mentionsAny(item, terms));
+}
+
+// A Google News search for one team or conference, so a filter has more to
+// show than whatever happened to be in the general feeds.
+async function searchNews(query, days = 7) {
+  const items = await fetchFeed({ name: 'News', url: googleNewsUrl(`${query} when:${days}d`) });
+  return items;
+}
+
+module.exports = {
+  getNews,
+  getSportNews,
+  parseRss,
+  mergeItems,
+  teamTerms,
+  conferenceTerms,
+  filterByTerms,
+  mentionsAny,
+  searchNews,
+  googleNewsUrl,
+  SPORT_QUERIES,
+};

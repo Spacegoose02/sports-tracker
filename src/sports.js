@@ -20,6 +20,8 @@
 //   kind:     the game family (football, soccer, golf...), for words, kid
 //             explanations and drawings that are the same across leagues.
 
+const { hasVideos } = require('./videos');
+
 const SPORTS = {
   cfb: {
     key: 'cfb',
@@ -251,7 +253,7 @@ function resolveSport(key) {
 
 // The config the browser needs (no ESPN paths).
 function publicSportList() {
-  return Object.values(SPORTS).map(({ path, ...rest }) => rest);
+  return Object.values(SPORTS).map(({ path, ...rest }) => ({ ...rest, videos: hasVideos(rest.key) }));
 }
 
 module.exports = { SPORTS, DEFAULT_SPORT, getSport, resolveSport, publicSportList };

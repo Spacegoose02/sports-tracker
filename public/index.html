@@ -117,9 +117,16 @@
     </div>
 
     <div class="tab-panel" id="tab-news">
-      <div class="news-filter" id="newsFilter" hidden>
-        <button type="button" data-filter="mine">My teams</button>
-        <button type="button" data-filter="all">All news</button>
+      <div class="news-toolbar">
+        <div class="news-filter" id="newsFilter" hidden>
+          <button type="button" data-filter="mine">My teams</button>
+          <button type="button" data-filter="all">All news</button>
+        </div>
+        <label class="news-scope" id="newsScopeWrap" hidden>
+          <select id="newsScope" aria-label="Filter news by team or conference">
+            <option value="">Every team and conference</option>
+          </select>
+        </label>
       </div>
       <div class="news-list" id="newsList">
         <div class="empty-note">Loading&hellip;</div>

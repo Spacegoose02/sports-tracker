@@ -559,7 +559,19 @@
   // Defaults to My teams whenever the visitor follows a team in this sport.
   const NEWS_MODE_KEY = 'tracker-news-mode';
 
+  // A picked team or conference ("team:259", "conf:ACC"), kept per sport.
+  const NEWS_SCOPE_KEY = 'tracker-news-scope';
+
+  function newsScope() {
+    try { return localStorage.getItem(`${NEWS_SCOPE_KEY}:${CFB.sport().key}`) || ''; } catch (e) { return ''; }
+  }
+
+  function setNewsScope(value) {
+    try { localStorage.setItem(`${NEWS_SCOPE_KEY}:${CFB.sport().key}`, value || ''); } catch (e) { /* ignore */ }
+  }
+
   function newsMode() {
+    if (newsScope()) return 'scope';
     if (!CFB.follows.list().length) return 'all';
     try { return localStorage.getItem(NEWS_MODE_KEY) === 'all' ? 'all' : 'mine'; } catch (e) { return 'mine'; }
   }
@@ -570,16 +582,61 @@
       const hasFollows = CFB.follows.list().length > 0;
       filter.hidden = !hasFollows;
       filter.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.filter === newsMode()));
+      if (el('newsScope')) el('newsScope').value = newsScope();
     };
     filter.querySelectorAll('button').forEach((btn) => {
       btn.addEventListener('click', () => {
         try { localStorage.setItem(NEWS_MODE_KEY, btn.dataset.filter); } catch (e) { /* ignore */ }
+        setNewsScope('');
         update();
         loadNews();
       });
     });
+    const scope = el('newsScope');
+    if (scope) {
+      scope.addEventListener('change', () => {
+        setNewsScope(scope.value);
+        update();
+        loadNews();
+      });
+    }
     update();
     return update;
+  }
+
+  // Fills the team / conference picker from the sport's standings: one
+  // "All of <conference>" option and the member teams under each.
+  let newsScopeSport = null;
+  async function loadNewsScopes() {
+    const wrap = el('newsScopeWrap');
+    const select = el('newsScope');
+    const sport = CFB.sport();
+    if (!wrap || !select || newsScopeSport === sport.key) return;
+    newsScopeSport = sport.key;
+    select.length = 1;
+    wrap.hidden = true;
+    if (!sport.standings || sport.teams === false) return;
+    try {
+      const data = await CFB.getJson(CFB.withSport('/api/standings'));
+      if (newsScopeSport !== sport.key) return;
+      const confs = (data.conferences || []).filter((c) => (c.entries || []).length);
+      if (!confs.length) return;
+      select.insertAdjacentHTML('beforeend', confs.map((c) => {
+        const id = c.abbreviation || c.name;
+        const label = String(c.name || id).replace(/\s+Conference$/i, '');
+        const teams = (c.entries || []).filter((e) => e.team && e.team.id)
+          .slice().sort((a, b) => String(a.team.name).localeCompare(String(b.team.name)))
+          .map((e) => `<option value="team:${CFB.esc(e.team.id)}">${CFB.esc(e.team.name)}</option>`).join('');
+        const all = /independent/i.test(label) ? '' : `<option value="conf:${CFB.esc(id)}">All ${CFB.esc(label)}</option>`;
+        return `<optgroup label="${CFB.esc(label)}">${all}${teams}</optgroup>`;
+      }).join(''));
+      wrap.hidden = false;
+      select.value = newsScope();
+      // A saved pick from a team that's no longer listed falls back to all.
+      if (select.value !== newsScope()) setNewsScope('');
+    } catch (err) {
+      // No picker; the tab still works.
+    }
   }
 
   // Four headlines under the scores, so the home page reads like a front page.
@@ -615,9 +672,15 @@
     const mode = newsMode();
     const followed = CFB.follows.list();
     const teamNames = new Map(followed.map((t) => [String(t.id), t.abbreviation || t.name]));
-    const url = mode === 'mine'
-      ? CFB.withSport(`/api/news/teams?teams=${encodeURIComponent(followed.map((t) => t.id).join(','))}`)
-      : CFB.withSport('/api/news');
+    loadNewsScopes();
+    const scope = newsScope();
+    const [scopeType, scopeId] = scope.split(':');
+    let url = CFB.withSport('/api/news');
+    if (mode === 'scope') {
+      url = CFB.withSport(`/api/news?${scopeType === 'team' ? 'team' : 'conference'}=${encodeURIComponent(scopeId || '')}`);
+    } else if (mode === 'mine') {
+      url = CFB.withSport(`/api/news/teams?teams=${encodeURIComponent(followed.map((t) => t.id).join(','))}`);
+    }
     try {
       const data = await CFB.getJson(url);
       state.newsLoaded = true;
@@ -625,14 +688,16 @@
       if (!items.length) {
         list.innerHTML = mode === 'mine'
           ? '<div class="empty-note">No recent headlines for the teams you follow. Try All news.</div>'
-          : '<div class="empty-note">No news available right now.</div>';
+          : mode === 'scope'
+            ? '<div class="empty-note">No recent headlines for this pick. Try another team or conference.</div>'
+            : '<div class="empty-note">No news available right now.</div>';
         return;
       }
       list.innerHTML = items.filter((item) => CFB.safeUrl(item.link)).map((item) => `
-        <a class="news-item" href="${CFB.safeUrl(item.link)}" target="_blank" rel="noopener noreferrer">
+        <a class="news-item${CFB.safeUrl(item.image) ? '' : ' no-thumb'}" href="${CFB.safeUrl(item.link)}" target="_blank" rel="noopener noreferrer">
           ${CFB.safeUrl(item.image)
             ? `<img class="news-thumb" src="${CFB.safeUrl(item.image)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'news-thumb-placeholder',textContent:'📰'}))">`
-            : '<div class="news-thumb-placeholder">&#128240;</div>'}
+            : ''}
           <div class="news-item-body">
             <div class="news-item-top">
               <span class="news-source">${CFB.esc(item.source)}${item.teamId && teamNames.get(String(item.teamId)) ? ` &middot; ${CFB.esc(teamNames.get(String(item.teamId)))}` : ''}</span>
@@ -665,7 +730,7 @@
     const list = el('videoList');
     list.innerHTML = '<div class="empty-note">Loading&hellip;</div>';
     try {
-      const data = await CFB.getJson('/api/videos');
+      const data = await CFB.getJson(CFB.withSport('/api/videos'));
       state.videosLoaded = true;
       const items = data.items || [];
       if (!items.length) {
@@ -697,15 +762,15 @@
     }
   }
 
-  // Hide the pieces that only exist for college football: the pinned
-  // "My Team" card, Notable Games, and the CFB YouTube feed.
+  // Hide the pieces a sport doesn't have: the pinned "My Team" card,
+  // Notable Games (CFB only), and the Videos tab (sports with no YouTube
+  // channels set up in src/videos.js).
   function applySportLayout(sport) {
     document.title = sport.key === 'cfb' ? 'Stat Scraps' : `${sport.label} · Stat Scraps`;
-    const isCfb = sport.key === 'cfb';
     // UFC and NASCAR have fighters and drivers, not teams to follow.
     el('favoriteSection').hidden = sport.teams === false;
     document.querySelector('.tab-btn[data-tab="notable"]').hidden = !sport.notable;
-    document.querySelector('.tab-btn[data-tab="videos"]').hidden = !isCfb;
+    document.querySelector('.tab-btn[data-tab="videos"]').hidden = !sport.videos;
   }
 
   async function init() {
