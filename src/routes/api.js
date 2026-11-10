@@ -247,7 +247,7 @@ router.get('/game/:id/highlights', async (req, res) => {
   try {
     const summary = await ds.getGameSummary(req.params.id, 'espn', req.sport.key);
     const espnClips = summary.highlights || [];
-    const yt = await videos.getVideos().catch(() => []);
+    const yt = await videos.getVideos(req.sport.key).catch(() => []);
     const ytClips = highlights.matchYouTube(yt, summary.teams, summary.date);
     res.json({
       state: (summary.status && summary.status.state) || null,
@@ -297,12 +297,54 @@ router.get('/notable/feed', async (req, res) => {
 
 // Merged, sorted headlines from the configured college football RSS feeds
 // (see src/news.js). Meant for a "News" tab/section on the home page.
+//
+// ?team=<id> narrows to one team: ESPN's team headlines, a news search for
+// the team, and general headlines that name it. ?conference=<abbreviation or
+// name> does the same for a conference and its member teams.
 router.get('/news', async (req, res) => {
   try {
+    const sport = req.sport.key;
     // College football keeps its configured RSS feeds; other sports use
-    // ESPN's league headlines.
-    const items = isCfb(req) ? await news.getNews() : await ds.getNews({ sport: req.sport.key });
-    res.json({ items });
+    // ESPN's league headlines plus a few news searches.
+    const leagueNews = () => news.getSportNews(sport, () => ds.getNews({ sport }));
+    const team = /^\d{1,10}$/.test(String(req.query.team || '')) ? String(req.query.team) : null;
+    const conference = String(req.query.conference || '').trim().slice(0, 80);
+
+    if (team) {
+      const info = await ds.getTeamInfo(team, sport).catch(() => null);
+      if (!info || !info.id) return res.status(404).json({ error: 'Unknown team' });
+      const terms = news.teamTerms(info);
+      const label = info.shortName || info.name;
+      const [espnTeam, league, search] = await Promise.all([
+        ds.getNews({ sport, team, limit: 20 }).catch(() => []),
+        leagueNews().catch(() => []),
+        news.searchNews(`"${label}" ${sport === 'cfb' ? 'football' : req.sport.shortLabel}`).catch(() => []),
+      ]);
+      const items = news.mergeItems([...espnTeam, ...news.filterByTerms([...league, ...search], terms)], 40);
+      return res.json({ items, filter: { type: 'team', id: team, label } });
+    }
+
+    if (conference) {
+      const standings = req.sport.standings ? await ds.getStandings({ sport }).catch(() => null) : null;
+      const confs = (standings && standings.conferences) || [];
+      const want = conference.toLowerCase();
+      const conf = confs.find((c) => [c.abbreviation, c.name].some((n) => n && String(n).toLowerCase() === want));
+      if (!conf) return res.status(404).json({ error: 'Unknown conference' });
+      const confTerms = news.conferenceTerms(conf);
+      const teamTerms = (conf.entries || []).flatMap((e) => news.teamTerms(e.team));
+      const shortName = String(conf.name || '').replace(/\s+Conference$/i, '');
+      const [league, search] = await Promise.all([
+        leagueNews().catch(() => []),
+        news.searchNews(`"${shortName}" ${sport === 'cfb' ? 'football' : req.sport.shortLabel}`, 3).catch(() => []),
+      ]);
+      const items = news.mergeItems([
+        ...news.filterByTerms(search, [...confTerms, ...teamTerms]),
+        ...news.filterByTerms(league, [...confTerms, ...teamTerms]),
+      ], 40);
+      return res.json({ items, filter: { type: 'conference', id: conf.abbreviation || conf.name, label: shortName } });
+    }
+
+    res.json({ items: await leagueNews() });
   } catch (err) {
     res.status(502).json({ error: 'Could not load news', detail: err.message });
   }
@@ -337,12 +379,11 @@ router.get('/news/teams', async (req, res) => {
   }
 });
 
-// Recent uploads from the configured college football YouTube channels
-// (see src/videos.js), merged and sorted newest-first. Meant for a
-// "Videos" tab alongside News.
+// Recent uploads from the selected sport's YouTube channels (see
+// src/videos.js), merged and sorted newest-first, for the Videos tab.
 router.get('/videos', async (req, res) => {
   try {
-    const items = await videos.getVideos();
+    const items = await videos.getVideos(req.sport.key);
     res.json({ items });
   } catch (err) {
     res.status(502).json({ error: 'Could not load videos', detail: err.message });

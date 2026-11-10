@@ -141,6 +141,9 @@
     // ---- News and videos -----------------------------------------------
     'News': 'Noticias',
     'All news': 'Todas las noticias',
+    'Every team and conference': 'Todos los equipos y conferencias',
+    'Filter news by team or conference': 'Filtrar noticias por equipo o conferencia',
+    'No recent headlines for this pick. Try another team or conference.': 'No hay titulares recientes para esta selección. Prueba otro equipo o conferencia.',
     'Videos': 'Videos',
     'No news available right now.': 'No hay noticias disponibles por ahora.',
     'No recent news for this team.': 'No hay noticias recientes de este equipo.',

@@ -1,5 +1,5 @@
-// Recent uploads from a handful of college-football YouTube channels,
-// merged into one feed for the "Videos" tab. Uses YouTube's public
+// Recent uploads from a handful of YouTube channels for each sport, merged
+// into one feed for the "Videos" tab. Uses YouTube's public
 // per-channel Atom feed (https://www.youtube.com/feeds/videos.xml?channel_id=...)
 // which needs no API key and no quota — it's the same feed a podcast/RSS
 // reader would subscribe to, just the ~15 most recent uploads per channel.
@@ -8,29 +8,49 @@ const fetch = require('node-fetch');
 const cache = require('./cache');
 const { safeHttpUrl } = require('./security');
 
-// Defaults are the channels from your Dynacat config. Override entirely via
-// YOUTUBE_CHANNELS_JSON (a JSON array of { "id": "UC...", "name": "..." })
-// if you ever want to add/remove/rename channels without editing code.
-const DEFAULT_CHANNELS = [
-  { id: 'UCqos51yz-JaNorbbSDQrlGw', name: 'Hokie Sports' },
-  { id: 'UCJn33SOv86632dLg_qVVlcg', name: 'Joel Klatt Show' },
-  { id: 'UCLzocFrP98gfI5W2LD7Ux-w', name: '247Sports' },
-  { id: 'UCg-q_MDeWQrjizr1VPLEpYg', name: "Josh Pate's College Football Show" },
-  { id: 'UC0hy7TcR1gGD8nQBqrF2FaA', name: 'ACC Digital Network' },
-  { id: 'UCzRWWsFjqHk1an4OnVPsl9g', name: 'ESPN College Football' },
-  { id: 'UCn2g2Wy8uiE9BhDPV4knT7A', name: 'On3' },
-];
+// College football defaults are the channels from your Dynacat config.
+// Override them with YOUTUBE_CHANNELS_JSON (a JSON array of
+// { "id": "UC...", "name": "..." }), and any other sport's list with
+// YOUTUBE_CHANNELS_<SPORT>_JSON, e.g. YOUTUBE_CHANNELS_NBA_JSON. A sport
+// with no channels has no Videos tab.
+const DEFAULT_CHANNELS = {
+  cfb: [
+    { id: 'UCqos51yz-JaNorbbSDQrlGw', name: 'Hokie Sports' },
+    { id: 'UCJn33SOv86632dLg_qVVlcg', name: 'Joel Klatt Show' },
+    { id: 'UCLzocFrP98gfI5W2LD7Ux-w', name: '247Sports' },
+    { id: 'UCg-q_MDeWQrjizr1VPLEpYg', name: "Josh Pate's College Football Show" },
+    { id: 'UC0hy7TcR1gGD8nQBqrF2FaA', name: 'ACC Digital Network' },
+    { id: 'UCzRWWsFjqHk1an4OnVPsl9g', name: 'ESPN College Football' },
+    { id: 'UCn2g2Wy8uiE9BhDPV4knT7A', name: 'On3' },
+  ],
+  nfl: [{ id: 'UCDVYQ4Zhbm3S2dlz7P1GBDg', name: 'NFL' }],
+  nba: [{ id: 'UCWJ2lWNubArHWmf3FIHbfcQ', name: 'NBA' }],
+  mlb: [{ id: 'UCoLrcjPV5PbUrUyXq5mjc_A', name: 'MLB' }],
+  nhl: [{ id: 'UCqFMzb-4AUf6WAIbl132QKA', name: 'NHL' }],
+  epl: [{ id: 'UCG5qGWdu8nIRZqJ_GgDwQ-w', name: 'Premier League' }],
+  f1: [{ id: 'UCB_qr75-ydFVKSF9Dmo6izg', name: 'FORMULA 1' }],
+};
 
-function getChannels() {
-  if (process.env.YOUTUBE_CHANNELS_JSON) {
-    try {
-      const parsed = JSON.parse(process.env.YOUTUBE_CHANNELS_JSON);
-      if (Array.isArray(parsed) && parsed.length) return parsed;
-    } catch (err) {
-      console.error('[videos] YOUTUBE_CHANNELS_JSON is not valid JSON, falling back to defaults:', err.message);
-    }
+function envChannels(sport, env) {
+  const name = sport === 'cfb' ? 'YOUTUBE_CHANNELS_JSON' : `YOUTUBE_CHANNELS_${String(sport).toUpperCase()}_JSON`;
+  if (!env[name]) return null;
+  try {
+    const parsed = JSON.parse(env[name]);
+    if (Array.isArray(parsed)) return parsed.filter((c) => c && typeof c.id === 'string' && /^UC[A-Za-z0-9_-]{10,40}$/.test(c.id));
+  } catch (err) {
+    console.error(`[videos] ${name} is not valid JSON, falling back to defaults:`, err.message);
   }
-  return DEFAULT_CHANNELS;
+  return null;
+}
+
+function getChannels(sport = 'cfb', env = process.env) {
+  const custom = envChannels(sport, env);
+  if (custom && custom.length) return custom;
+  return DEFAULT_CHANNELS[sport] || [];
+}
+
+function hasVideos(sport, env = process.env) {
+  return getChannels(sport, env).length > 0;
 }
 
 function decodeEntities(str) {
@@ -88,13 +108,14 @@ async function fetchChannel(channel) {
   }
 }
 
-// Merged recent uploads across all configured channels, newest first.
-// Cached for 20 minutes — new uploads don't need to be as fresh as live
-// scores, and this avoids re-pulling 7+ channel feeds on every tab click.
-async function getVideos() {
-  const key = 'videos:merged';
+// Merged recent uploads across a sport's channels, newest first. Cached
+// for 20 minutes — new uploads don't need to be as fresh as live scores,
+// and this avoids re-pulling 7+ channel feeds on every tab click.
+async function getVideos(sport = 'cfb') {
+  const channels = getChannels(sport);
+  if (!channels.length) return [];
+  const key = `videos:merged:${sport}`;
   return cache.getOrFetch(key, async () => {
-    const channels = getChannels();
     const results = await Promise.all(channels.map(fetchChannel));
     const merged = results.flat();
     merged.sort((a, b) => {
@@ -106,4 +127,4 @@ async function getVideos() {
   }, 20 * 60 * 1000);
 }
 
-module.exports = { getVideos, parseAtom };
+module.exports = { getVideos, getChannels, hasVideos, parseAtom };
