@@ -1,6 +1,6 @@
 {
   "name": "cfb-tracker",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Stat Scraps: college football schedules, scores, and live stats tracker with followed teams, per-account notable games, and dashboard JSON feeds.",
   "main": "server.js",
   "private": true,
