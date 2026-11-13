@@ -244,6 +244,56 @@
     el('liveNote').textContent = live.length ? 'Closest and latest games first' : '';
   }
 
+  // College football game day: the day's Top 25 games and any upsets, at
+  // the top of the page (src/home.js gameDaySpotlight).
+  function renderSpotlight(spot) {
+    const section = el('gamedaySection');
+    if (!spot || !(spot.top25 || []).length) { section.hidden = true; return; }
+    section.hidden = false;
+    const day = new Date().toLocaleDateString(undefined, { weekday: 'long' });
+    el('gamedayTitle').textContent = `College football ${day}`;
+    el('gamedayNote').textContent = [
+      `${spot.gamesToday} games today`,
+      spot.live ? `${spot.live} live now` : '',
+      `${spot.top25Count} with a Top 25 team`,
+    ].filter(Boolean).join(' · ');
+    const upsets = spot.upsets || [];
+    el('gamedayUpsets').hidden = !upsets.length;
+    el('gamedayUpsets').innerHTML = upsets.map((g) => {
+      const winner = [g.home, g.away].find((t) => t && String(t.id) === String(g.upset.winnerId));
+      const loser = [g.home, g.away].find((t) => t && String(t.id) === String(g.upset.loserId));
+      const label = g.upset.final ? 'Upset' : 'Upset alert';
+      return `<a class="gameday-upset" href="${esc(gameUrl(g))}"><span class="tag">${label}</span>${esc(teamName(winner))} ${g.upset.final ? 'beat' : 'leads'} #${esc(loser && loser.curatedRank)} ${esc(teamName(loser))}</a>`;
+    }).join('');
+    el('gamedayGames').innerHTML = spot.top25.map((g) => gameHtml(g)).join('');
+  }
+
+  // The college football Top 25 in the side rail: the Playoff Committee
+  // rankings once they're out, the AP poll before that.
+  let pollLoaded = 0;
+  async function loadPoll() {
+    if (Date.now() - pollLoaded < 30 * 60 * 1000) return;
+    pollLoaded = Date.now();
+    try {
+      const data = await CFB.getJson('/api/rankings?sport=cfb');
+      const polls = (data.polls || []).filter((p) => (p.ranks || []).length);
+      const poll = polls.find((p) => /playoff|cfp/i.test(`${p.name} ${p.shortName}`)) || polls.find((p) => /\bap\b/i.test(`${p.shortName || ''} ${p.name || ''}`)) || polls[0];
+      if (!poll) return;
+      const cfp = /playoff|cfp/i.test(`${poll.name} ${poll.shortName}`);
+      el('pollTitle').textContent = cfp ? 'College Football Playoff rankings' : 'AP Top 25';
+      el('homePoll').innerHTML = poll.ranks.slice(0, cfp ? 12 : 10).map((r) => `
+        <li>
+          <span class="hp-rank">${esc(r.rank)}</span>
+          ${r.team && r.team.logo ? `<img src="${safeUrl(r.team.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span></span>'}
+          ${r.team ? `<a href="${esc(teamUrl('cfb', r.team.id))}">${esc(r.team.name)}</a>` : '<span>TBD</span>'}
+          <span class="hp-rec">${esc(r.recordSummary || '')}</span>
+        </li>`).join('');
+      el('pollSection').hidden = false;
+    } catch (err) {
+      pollLoaded = 0;
+    }
+  }
+
   async function load() {
     clearTimeout(timer);
     const followed = CFB.follows.all().filter((t) => t.sport && t.id);
@@ -257,6 +307,8 @@
       return;
     }
     renderSummary(data);
+    renderSpotlight(data.spotlight);
+    loadPoll();
     renderMyTeams(data.myTeams, followed);
     renderLive(data.live || []);
     renderJump(data.leagues || []);

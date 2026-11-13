@@ -294,3 +294,34 @@ test('new pages escape what ESPN sends and link players safely', () => {
     assert.deepStrictEqual(raw, [], `${file} interpolates a name without CFB.esc`);
   }
 });
+
+test('college standings ignore split stats and sort by conference record', () => {
+  const stat = (name, type, displayValue, summary) => ({ name, type, displayValue, summary });
+  const team = (id, name, overall, conf, pf, splitPf) => ({
+    team: { id, displayName: name },
+    stats: [
+      stat('pointsFor', 'pointsfor', pf),
+      stat('pointsAgainst', 'pointsagainst', '200'),
+      stat('streak', 'streak', 'W3'),
+      stat('overall', 'total', overall, overall),
+      stat('Home', 'homerecord', '5-0', '5-0'),
+      stat('pointsFor', 'homerecord_pointsfor', '999'),
+      stat('Away', 'awayrecord', '3-2', '3-2'),
+      stat('vs. Conf.', 'vsconf', conf, conf),
+      stat('pointsFor', 'vsaprankedteams_pointsfor', splitPf),
+      stat('streak', 'vsaprankedteams_streak', '-'),
+    ],
+  });
+  const [conf] = espn.parseStandings({ children: [{ name: 'American', standings: { entries: [
+    team('1', 'Memphis', '8-2', '5-1', '390', '0'),
+    team('2', 'North Texas', '7-2', '5-0', '300', '16'),
+  ] } }] });
+  const [first, second] = conf.entries;
+  assert.strictEqual(first.team.name, 'North Texas', '5-0 sits above 5-1');
+  assert.strictEqual(first.gamesBehind, '-');
+  assert.strictEqual(second.gamesBehind, '0.5');
+  assert.strictEqual(second.pointsFor, '390', 'season PF, not a split');
+  assert.strictEqual(second.streak, 'W3');
+  assert.strictEqual(second.home, '5-0');
+  assert.strictEqual(second.road, '3-2');
+});

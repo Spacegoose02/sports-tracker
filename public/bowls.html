@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Bowl Watch &middot; Stat Scraps</title>
+<meta name="description" content="College football bowl eligibility for every FBS team, the bowl schedule and the playoff picture." />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/statscraps-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/statscraps-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/scrappy.css" />
+<script src="/js/scrappy.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/brand.css" />
+<link rel="stylesheet" href="/css/stats.css" />
+<link rel="stylesheet" href="/css/teamstats.css" />
+<link rel="stylesheet" href="/css/kids.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/a11y.css" />
+<script src="/js/theme-boot.js"></script>
+<script src="/js/i18n.js"></script>
+<script src="/js/i18n-es.js"></script>
+<script src="/js/a11y.js" defer></script>
+<script src="/js/theme-picker.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/scrappy-head.png" alt="Stat Scraps" />
+    </div>
+    <div>
+      <h1>Bowl Watch</h1>
+      <div class="subtitle" id="sourceNote">College Football &middot; who&rsquo;s bowl eligible</div>
+    </div>
+  </div>
+  <nav class="top-nav"></nav>
+</header>
+
+<main class="ts-page">
+  <section class="bw-summary" id="bwSummary"></section>
+  <div class="ts-toolbar">
+    <div class="bw-filter" id="bwFilter" role="group" aria-label="Show">
+      <button type="button" data-f="all" class="active">All teams</button>
+      <button type="button" data-f="eligible">Eligible</button>
+      <button type="button" data-f="alive">Still alive</button>
+      <button type="button" data-f="out">Out</button>
+    </div>
+    <label class="ts-field">
+      <span>Conference</span>
+      <select id="bwConf"><option value="">All FBS</option></select>
+    </label>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table ts-table">
+      <thead><tr><th>Team</th><th>Conf</th><th>Record</th><th>Left</th><th>Status</th></tr></thead>
+      <tbody id="bwBody"><tr><td colspan="5" class="empty-note">Loading&hellip;</td></tr></tbody>
+    </table>
+  </div>
+  <p class="ts-foot">Six wins makes a team bowl eligible. Records are from ESPN; the NCAA's limit of one FCS win toward eligibility isn't applied, and 5-7 teams can still be picked if there aren't enough eligible teams. For the playoff field see <a href="/brackets.html">Playoffs</a> and the <a href="/rankings.html?sport=cfb">Playoff Committee rankings</a>.</p>
+
+  <section id="bowlScheduleSection" hidden>
+    <h2 class="section-title">Bowl schedule</h2>
+    <div class="game-list" id="bowlSchedule"></div>
+  </section>
+</main>
+
+<footer class="foot">Stat Scraps</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/kids-core.js"></script>
+<script src="/js/gameday-core.js"></script>
+<script src="/js/kids.js"></script>
+<script src="/js/bowls.js"></script>
+</body>
+</html>

@@ -71,6 +71,7 @@ const CFB = (function () {
     await account.load();
     initAccountLink();
     initSiteNav();
+    initFooter();
     initLiveTicker();
     return sportInfo;
   }
@@ -253,9 +254,39 @@ const CFB = (function () {
     a.className = 'account-link';
     a.href = '/account.html';
     const user = account.user();
-    a.textContent = user ? user.displayName : 'Sign in';
+    a.innerHTML = `<span class="account-icon" aria-hidden="true">&#128100;</span><span class="account-label">${esc(user ? user.displayName : 'Sign in')}</span>`;
+    a.setAttribute('aria-label', user ? `Account: ${user.displayName}` : 'Sign in');
     if (user) a.title = 'Your account, alerts and calendar';
     nav.appendChild(a);
+  }
+
+  // ---- Footer ---------------------------------------------------------------
+  // Every page ends with the same footer: the main sections, where the data
+  // comes from, and that the site isn't affiliated with the leagues.
+  function initFooter() {
+    const foot = document.querySelector('footer.foot');
+    if (!foot || foot.dataset.siteFooter) return;
+    foot.dataset.siteFooter = '1';
+    const s = sport();
+    const link = (href, label, plain) => `<a href="${esc(plain ? href : withSport(href))}">${esc(label)}</a>`;
+    foot.innerHTML = `
+      <div class="foot-inner">
+        <div class="foot-brand"><strong>Stat Scraps</strong><span>Every sport, today</span></div>
+        <nav class="foot-links" aria-label="Footer">
+          ${link('/', 'Home', true)}
+          ${link('/scores', 'Scores')}
+          ${link('/news.html', 'News')}
+          ${s.rankings ? link('/rankings.html', 'Rankings') : ''}
+          ${s.standings !== false && s.teams !== false ? link('/standings.html', 'Standings') : ''}
+          ${s.leaders ? link('/leaders.html', 'Leaders') : ''}
+          ${s.key === 'cfb' ? link('/stats.html', 'Team stats') : ''}
+          ${s.key === 'cfb' ? link('/bowls.html', 'Bowl projections', true) : ''}
+          ${link('/player.html', 'Players')}
+          ${link('/brackets.html', 'Playoffs', true)}
+          ${link('/account.html', 'Account & alerts', true)}
+        </nav>
+        <p class="foot-note">Scores, stats and schedules from ESPN. Recruiting from CollegeFootballData. Weather from Open-Meteo. Headlines link to their publishers. Stat Scraps isn't affiliated with ESPN, the NCAA or any league or team.</p>
+      </div>`;
   }
 
   // ---- Site navigation ----------------------------------------------------
@@ -273,6 +304,7 @@ const CFB = (function () {
       primary: [
         { href: '/', label: 'Home', icon: '&#127968;', plain: true },
         { href: '/scores', label: 'Scores', icon: '&#127967;', match: ['/scores', '/index.html'] },
+        { href: '/news.html', label: 'News', icon: '&#128240;', match: ['/news.html', '/news'] },
         s.rankings ? { href: '/rankings.html', label: 'Rankings', icon: '&#128202;' } : null,
         s.standings !== false && s.teams !== false ? { href: '/standings.html', label: 'Standings', icon: '&#128203;' } : null,
         { href: '/brackets.html', label: 'Playoffs', icon: '&#127942;', cls: 'playoffs-link', plain: true },
@@ -280,9 +312,12 @@ const CFB = (function () {
       more: [
         { href: '/upcoming.html', label: 'Upcoming', icon: '&#128197;' },
         s.leaders ? { href: '/leaders.html', label: 'Leaders', icon: '&#11088;' } : null,
+        s.teams !== false ? { href: '/player.html', label: 'Find a player', icon: '&#128269;' } : null,
         s.teams !== false ? { href: '/compare.html', label: 'Compare teams', icon: '&#9878;' } : null,
         twoTeamGames && !kid ? { href: '/lines.html', label: 'Lines & odds', icon: '&#128200;' } : null,
         isCfb ? { href: '/race.html', label: 'Conference race', icon: '&#127937;', plain: true } : null,
+        isCfb ? { href: '/stats.html', label: 'Team stats', icon: '&#128202;' } : null,
+        isCfb ? { href: '/bowls.html', label: 'Bowl watch', icon: '&#127944;', plain: true } : null,
         isCfb ? { href: '/recruiting.html', label: 'Recruiting', icon: '&#127891;', plain: true } : null,
         s.key === 'cfb' || s.key === 'nfl' ? { href: '/awards.html', label: s.key === 'nfl' ? 'MVP race' : 'Heisman watch', icon: '&#127941;' } : null,
         { href: '/wall.html', label: 'TV Wall', icon: '&#128250;', plain: true },
@@ -635,12 +670,23 @@ const CFB = (function () {
     try { localStorage.setItem(KID_MODE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
   }
 
-  function fmtTime(iso) {
+  // timeValid === false: ESPN only knows the day (kickoff "TBD"), and the
+  // time it sends is a midnight placeholder, so show the day and "TBD".
+  function fmtTime(iso, timeValid) {
     if (!iso) return '';
     const d = new Date(iso);
+    if (timeValid === false) {
+      return `${d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · TBD`;
+    }
     return d.toLocaleString(undefined, {
       weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
     });
+  }
+
+  // "Sat, Nov 8" for a finished game's card.
+  function fmtDay(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
   function statusLabel(game) {
@@ -651,7 +697,7 @@ const CFB = (function () {
     }
     if (game.status.state === 'in') return game.status.shortDetail || `${sport().periodPrefix || 'Q'}${game.status.period} ${game.status.clock}`;
     if (game.status.state === 'post') return 'Final' + (game.status.detail && game.status.detail !== 'Final' ? ` (${game.status.detail})` : '');
-    return fmtTime(game.date);
+    return fmtTime(game.date, game.timeValid);
   }
 
   function teamLink(team) {
@@ -667,6 +713,16 @@ const CFB = (function () {
   function gameLink(id, source) {
     if (!id) return '';
     return withSport(`/game.html?id=${encodeURIComponent(id)}&source=${encodeURIComponent(source || 'espn')}`);
+  }
+
+  // A team's overall record from either shape the server sends ("record"
+  // on game pages, "records" on scoreboards).
+  function teamRecord(team) {
+    if (!team) return '';
+    if (team.record) return team.record;
+    const recs = team.records || [];
+    const total = recs.find((r) => /overall|total/i.test(r.name || '')) || recs[0];
+    return (total && total.summary) || '';
   }
 
   function teamRowHtml(team, rowOpts) {
@@ -691,7 +747,9 @@ const CFB = (function () {
         ${team.logo ? `<img src="${safeUrl(team.logo)}" alt="" onerror="this.style.display='none'">` : ''}
         <a class="team-name team-link ${isWinner ? 'winner' : ''}" href="${teamLink(team)}" onclick="event.stopPropagation()">${esc(team.name || team.shortName || 'TBD')}</a>
         ${possessionIcon}
-        <span class="score">${team.score !== null && team.score !== undefined ? esc(team.score) : ''}</span>
+        ${rowOpts.pre
+    ? `<span class="score score-pre" title="Record">${esc(teamRecord(team))}</span>`
+    : `<span class="score">${team.score !== null && team.score !== undefined ? esc(team.score) : ''}</span>`}
         ${wlBadge}
       </div>`;
   }
@@ -715,6 +773,8 @@ const CFB = (function () {
     const isFav = isFollowed(game.home) || isFollowed(game.away);
     const isLive = game.status && game.status.state === 'in';
     const isCompleted = !!(game.status && game.status.completed);
+    // Before kickoff ESPN sends 0-0; show each team's record instead.
+    const isPre = !!(game.status && game.status.state === 'pre');
     const possessionId = isLive && game.situation ? game.situation.possession : null;
     const awayHasBall = !!(possessionId && game.away && String(possessionId) === String(game.away.id));
     const homeHasBall = !!(possessionId && game.home && String(possessionId) === String(game.home.id));
@@ -726,7 +786,7 @@ const CFB = (function () {
     return `
       <div class="game-card ${isFav ? 'is-favorite' : ''} ${isLive ? 'is-live' : ''} ${isCompleted ? 'is-final' : ''}" data-id="${esc(game.id)}" data-source="${esc(game.source || 'espn')}">
         <div class="status-row">
-          <span class="${isLive ? 'live-dot' : ''}">${esc(statusLabel(game))}</span>
+          <span class="${isLive ? 'live-dot' : ''}">${esc(statusLabel(game))}${opts.showDate && isCompleted && game.date ? ` <span class="card-date">&middot; ${esc(fmtDay(game.date))}</span>` : ''}</span>
           <span style="display:flex;align-items:center;gap:6px;">
             ${opts.notableToggle
     ? `<button type="button" class="notable-toggle ${opts.notable ? 'on' : ''}" data-event-id="${esc(game.id)}" aria-pressed="${opts.notable ? 'true' : 'false'}" title="${opts.notable ? 'Remove from your notable games' : 'Add to your notable games'}">${opts.notable ? '&#9733; Notable' : '&#9734;'}</button>`
@@ -734,8 +794,8 @@ const CFB = (function () {
             ${game.broadcast ? `<span class="card-tv" title="TV channel">&#128250; ${esc(game.broadcast)}</span>` : ''}
           </span>
         </div>
-        ${teamRowHtml(game.away, { completed: isCompleted, hasPossession: awayHasBall })}
-        ${teamRowHtml(game.home, { completed: isCompleted, hasPossession: homeHasBall })}
+        ${teamRowHtml(game.away, { completed: isCompleted, hasPossession: awayHasBall, pre: isPre })}
+        ${teamRowHtml(game.home, { completed: isCompleted, hasPossession: homeHasBall, pre: isPre })}
         ${situation}
         ${linescoreHtml(game)}
         ${tags}
@@ -789,9 +849,18 @@ const CFB = (function () {
   function wireGameCardClicks(container) {
     container.querySelectorAll('.game-card').forEach((card) => {
       card.style.cursor = 'pointer';
+      // Reachable by keyboard and announced as a link to the game.
+      if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '0');
+      card.setAttribute('role', 'link');
+      const names = [...card.querySelectorAll('.team-name')].map((n) => n.textContent.trim()).filter(Boolean);
+      if (names.length === 2) card.setAttribute('aria-label', `${names[0]} at ${names[1]}: open game`);
       card.addEventListener('click', (e) => {
         // The notable star has its own handler (app.js).
         if (e.target.closest && e.target.closest('.notable-toggle')) return;
+        location.href = gameLink(card.dataset.id, card.dataset.source);
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.target !== card) return;
         location.href = gameLink(card.dataset.id, card.dataset.source);
       });
     });
@@ -803,7 +872,9 @@ const CFB = (function () {
   // opts.playByPlay === false leaves the feed out (the game page draws its
   // own, filterable one in game-live.js).
   function gameDetailSectionsHtml(detail, opts) {
-    const oddsHtml = !kidMode() && detail.odds && (detail.odds.details || detail.odds.overUnder !== null)
+    // Before kickoff the line lives in the Matchup tab's preview.
+    const pregame = detail.status && detail.status.state === 'pre';
+    const oddsHtml = !kidMode() && !(pregame && opts && opts.playByPlay === false) && detail.odds && (detail.odds.details || detail.odds.overUnder !== null)
       ? `<section><h2 class="section-title">Odds</h2><div class="odds-box">
           ${detail.odds.details ? `<div>${esc(detail.odds.details)}</div>` : ''}
           ${detail.odds.overUnder !== null ? `<div>Over/Under: <strong>${esc(detail.odds.overUnder)}</strong></div>` : ''}
@@ -812,7 +883,7 @@ const CFB = (function () {
       : '';
     const leadersHtml = (detail.leaders || []).map((teamLeaders) => `
       <div><strong>${esc(teamLeaders.team)}</strong>
-        ${(teamLeaders.categories || []).map((c) => `<div class="stat-row"><span>${esc(c.name)}</span><span>${c.athlete ? esc(c.athlete) + ' &middot; ' : ''}${esc(c.value || '')}</span></div>`).join('')}
+        ${(teamLeaders.categories || []).map((c) => `<div class="stat-row"><span>${esc(c.name)}</span><span>${c.athlete ? `${c.athleteId ? `<a class="box-player" href="${playerLink({ id: c.athleteId })}">${esc(c.athlete)}</a>` : esc(c.athlete)} &middot; ` : ''}${esc(c.value || '')}</span></div>`).join('')}
       </div>`).join('');
     const boxHtml = detail.boxscore ? detail.boxscore.teams.map((t) => `
       <div><strong>${esc(t.team)}</strong>
@@ -1064,7 +1135,7 @@ const CFB = (function () {
 
   return {
     gameDrama, situationLine, linescoreHtml, skeletonCards, initLiveTicker,
-    el, esc, safeUrl, getJson, fmtTime, statusLabel, teamLink, playerLink, gameLink, teamRowHtml, gameCardHtml,
+    el, esc, safeUrl, getJson, fmtTime, fmtDay, statusLabel, teamLink, playerLink, gameLink, teamRowHtml, teamRecord, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
     loadSports, sport, withSport, initSportBar, follows, account, kidMode, setKidMode,

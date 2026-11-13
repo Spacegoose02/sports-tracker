@@ -91,6 +91,9 @@
       { key: 'pre', title: 'Coming up', games: rest.filter((g) => stateOf(g) === 'pre').sort((a, b) => (new Date(a.date) - new Date(b.date)) || byRank(a, b)) },
       { key: 'post', title: 'Final', games: rest.filter((g) => stateOf(g) === 'post').sort(byRank) },
     ].filter((grp) => grp.games.length);
+    // Phones hide the big My Teams card when the list already leads with
+    // the followed teams' games, so scores start higher on the screen.
+    document.body.classList.toggle('scores-has-mine', mine.length > 0);
 
     if (!groups.length) {
       list.innerHTML = '<div class="empty-note">No games match this filter.</div>';

@@ -2,9 +2,54 @@
   const el = CFB.el;
   const playerId = new URLSearchParams(location.search).get('id');
 
+  // No player in the URL: this page becomes a player finder, searching
+  // every league (the same search as the header's search box).
   if (!playerId) {
-    el('playerHero').innerHTML = '<div class="empty-note">No player specified.</div>';
+    initFinder();
     return;
+  }
+
+  function initFinder() {
+    document.title = 'Find a player · Stat Scraps';
+    el('pageTitle').textContent = 'Players';
+    el('sourceNote').textContent = 'Search any player in any league';
+    const tabs = el('playerTabs');
+    if (tabs) tabs.hidden = true;
+    document.querySelectorAll('.tab-panel').forEach((p) => { p.hidden = true; });
+    el('playerHero').classList.remove('team-hero');
+    el('playerHero').innerHTML = `
+      <form class="player-finder" role="search" onsubmit="return false">
+        <label for="playerQuery" class="sr-only">Player name</label>
+        <input id="playerQuery" type="search" placeholder="Search players, e.g. Arch Manning" autocomplete="off" autofocus />
+      </form>
+      <div id="playerResults" class="player-results" aria-live="polite"><div class="empty-note">Type at least two letters. You can also browse <a href="${CFB.withSport('/leaders.html')}">stat leaders</a> or a team's roster.</div></div>`;
+    let timer = null;
+    let seq = 0;
+    const input = el('playerQuery');
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const q = input.value.trim();
+        const mine = ++seq;
+        if (q.length < 2) return;
+        el('playerResults').innerHTML = '<div class="empty-note">Searching&hellip;</div>';
+        try {
+          const res = await CFB.getJson(`/api/search?q=${encodeURIComponent(q)}`);
+          if (mine !== seq) return;
+          const players = res.players || [];
+          el('playerResults').innerHTML = players.length
+            ? players.map((p) => `
+              <a class="player-result" href="/player.html?id=${encodeURIComponent(p.id)}&sport=${encodeURIComponent(p.sport || 'cfb')}">
+                ${p.headshot ? `<img src="${CFB.safeUrl(p.headshot)}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<span class="pr-blank" aria-hidden="true"></span>'}
+                <span><strong>${CFB.esc(p.name)}</strong><span class="pr-sub">${CFB.esc([String(p.sport || '').toUpperCase(), p.team].filter(Boolean).join(' · '))}</span></span>
+              </a>`).join('')
+            : '<div class="empty-note">No players found.</div>';
+        } catch (err) {
+          if (mine === seq) el('playerResults').innerHTML = '<div class="empty-note">Search isn\'t working right now.</div>';
+        }
+      }, 250);
+    });
+    CFB.loadSports().then(() => CFB.initSportBar());
   }
 
   function statTable(labels, rows, firstCols) {

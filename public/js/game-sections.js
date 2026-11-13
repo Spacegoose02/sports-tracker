@@ -125,7 +125,7 @@ const CFBGame = (function () {
               <table class="box-table">
                 <thead><tr><th class="box-name">Player</th>${g.labels.map((l) => `<th>${esc(l)}</th>`).join('')}</tr></thead>
                 <tbody>
-                  ${g.players.map((p) => `<tr><td class="box-name">${esc(p.name)}${p.position ? ` <span class="box-pos">${esc(p.position)}</span>` : ''}</td>${p.stats.map((s) => `<td>${esc(s)}</td>`).join('')}</tr>`).join('')}
+                  ${g.players.map((p) => `<tr><td class="box-name">${p.id ? `<a class="box-player" href="${CFB.playerLink(p)}">${esc(p.name)}</a>` : esc(p.name)}${p.position ? ` <span class="box-pos">${esc(p.position)}</span>` : ''}</td>${p.stats.map((s) => `<td>${esc(s)}</td>`).join('')}</tr>`).join('')}
                   ${g.totals && g.totals.some((v) => v !== '') ? `<tr class="box-totals"><td class="box-name">Team</td>${g.totals.map((s) => `<td>${esc(s)}</td>`).join('')}</tr>` : ''}
                 </tbody>
               </table>
@@ -240,6 +240,108 @@ const CFBGame = (function () {
     return '';
   }
 
+  // Pregame preview, the top of the Matchup tab: the line, ESPN's
+  // predictor, a side-by-side of season averages and each team's leaders.
+  // Built from the game summary alone, so it shows with the first load.
+  const LOWER_IS_BETTER = /allowed|turnover|interception|fumbles? lost|penalt|sacked|giveaway/i;
+
+  function num(v) {
+    const n = Number(String(v == null ? '' : v).replace(/[,%+]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function oddsBoxHtml(odds, away, home) {
+    if (!odds || CFB.kidMode()) return '';
+    const rows = [];
+    if (odds.details) rows.push(`<div class="pv-odds-main">${esc(odds.details)}</div>`);
+    if (odds.overUnder !== null && odds.overUnder !== undefined) rows.push(`<div>Over/Under <strong>${esc(odds.overUnder)}</strong></div>`);
+    const ml = odds.moneyline || {};
+    if (ml.away || ml.home) rows.push(`<div>Moneyline ${esc(teamLabel(away))} <strong>${esc(ml.away || '-')}</strong> &middot; ${esc(teamLabel(home))} <strong>${esc(ml.home || '-')}</strong></div>`);
+    if (!rows.length) return '';
+    return `<div class="pv-card"><div class="pv-label">The line</div>${rows.join('')}${odds.provider ? `<div class="odds-provider">via ${esc(odds.provider)}</div>` : ''}</div>`;
+  }
+
+  function predictorHtml(pred, away, home) {
+    if (!pred) return '';
+    const a = Math.round(pred.away * 100);
+    const h = 100 - a;
+    const hex = (c) => (c && /^#[0-9a-f]{6}$/i.test(c) ? c : null);
+    return `
+      <div class="pv-card">
+        <div class="pv-label">${esc(pred.source || 'Matchup Predictor')}</div>
+        <div class="pv-pred-names"><span>${esc(teamLabel(away))} <strong>${a}%</strong></span><span><strong>${h}%</strong> ${esc(teamLabel(home))}</span></div>
+        <div class="pv-pred-bar" role="img" aria-label="${esc(teamLabel(away))} ${a}% to win, ${esc(teamLabel(home))} ${h}%">
+          <span style="width:${a}%;background:${hex(away && away.color) || 'var(--text-dim)'}"></span>
+          <span style="width:${h}%;background:${hex(home && home.color) || 'var(--accent)'}"></span>
+        </div>
+      </div>`;
+  }
+
+  // Rows where both teams have a number, in ESPN's order, with a bar
+  // showing who's better (lower wins for "allowed" style stats).
+  function statCompareHtml(detail, away, home) {
+    const teams = (detail.boxscore && detail.boxscore.teams) || [];
+    const find = (t) => t && teams.find((b) => (b.teamId && String(b.teamId) === String(t.id)) || b.team === t.name);
+    const A = find(away); const H = find(home);
+    if (!A || !H) return '';
+    const rows = A.stats.map((sa) => {
+      const sh = H.stats.find((x) => (sa.key && x.key === sa.key) || x.name === sa.name);
+      const va = num(sa.value); const vh = sh ? num(sh.value) : null;
+      if (va === null || vh === null) return '';
+      const lower = LOWER_IS_BETTER.test(`${sa.key || ''} ${sa.name}`);
+      const total = Math.abs(va) + Math.abs(vh);
+      const aw = total ? Math.round((Math.abs(va) / total) * 100) : 50;
+      const better = va === vh ? '' : ((va > vh) !== lower ? 'away' : 'home');
+      return `
+        <div class="pv-stat">
+          <span class="pv-v ${better === 'away' ? 'better' : ''}">${esc(sa.value)}</span>
+          <span class="pv-name">${esc(sa.name)}<span class="pv-bar"><span style="width:${aw}%"></span></span></span>
+          <span class="pv-v ${better === 'home' ? 'better' : ''}">${esc(sh.value)}</span>
+        </div>`;
+    }).filter(Boolean).slice(0, 12);
+    if (!rows.length) return '';
+    return `
+      <div class="pv-card pv-wide">
+        <div class="pv-label">Season averages</div>
+        <div class="pv-stat pv-stat-head"><span>${esc(teamLabel(away))}</span><span></span><span>${esc(teamLabel(home))}</span></div>
+        ${rows.join('')}
+      </div>`;
+  }
+
+  function leadersCompareHtml(detail, away, home) {
+    const L = detail.leaders || [];
+    const byTeam = (t) => t && L.find((x) => x.team === t.name);
+    const A = byTeam(away); const H = byTeam(home);
+    if (!A || !H) return '';
+    const rows = (A.categories || []).slice(0, 5).map((ca) => {
+      const ch = (H.categories || []).find((x) => x.name === ca.name);
+      if (!ch) return '';
+      const who = (c) => (c.athlete
+        ? `${c.athleteId ? `<a href="${CFB.playerLink({ id: c.athleteId })}">${esc(c.athlete)}</a>` : esc(c.athlete)}<span class="pv-sub">${esc(c.value || '')}</span>`
+        : '<span class="pv-sub">-</span>');
+      return `<div class="pv-leader"><div>${who(ca)}</div><div class="pv-name">${esc(ca.name)}</div><div>${who(ch)}</div></div>`;
+    }).filter(Boolean);
+    if (!rows.length) return '';
+    return `<div class="pv-card pv-wide"><div class="pv-label">Players to watch</div>${rows.join('')}</div>`;
+  }
+
+  function previewHtml(detail) {
+    if (!detail || !detail.status || detail.status.state !== 'pre') return '';
+    const away = (detail.teams || []).find((t) => t.homeAway === 'away');
+    const home = (detail.teams || []).find((t) => t.homeAway === 'home');
+    if (!away || !home) return '';
+    const side = (t) => `<div class="pv-team">${t.logo ? `<img src="${CFB.safeUrl(t.logo)}" alt="" onerror="this.style.display='none'">` : ''}<div><strong>${t.rank ? `#${esc(t.rank)} ` : ''}${esc(t.name)}</strong><span class="pv-sub">${esc(t.record || '')}</span></div></div>`;
+    const parts = [oddsBoxHtml(detail.odds, away, home), predictorHtml(detail.predictor, away, home)].filter(Boolean).join('');
+    const body = `${parts ? `<div class="pv-row">${parts}</div>` : ''}${statCompareHtml(detail, away, home)}${leadersCompareHtml(detail, away, home)}`;
+    if (!body) return '';
+    return `
+      <section class="preview">
+        <h2 class="section-title">Preview</h2>
+        <div class="pv-teams">${side(away)}<span class="pv-at">@</span>${side(home)}</div>
+        ${body}
+      </section>`;
+  }
+
   function matchupHtml(m) {
     if (!m) return '';
     const parts = [weatherHtml(m.weather), headToHeadHtml(m)].filter(Boolean);
@@ -300,5 +402,5 @@ const CFBGame = (function () {
       </div>`;
   }
 
-  return { highlightsHtml, highlightPlayerHtml, watchHtml, winProbHtml, boxScoreHtml, injuriesHtml, recentFormHtml, matchupHtml, weatherHtml, headToHeadHtml };
+  return { previewHtml, highlightsHtml, highlightPlayerHtml, watchHtml, winProbHtml, boxScoreHtml, injuriesHtml, recentFormHtml, matchupHtml, weatherHtml, headToHeadHtml };
 })();

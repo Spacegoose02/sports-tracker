@@ -47,6 +47,18 @@
     <nav class="league-jump" id="leagueJump" aria-label="Go to a sport"></nav>
   </section>
 
+  <section class="home-section gameday" id="gamedaySection" hidden aria-labelledby="gamedayTitle">
+    <div class="home-section-head">
+      <h2 class="section-title" id="gamedayTitle">College football Saturday</h2>
+      <a class="home-more" href="/scores?sport=cfb">All games &rsaquo;</a>
+    </div>
+    <p class="home-note" id="gamedayNote"></p>
+    <div class="gameday-upsets" id="gamedayUpsets" hidden></div>
+    <div class="home-live gameday-games" id="gamedayGames"></div>
+  </section>
+
+  <div class="home-layout">
+  <div class="home-main">
   <section class="home-section" id="myTeamsSection">
     <div class="home-section-head">
       <h2 class="section-title">My teams</h2>
@@ -73,12 +85,24 @@
     <div class="home-offseason" id="homeOffseason" hidden></div>
   </section>
 
+  </div>
+  <aside class="home-rail">
   <section class="home-section" id="headlinesSection" hidden>
     <div class="home-section-head">
       <h2 class="section-title">Top headlines</h2>
+      <a class="home-more" href="/news.html?sport=all">More news &rsaquo;</a>
     </div>
     <div class="headline-list home-headlines" id="homeHeadlines"></div>
   </section>
+  <section class="home-section" id="pollSection" hidden>
+    <div class="home-section-head">
+      <h2 class="section-title" id="pollTitle">College football Top 25</h2>
+      <a class="home-more" href="/rankings.html?sport=cfb">Full rankings &rsaquo;</a>
+    </div>
+    <ol class="home-poll" id="homePoll"></ol>
+  </section>
+  </aside>
+  </div>
 </main>
 
 <footer class="foot">Stat Scraps</footer>

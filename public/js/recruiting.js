@@ -264,6 +264,8 @@
   }
 
   async function init() {
+    // The shared header (main links, More menu, phone tab bar, account).
+    CFB.loadSports().catch(() => {});
     try {
       state.status = await CFB.getJson('/api/recruiting/status');
     } catch (err) {

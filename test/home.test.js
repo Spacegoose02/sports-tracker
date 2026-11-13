@@ -114,3 +114,26 @@ test('/ serves the home page and /scores the scoreboard', async () => {
     await app.close();
   }
 });
+
+test('college football game day spotlight: Top 25 games and upsets', () => {
+  const homeMod = require('../src/home');
+  const now = Date.parse('2026-11-14T20:00:00Z');
+  const team = (id, rank, score) => ({ id, name: `T${id}`, curatedRank: rank, score });
+  const game = (id, state, away, home, hoursFromNow = 0) => ({
+    id, date: new Date(now + hoursFromNow * 3600000).toISOString(), status: { state }, away, home,
+  });
+  const filler = Array.from({ length: 6 }, (_, i) => game(`f${i}`, 'pre', team(`a${i}`), team(`h${i}`), 2));
+  const games = [
+    ...filler,
+    game('upset', 'post', team('1', null, 31), team('2', 5, 24), -3),
+    game('close', 'in', team('3', 10, 14), team('4', 12, 10)),
+    game('later', 'pre', team('5', 3), team('6'), 4),
+  ];
+  const s = homeMod.gameDaySpotlight(games, now);
+  assert.ok(s);
+  assert.strictEqual(s.gamesToday, 9);
+  assert.deepStrictEqual(s.top25.map((g) => g.id), ['close', 'later', 'upset']);
+  assert.deepStrictEqual(s.upsets.map((g) => g.id), ['upset']);
+  assert.strictEqual(s.upsets[0].upset.winnerId, '1');
+  assert.strictEqual(homeMod.gameDaySpotlight(games.slice(0, 5), now), null, 'not enough games: no spotlight');
+});

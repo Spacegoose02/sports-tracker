@@ -188,3 +188,31 @@
   .league-jump a { flex: 0 0 auto; }
   .lc-games { grid-template-columns: 1fr 1fr; }
 }
+
+/* Wide screens: scores on the left, headlines and the Top 25 in a rail on
+   the right, so the page uses the space instead of leaving it empty. */
+.home-layout { display: block; }
+@media (min-width: 1200px) {
+  body.home-page main { max-width: 1320px; }
+  .home-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 26px; align-items: start; }
+  .home-rail { position: sticky; top: 12px; }
+  .home-rail .home-headlines { display: flex; flex-direction: column; gap: 8px; }
+  .home-rail .home-headlines .headline-item { width: auto; }
+}
+
+/* College football game day */
+.gameday { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--bg-elev)), var(--bg-elev)); }
+.gameday .home-note { margin: -4px 0 10px; }
+.gameday-upsets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.gameday-upset { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--live) 18%, transparent); border: 1px solid color-mix(in srgb, var(--live) 45%, transparent); color: var(--text); font-size: 0.82rem; font-weight: 700; text-decoration: none; }
+.gameday-upset .tag { color: var(--live); text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.06em; }
+
+/* Top 25 in the rail */
+.home-poll { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elev); overflow: hidden; }
+.home-poll li { display: grid; grid-template-columns: 26px 22px 1fr auto; gap: 8px; align-items: center; padding: 6px 12px; border-top: 1px solid var(--border); font-size: 0.86rem; }
+.home-poll li:first-child { border-top: 0; }
+.home-poll .hp-rank { font-weight: 800; color: var(--text-dim); text-align: right; font-variant-numeric: tabular-nums; }
+.home-poll img { width: 22px; height: 22px; object-fit: contain; }
+.home-poll a { color: var(--text); text-decoration: none; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-poll a:hover { color: var(--accent); }
+.home-poll .hp-rec { color: var(--text-dim); font-size: 0.78rem; }

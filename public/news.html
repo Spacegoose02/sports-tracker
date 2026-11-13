@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>News &middot; Stat Scraps</title>
+<meta name="description" content="The latest college football and sports headlines, with filters for every sport, conference and team." />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/statscraps-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/statscraps-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/scrappy.css" />
+<script src="/js/scrappy.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/brand.css" />
+<link rel="stylesheet" href="/css/stats.css" />
+<link rel="stylesheet" href="/css/news.css" />
+<link rel="stylesheet" href="/css/kids.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/a11y.css" />
+<script src="/js/theme-boot.js"></script>
+<script src="/js/i18n.js"></script>
+<script src="/js/i18n-es.js"></script>
+<script src="/js/a11y.js" defer></script>
+<script src="/js/theme-picker.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/scrappy-head.png" alt="Stat Scraps" />
+    </div>
+    <div>
+      <h1>News</h1>
+      <div class="subtitle" id="sourceNote">The latest headlines</div>
+    </div>
+  </div>
+  <nav class="top-nav"></nav>
+</header>
+
+<main class="news-page">
+  <nav class="news-sports" id="newsSports" aria-label="Pick a sport"></nav>
+  <div class="news-toolbar" id="newsToolbar">
+    <div class="news-modes" id="newsModes" role="group" aria-label="Whose news">
+      <button type="button" data-mode="all" class="active">All</button>
+      <button type="button" data-mode="mine">My teams</button>
+    </div>
+    <label class="news-scope" id="newsScopeWrap" hidden>
+      <span class="sr-only">Team or conference</span>
+      <select id="newsScope"><option value="">Every team</option></select>
+    </label>
+    <label class="news-search">
+      <span class="sr-only">Filter headlines</span>
+      <input type="search" id="newsQuery" placeholder="Filter headlines" autocomplete="off" />
+    </label>
+  </div>
+
+  <div class="news-layout">
+    <section class="news-main" aria-live="polite">
+      <div id="newsLead"></div>
+      <div class="news-grid" id="newsGrid"><div class="empty-note">Loading&hellip;</div></div>
+    </section>
+    <aside class="news-side" id="newsSide">
+      <h2 class="section-title">Videos</h2>
+      <div id="newsVideos"><div class="empty-note">Loading&hellip;</div></div>
+    </aside>
+  </div>
+
+  <div class="news-reader" id="newsReader" hidden>
+    <div class="news-reader-card" role="dialog" aria-modal="true" aria-labelledby="readerTitle">
+      <button type="button" class="news-reader-close" id="readerClose" aria-label="Close">&times;</button>
+      <div id="readerBody"></div>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">Stat Scraps</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/kids-core.js"></script>
+<script src="/js/gameday-core.js"></script>
+<script src="/js/kids.js"></script>
+<script src="/js/news.js"></script>
+</body>
+</html>

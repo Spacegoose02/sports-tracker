@@ -84,7 +84,7 @@
       : live
         ? `<a class="countdown-live" href="/game.html?id=${encodeURIComponent(entry.game.id)}&source=${encodeURIComponent(entry.game.source || 'espn')}&sport=${encodeURIComponent(team.sport)}">IT'S GAME TIME! &#127881; Watch now</a>`
         : `<div class="countdown-clock" data-date="${CFB.esc(entry.game.date)}">${clockHtml(entry.game.date)}</div>
-           <div class="countdown-when">${CFB.esc(CFB.fmtTime(entry.game.date))}${entry.game.broadcast ? ` &middot; ${CFB.esc(entry.game.broadcast)}` : ''}</div>`;
+           <div class="countdown-when">${CFB.esc(CFB.fmtTime(entry.game.date, entry.game.timeValid))}${entry.game.broadcast ? ` &middot; ${CFB.esc(entry.game.broadcast)}` : ''}</div>`;
     return `
       <div class="countdown-teams">
         ${logoOrName(team, 'countdown-logo')}

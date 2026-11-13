@@ -138,7 +138,7 @@
     if (!detail.status) return '';
     if (detail.status.state === 'in') return detail.status.shortDetail || `${CFB.sport().periodPrefix || 'Q'}${detail.status.period} ${detail.status.clock}`;
     if (detail.status.state === 'post') return 'Final' + (detail.status.detail && detail.status.detail !== 'Final' ? ` (${detail.status.detail})` : '');
-    return detail.date ? CFB.fmtTime(detail.date) : (detail.status.detail || '');
+    return detail.date ? CFB.fmtTime(detail.date, detail.timeValid) : (detail.status.detail || '');
   }
 
   // "2 outs · 1-2 count · Runners on 1st, 3rd" for a live baseball game.
@@ -370,15 +370,24 @@
     if (ui.lastLoaded) el('gameWatch').innerHTML = CFBGame.watchHtml(ui.lastLoaded, bingeBandit.links);
   }
 
+  // The first request goes out as soon as the script runs, alongside the
+  // sports list, instead of waiting for it.
+  const fetchDetail = () => CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}?source=${encodeURIComponent(source)}`));
+  let firstDetail = gameId ? fetchDetail() : null;
+  if (firstDetail) firstDetail.catch(() => {});
+
   async function load() {
     try {
-      const detail = await CFB.getJson(CFB.withSport(`/api/game/${encodeURIComponent(gameId)}?source=${encodeURIComponent(source)}`));
+      const pending = firstDetail || fetchDetail();
+      firstDetail = null;
+      const detail = await pending;
       ui.lastLoaded = detail;
       const saved = captureUi();
-      document.title = `${(detail.teams || []).map((t) => t.abbreviation || t.shortName || t.name).join(' @ ')} · Stat Scraps`;
-
       const away = (detail.teams || []).find((t) => t.homeAway === 'away');
       const home = (detail.teams || []).find((t) => t.homeAway === 'home');
+      // Away team first, the way the scorebug and every listing reads it.
+      const label = (t) => t && (t.abbreviation || t.shortName || t.name);
+      document.title = `${away && home ? `${label(away)} @ ${label(home)}` : (detail.teams || []).map(label).join(' vs ')} · Stat Scraps`;
       const isLive = detail.status && detail.status.state === 'in';
       const possessionId = isLive && detail.situation ? detail.situation.possession : null;
       const awayHasBall = !!(possessionId && away && String(possessionId) === String(away.id));
@@ -446,6 +455,7 @@
       renderKidExplainer(detail);
       window.dispatchEvent(new CustomEvent('tracker:game-loaded', { detail }));
 
+      el('gamePreview').innerHTML = CFBGame.previewHtml(detail);
       el('gameInjuries').innerHTML = CFBGame.injuriesHtml(detail);
       el('gameForm').innerHTML = CFBGame.recentFormHtml(detail);
       restoreUi(saved);
