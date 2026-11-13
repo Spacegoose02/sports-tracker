@@ -158,7 +158,7 @@ async function getSeasonGames({ season, scoreboard = espn.getScoreboard } = {}) 
     boards.forEach((b, i) => (b && b.games || []).forEach((g) => {
       if (!g || seen.has(g.id) || !g.home || !g.away) return;
       seen.add(g.id);
-      games.push({ ...g, week: weeks[i] });
+      games.push({ ...g, week: weeks[i], season: b.season || season || null });
     }));
     return games;
   }, HOUR);
@@ -176,7 +176,8 @@ function buildRecords(games) {
     const id = String(t.id);
     if (!byId.has(id)) byId.set(id, blankRecord({ id, name: t.name, shortName: t.shortName, abbreviation: t.abbreviation, logo: t.logo, curatedRank: t.curatedRank || null }));
     const rec = byId.get(id);
-    if (t.curatedRank && !rec.team.curatedRank) rec.team.curatedRank = t.curatedRank;
+    // Games come in week order, so the last rank seen is the latest.
+    if (t.curatedRank) rec.team.curatedRank = t.curatedRank;
     return rec;
   };
   games.forEach((g) => {

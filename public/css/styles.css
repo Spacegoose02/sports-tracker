@@ -1902,8 +1902,10 @@ nav.top-nav .account-link .account-icon { display: none; }
   nav.top-nav .kid-mode-btn .kid-mode-label, nav.top-nav .account-link .account-label { display: none; }
   nav.top-nav .account-link .account-icon { display: inline; }
   nav.top-nav .kid-mode-btn, nav.top-nav .account-link, nav.top-nav .search-btn { min-width: 36px; min-height: 36px; padding: 0 8px; justify-content: center; }
-  .theme-toggle, .theme-toggle.display-toggle,
-  header.top:not(:has(.theme-toggle:not(.display-toggle))) .theme-toggle.display-toggle {
+  /* themes.css / a11y.css pin these to the corner; in the one-row header
+     they sit in the row instead. */
+  header.top nav.top-nav .theme-toggle, header.top nav.top-nav .theme-toggle.display-toggle,
+  header.top:not(:has(.theme-toggle:not(.display-toggle))) nav.top-nav .theme-toggle.display-toggle {
     position: static; width: 36px; height: 36px;
   }
   /* Swipeable chip rows: no scrollbar track (Windows draws a gray one). */

@@ -666,6 +666,15 @@ function isFirstPoll(poll) {
   return !(poll.ranks || []).some((r) => r.previous);
 }
 
+// Rankings teams come without a displayName ("Bulldogs" alone); put the
+// school in front ("Georgia Bulldogs") so a list of them reads clearly.
+function rankedTeamName(t) {
+  if (!t) return null;
+  if (t.displayName) return t.displayName;
+  if (t.location && t.name && !String(t.name).startsWith(t.location)) return `${t.location} ${t.name}`;
+  return t.name || t.location || null;
+}
+
 async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
   const cfg = sportConfig(sport);
   const params = new URLSearchParams();
@@ -698,7 +707,7 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
         team: r.team
           ? {
             id: r.team.id,
-            name: r.team.displayName || r.team.name,
+            name: rankedTeamName(r.team),
             shortName: r.team.shortDisplayName || r.team.abbreviation,
             abbreviation: r.team.abbreviation,
             logo: r.team.logos && r.team.logos[0] && r.team.logos[0].href,
@@ -715,7 +724,7 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
         team: o.team
           ? {
             id: o.team.id,
-            name: o.team.displayName || o.team.name,
+            name: rankedTeamName(o.team),
             shortName: o.team.shortDisplayName || o.team.abbreviation,
             abbreviation: o.team.abbreviation,
             logo: o.team.logos && o.team.logos[0] && o.team.logos[0].href,
@@ -725,7 +734,7 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
 
       const droppedOut = (poll.droppedOut || []).map((d) => ({
         previousRank: d.previous || null,
-        team: d.team ? { id: d.team.id, name: d.team.displayName || d.team.name, logo: d.team.logos && d.team.logos[0] && d.team.logos[0].href } : null,
+        team: d.team ? { id: d.team.id, name: rankedTeamName(d.team), logo: d.team.logos && d.team.logos[0] && d.team.logos[0].href } : null,
       }));
 
       return {
