@@ -93,7 +93,7 @@
       ? upcoming.map((g) => CFB.gameCardHtml(g, {})).join('')
       : '<div class="empty-note">No games left on the schedule.</div>';
     el('teamResults').innerHTML = results.length
-      ? results.map((g) => CFB.gameCardHtml(g, {})).join('')
+      ? results.map((g) => CFB.gameCardHtml(g, { showDate: true })).join('')
       : '<div class="empty-note">No results yet this season.</div>';
     CFB.wireGameCardClicks(el('teamUpcoming'));
     CFB.wireGameCardClicks(el('teamResults'));

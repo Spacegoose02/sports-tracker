@@ -100,6 +100,16 @@ function pick(obj, ...path) {
   return path.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
 }
 
+// ESPN's pregame "Matchup Predictor" (FPI): each side's chance to win, as
+// 0-1 numbers. Null when ESPN didn't send one or it doesn't add up.
+function parsePredictor(p) {
+  if (!p || !p.homeTeam || !p.awayTeam) return null;
+  const home = Number(p.homeTeam.gameProjection);
+  const away = Number(p.awayTeam.gameProjection);
+  if (!Number.isFinite(home) || !Number.isFinite(away) || home + away <= 0) return null;
+  return { home: home / (home + away), away: away / (home + away), source: p.header || 'ESPN Matchup Predictor' };
+}
+
 function parseOdds(oddsArr) {
   if (!Array.isArray(oddsArr) || !oddsArr.length) return null;
   const o = oddsArr[0] || {};
@@ -514,6 +524,7 @@ async function getGameSummary(eventId, sport) {
       id: header.id,
       sport: cfg.key,
       date: (comp && comp.date) || header.date || null,
+      timeValid: !(comp && comp.timeValid === false),
       // For pick'em week labels made from the game page.
       season: (header.season && header.season.year) || null,
       seasonType: (header.season && header.season.type) || null,
@@ -539,7 +550,8 @@ async function getGameSummary(eventId, sport) {
         abbreviation: c.team && c.team.abbreviation,
         logo: (c.team && (c.team.logo || (c.team.logos && c.team.logos[0] && c.team.logos[0].href))) || null,
         color: c.team && c.team.color ? `#${c.team.color}` : null,
-        record: c.records && c.records[0] && c.records[0].summary,
+        // The summary header calls it "record"; the scoreboard "records".
+        record: ((c.records || c.record || [])[0] || {}).summary || null,
         rank: c.curatedRank ? parseCuratedRank(c) : null,
         homeAway: c.homeAway,
         winner: !!c.winner,
@@ -563,7 +575,10 @@ async function getGameSummary(eventId, sport) {
         ? {
           teams: (json.boxscore.teams || []).map((t) => ({
             team: t.team && t.team.displayName,
-            stats: (t.statistics || []).map((s) => ({ name: s.label || s.name, value: s.displayValue })),
+            teamId: (t.team && t.team.id) || null,
+            // key: ESPN's stat name, so the pregame preview can pick
+            // specific season averages (points per game, yards allowed...).
+            stats: (t.statistics || []).map((s) => ({ name: s.label || s.name, key: s.name || null, value: s.displayValue })),
           })),
         }
         : null,
@@ -579,6 +594,7 @@ async function getGameSummary(eventId, sport) {
       // plays `drives` above uses for the compact "latest drive" summary.
       // Returned newest-first so the game page can show it as a live feed.
       odds: parseOdds(json.pickcenter) || parseOdds(comp && comp.odds),
+      predictor: parsePredictor(json.predictor),
       // Football groups plays into drives; every other sport returns a
       // flat `plays` list instead.
       playByPlay: json.drives ? buildPlayByPlay(json.drives) : buildFlatPlayByPlay(json.plays),
@@ -586,7 +602,14 @@ async function getGameSummary(eventId, sport) {
       // injuries, venue/weather, recent form (see src/gamedetail.js).
       ...parseGameExtras(json, comp),
     };
-  }, 10 * 1000); // 10s cache for in-game data
+  }, (summary) => {
+    // 10s while live; a finished game doesn't change, and a game that
+    // hasn't started only needs its odds and injuries refreshed now and then.
+    const state = summary && summary.status && summary.status.state;
+    if (state === 'post') return 10 * 60 * 1000;
+    if (state === 'pre' && summary.date && new Date(summary.date).getTime() - Date.now() > 60 * 60 * 1000) return 2 * 60 * 1000;
+    return 10 * 1000;
+  });
 }
 
 // The fields every play-by-play row carries, whatever the sport. teamId,
@@ -643,6 +666,15 @@ function isFirstPoll(poll) {
   return !(poll.ranks || []).some((r) => r.previous);
 }
 
+// Rankings teams come without a displayName ("Bulldogs" alone); put the
+// school in front ("Georgia Bulldogs") so a list of them reads clearly.
+function rankedTeamName(t) {
+  if (!t) return null;
+  if (t.displayName) return t.displayName;
+  if (t.location && t.name && !String(t.name).startsWith(t.location)) return `${t.location} ${t.name}`;
+  return t.name || t.location || null;
+}
+
 async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
   const cfg = sportConfig(sport);
   const params = new URLSearchParams();
@@ -675,7 +707,7 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
         team: r.team
           ? {
             id: r.team.id,
-            name: r.team.displayName || r.team.name,
+            name: rankedTeamName(r.team),
             shortName: r.team.shortDisplayName || r.team.abbreviation,
             abbreviation: r.team.abbreviation,
             logo: r.team.logos && r.team.logos[0] && r.team.logos[0].href,
@@ -692,7 +724,7 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
         team: o.team
           ? {
             id: o.team.id,
-            name: o.team.displayName || o.team.name,
+            name: rankedTeamName(o.team),
             shortName: o.team.shortDisplayName || o.team.abbreviation,
             abbreviation: o.team.abbreviation,
             logo: o.team.logos && o.team.logos[0] && o.team.logos[0].href,
@@ -702,7 +734,7 @@ async function getRankings({ sport, year, week, seasontype = 2 } = {}) {
 
       const droppedOut = (poll.droppedOut || []).map((d) => ({
         previousRank: d.previous || null,
-        team: d.team ? { id: d.team.id, name: d.team.displayName || d.team.name, logo: d.team.logos && d.team.logos[0] && d.team.logos[0].href } : null,
+        team: d.team ? { id: d.team.id, name: rankedTeamName(d.team), logo: d.team.logos && d.team.logos[0] && d.team.logos[0].href } : null,
       }));
 
       return {
@@ -759,6 +791,35 @@ function standingsGroups(node) {
   return (node.children || []).flatMap(standingsGroups);
 }
 
+// "5-1" -> { w: 5, l: 1, pct }. Null when the record is missing.
+function parseRecord(rec) {
+  const m = /^(\d+)-(\d+)(?:-(\d+))?$/.exec(String(rec || '').trim());
+  if (!m) return null;
+  const w = Number(m[1]); const l = Number(m[2]); const t = Number(m[3] || 0);
+  const gp = w + l + t;
+  return { w, l, pct: gp ? (w + t / 2) / gp : 0 };
+}
+
+// College groups come back in ESPN's own order, which can put a 5-1 team
+// ahead of a 5-0 one. When every team has a conference record, order by
+// conference win % (then conference wins, then overall %) and work out
+// games back from the leader. Pro and soccer tables have no conference
+// record here and keep ESPN's order.
+function orderByConferenceRecord(entries) {
+  if (!entries.length || !entries.every((e) => parseRecord(e.conference))) return entries;
+  const ov = (e) => (parseRecord(e.overall) || { pct: 0 }).pct;
+  const sorted = entries.slice().sort((a, b) => {
+    const ca = parseRecord(a.conference); const cb = parseRecord(b.conference);
+    return (cb.pct - ca.pct) || (cb.w - ca.w) || (ov(b) - ov(a));
+  });
+  const lead = parseRecord(sorted[0].conference);
+  return sorted.map((e) => {
+    const r = parseRecord(e.conference);
+    const gb = ((lead.w - r.w) + (r.l - lead.l)) / 2;
+    return { ...e, gamesBehind: gb <= 0 ? '-' : String(gb) };
+  });
+}
+
 function parseStandings(json) {
   const children = standingsGroups(json);
   const conferences = children.map((conf) => {
@@ -767,9 +828,15 @@ function parseStandings(json) {
       const team = entry.team || {};
       const statByName = {};
       (entry.stats || []).forEach((s) => {
-        if (s.name) statByName[s.name] = s.displayValue;
         if (s.type) statByName[`type:${s.type}`] = s.summary || s.displayValue;
-        if (s.shortDisplayName && statByName[s.shortDisplayName] === undefined) statByName[s.shortDisplayName] = s.displayValue;
+        // College standings repeat every stat for each split (home, away,
+        // vs conference, vs ranked teams), all under the same name with a
+        // type like "homerecord_pointsfor". Only the whole-season stat
+        // (no "_" in its type) may fill the plain name, and the first one
+        // wins, or the last split's numbers end up in PF/PA/streak.
+        const isSplit = s.type && s.type.includes('_');
+        if (s.name && !isSplit && statByName[s.name] === undefined) statByName[s.name] = s.displayValue;
+        if (s.shortDisplayName && !isSplit && statByName[s.shortDisplayName] === undefined) statByName[s.shortDisplayName] = s.displayValue;
       });
       // Pro standings don't always carry a ready-made "overall" record;
       // build one from wins/losses (and ties / OT losses) when needed.
@@ -794,8 +861,8 @@ function parseStandings(json) {
         points: statByName.points || null,
         streak: statByName.streak || null,
         rank: statByName.rank || null,
-        home: statByName['type:home'] || statByName.home || statByName.Home || null,
-        road: statByName['type:road'] || statByName['type:away'] || statByName.road || statByName.away || null,
+        home: statByName['type:home'] || statByName['type:homerecord'] || statByName.home || statByName.Home || null,
+        road: statByName['type:road'] || statByName['type:away'] || statByName['type:awayrecord'] || statByName.road || statByName.away || statByName.Away || null,
         pointsFor: statByName.pointsFor || statByName.avgPointsFor || null,
         pointsAgainst: statByName.pointsAgainst || statByName.avgPointsAgainst || null,
         differential: statByName.differential || statByName.pointDifferential || null,
@@ -807,7 +874,7 @@ function parseStandings(json) {
     return {
       name: conf.name || (conf.abbreviation),
       abbreviation: conf.abbreviation,
-      entries,
+      entries: orderByConferenceRecord(entries),
     };
   });
 
@@ -911,6 +978,7 @@ module.exports = {
   normalizeCard,
   normalizeRace,
   parseStandings,
+  parsePredictor,
   buildFlatPlayByPlay,
   parseSituation,
 };

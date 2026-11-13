@@ -267,7 +267,9 @@ const Kids = (function () {
     btn.className = 'kid-mode-btn';
     const paint = () => {
       const on = CFB.kidMode();
-      btn.textContent = on ? '🧒 Kid mode: on' : '🧒 Kid mode';
+      // Label in its own span so phones can show just the icon.
+      btn.innerHTML = `<span aria-hidden="true">🧒</span><span class="kid-mode-label"> ${on ? 'Kid mode: on' : 'Kid mode'}</span>`;
+      btn.title = on ? 'Kid mode is on' : 'Kid mode';
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       document.body.classList.toggle('kid-mode', on);
     };

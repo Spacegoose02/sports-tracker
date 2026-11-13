@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Team Stats &middot; Stat Scraps</title>
+<meta name="description" content="College football team stat rankings for every FBS team: offense, defense, turnovers, third downs and strength of schedule." />
+<link rel="icon" type="image/png" sizes="32x32" href="/img/statscraps-icon-32.png" />
+<link rel="apple-touch-icon" href="/img/statscraps-icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<script src="/js/pwa.js" defer></script>
+<link rel="stylesheet" href="/css/scrappy.css" />
+<script src="/js/scrappy.js" defer></script>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="stylesheet" href="/css/brand.css" />
+<link rel="stylesheet" href="/css/stats.css" />
+<link rel="stylesheet" href="/css/teamstats.css" />
+<link rel="stylesheet" href="/css/kids.css" />
+<link rel="stylesheet" href="/css/themes.css" />
+<link rel="stylesheet" href="/css/a11y.css" />
+<script src="/js/theme-boot.js"></script>
+<script src="/js/i18n.js"></script>
+<script src="/js/i18n-es.js"></script>
+<script src="/js/a11y.js" defer></script>
+<script src="/js/theme-picker.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="brand-icon">
+      <img src="/img/scrappy-head.png" alt="Stat Scraps" />
+    </div>
+    <div>
+      <h1>Team Stats</h1>
+      <div class="subtitle" id="sourceNote">College Football &middot; FBS</div>
+    </div>
+  </div>
+  <nav class="top-nav"></nav>
+</header>
+
+<main class="ts-page">
+  <div class="ts-toolbar">
+    <label class="ts-field">
+      <span>Stat</span>
+      <select id="tsStat"></select>
+    </label>
+    <label class="ts-field">
+      <span>Conference</span>
+      <select id="tsConf"><option value="">All FBS</option></select>
+    </label>
+    <label class="ts-field ts-grow">
+      <span class="sr-only">Find a team</span>
+      <input type="search" id="tsQuery" placeholder="Find a team" autocomplete="off" />
+    </label>
+  </div>
+  <p class="ts-unit" id="tsUnit"></p>
+  <div class="table-wrap">
+    <table class="data-table ts-table">
+      <thead id="tsHead"></thead>
+      <tbody id="tsBody"><tr><td class="empty-note">Loading&hellip;</td></tr></tbody>
+    </table>
+  </div>
+  <p class="ts-foot" id="tsFoot"></p>
+</main>
+
+<footer class="foot">Stat Scraps</footer>
+
+<script src="/js/shared.js"></script>
+<script src="/js/kids-core.js"></script>
+<script src="/js/gameday-core.js"></script>
+<script src="/js/kids.js"></script>
+<script src="/js/teamstats.js"></script>
+</body>
+</html>

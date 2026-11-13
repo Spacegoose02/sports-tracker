@@ -56,6 +56,7 @@ function parsePlayerStats(boxscore) {
         .filter((p) => p && p.athlete && !p.didNotPlay)
         .map((p) => ({
           name: athleteName(p.athlete),
+          id: p.athlete.id || null,
           jersey: p.athlete.jersey || null,
           position: (p.athlete.position && p.athlete.position.abbreviation) || null,
           starter: !!p.starter,

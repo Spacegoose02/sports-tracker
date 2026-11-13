@@ -2,6 +2,7 @@
 // up on a random port. server.js is the real entry point.
 
 const path = require('path');
+const seo = require('./seo');
 const express = require('express');
 const cookieSession = require('cookie-session');
 const compression = require('compression');
@@ -86,20 +87,28 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {}, 
   const publicDir = path.join(__dirname, '..', 'public');
   // The front page is the all-sports hub; each sport's scoreboard lives
   // at /scores (index.html, which still answers at /index.html too).
-  app.get('/', (req, res) => {
-    res.sendFile(path.join(publicDir, 'home.html'), { headers: { 'Cache-Control': 'no-cache' } });
+  app.get('/robots.txt', (req, res) => {
+    res.type('text/plain').set('Cache-Control', 'public, max-age=3600').send(seo.robotsTxt(seo.baseUrl(req, env)));
   });
-  app.get('/scores', (req, res) => {
-    res.sendFile(path.join(publicDir, 'index.html'), { headers: { 'Cache-Control': 'no-cache' } });
+  app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(seo.sitemapXml(seo.baseUrl(req, env)));
   });
+  // Pages, with link-preview tags added (src/seo.js). /news is a friendly
+  // alias for the News page.
+  app.use(seo.createPageServer({
+    publicDir,
+    env,
+    aliases: { '/': 'home.html', '/scores': 'index.html', '/news': 'news.html', '/admin': 'admin.html' },
+  }));
   app.use(express.static(publicDir, { setHeaders: staticCacheHeaders, index: false }));
 
-  app.get('/admin', (req, res) => {
-    res.sendFile(path.join(publicDir, 'admin.html'));
-  });
-
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(publicDir, 'index.html'));
+  // Unknown API paths answer JSON; anything else gets a real 404 page
+  // instead of the scoreboard with a 200 (which search engines index).
+  app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
+  app.use((req, res) => {
+    res.status(404);
+    if (req.accepts('html')) return res.sendFile(path.join(publicDir, '404.html'), { headers: { 'Cache-Control': 'no-cache' } });
+    res.type('text/plain').send('Not found');
   });
 
   return app;

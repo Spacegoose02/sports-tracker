@@ -135,6 +135,53 @@ function scoresUrl(key) {
   return `/scores?sport=${encodeURIComponent(key)}`;
 }
 
+// College football game day (most Saturdays, plus rivalry Fridays and
+// bowl days): when at least GAMEDAY_MIN games kick off in the window
+// around now, the home page leads with the day's Top 25 games and any
+// upsets. Pure, so it's easy to test.
+const GAMEDAY_MIN = 8;
+const GAMEDAY_BACK = 12 * 60 * 60 * 1000;
+const GAMEDAY_AHEAD = 14 * 60 * 60 * 1000;
+const SPOTLIGHT_GAMES = 8;
+
+// An upset: a ranked team losing (live or final) to an unranked team or
+// one ranked at least 5 spots lower.
+function upsetOf(game) {
+  const state = game.status && game.status.state;
+  if (state !== 'in' && state !== 'post') return null;
+  const h = Number(game.home && game.home.score);
+  const a = Number(game.away && game.away.score);
+  if (!Number.isFinite(h) || !Number.isFinite(a) || h === a) return null;
+  const leader = h > a ? game.home : game.away;
+  const trailer = h > a ? game.away : game.home;
+  const lr = rankOf(leader); const tr = rankOf(trailer);
+  if (!tr) return null;
+  if (lr && lr <= tr + 4) return null;
+  return { winnerId: leader.id, loserId: trailer.id, final: state === 'post' };
+}
+
+function gameDaySpotlight(games, now) {
+  const today = games.filter((g) => {
+    const t = Date.parse(g.date);
+    return Number.isFinite(t) && t >= now - GAMEDAY_BACK && t <= now + GAMEDAY_AHEAD;
+  });
+  if (today.length < GAMEDAY_MIN) return null;
+  const stateRank = { in: 0, pre: 1, post: 2 };
+  const bestRank = (g) => Math.min(rankOf(g.home) || 99, rankOf(g.away) || 99);
+  const top25 = today
+    .filter((g) => rankOf(g.home) || rankOf(g.away))
+    .sort((x, y) => (stateRank[(x.status && x.status.state) || 'pre'] - stateRank[(y.status && y.status.state) || 'pre'])
+      || (bestRank(x) - bestRank(y)) || (Date.parse(x.date) - Date.parse(y.date)));
+  const upsets = today.map((g) => ({ g, u: upsetOf(g) })).filter((x) => x.u);
+  return {
+    gamesToday: today.length,
+    live: today.filter((g) => g.status && g.status.state === 'in').length,
+    top25: top25.slice(0, SPOTLIGHT_GAMES).map((g) => slimGame(g, DEFAULT_SPORT)),
+    top25Count: top25.length,
+    upsets: upsets.map(({ g, u }) => ({ ...slimGame(g, DEFAULT_SPORT), upset: u })),
+  };
+}
+
 async function leagueSummary(sportCfg, { ds, now }) {
   const key = sportCfg.key;
   const base = {
@@ -177,6 +224,7 @@ async function leagueSummary(sportCfg, { ds, now }) {
     inSeason: current.length > 0,
     period: periodLabel(sportCfg, board),
     counts: countStates(current),
+    spotlight: key === DEFAULT_SPORT ? gameDaySpotlight(games, now) : null,
     games: ranked.slice(0, GAMES_PER_LEAGUE).map((x) => slimGame(x.g, key)),
     events: [],
     // Every live game with its drama score, for the cross-league list.
@@ -186,10 +234,10 @@ async function leagueSummary(sportCfg, { ds, now }) {
   };
 }
 
-async function leagueHeadlines(key, { ds, news }) {
+async function leagueHeadlines(key, { ds, news, perLeague = HEADLINES_PER_LEAGUE }) {
   try {
     const items = key === DEFAULT_SPORT ? await news.getNews() : await ds.getNews({ sport: key });
-    return (items || []).slice(0, HEADLINES_PER_LEAGUE).map((i) => ({ ...i, sport: key }));
+    return (items || []).slice(0, perLeague).map((i) => ({ ...i, sport: key }));
   } catch (err) {
     return [];
   }
@@ -197,14 +245,14 @@ async function leagueHeadlines(key, { ds, news }) {
 
 // Takes headlines round-robin from each league (newest first within each),
 // so one busy league can't push the rest off the page.
-function mixHeadlines(lists) {
+function mixHeadlines(lists, max = MAX_HEADLINES) {
   const out = [];
   const seen = new Set();
   const queues = lists.map((l) => l.slice().sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0)));
-  while (out.length < MAX_HEADLINES && queues.some((q) => q.length)) {
+  while (out.length < max && queues.some((q) => q.length)) {
     queues.forEach((q) => {
       const item = q.shift();
-      if (!item || out.length >= MAX_HEADLINES) return;
+      if (!item || out.length >= max) return;
       const k = item.link || item.title;
       if (seen.has(k)) return;
       seen.add(k);
@@ -247,7 +295,7 @@ async function buildHome({ teams = [], now = Date.now(), ds = realDs, news = rea
   // Live leagues first, then by how much is going on, then the usual order.
   const order = new Map(sports.map((s, i) => [s.key, i]));
   const sorted = leagues
-    .map(({ liveGames, ...l }) => l)
+    .map(({ liveGames, spotlight, ...l }) => l)
     .sort((a, b) => (b.inSeason - a.inSeason)
       || ((b.counts.live > 0) - (a.counts.live > 0))
       || (order.get(a.key) - order.get(b.key)));
@@ -256,8 +304,10 @@ async function buildHome({ teams = [], now = Date.now(), ds = realDs, news = rea
   const headlineSports = inSeason.length ? inSeason : [DEFAULT_SPORT];
   const headlines = mixHeadlines(await Promise.all(headlineSports.map((k) => leagueHeadlines(k, { ds, news }))));
 
+  const cfb = leagues.find((l) => l.key === DEFAULT_SPORT);
   return {
     generatedAt: new Date(now).toISOString(),
+    spotlight: (cfb && cfb.spotlight) || null,
     counts: {
       live: sorted.reduce((n, l) => n + l.counts.live, 0),
       leaguesInSeason: inSeason.length,
@@ -269,4 +319,17 @@ async function buildHome({ teams = [], now = Date.now(), ds = realDs, news = rea
   };
 }
 
-module.exports = { buildHome, parseTeams, gameScore, liveDrama, mixHeadlines };
+// The News page's "All sports" view: more headlines from every league
+// (college football first), mixed round-robin so no one sport crowds the
+// rest out, skipping anything older than a week.
+const ALL_NEWS_PER_LEAGUE = 10;
+const ALL_NEWS_MAX = 80;
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+async function allHeadlines({ now = Date.now(), ds = realDs, news = realNews } = {}) {
+  const keys = Object.values(SPORTS).map((s) => s.key);
+  const lists = await Promise.all(keys.map((k) => leagueHeadlines(k, { ds, news, perLeague: ALL_NEWS_PER_LEAGUE })));
+  const fresh = lists.map((l) => l.filter((i) => !i.pubDate || !Date.parse(i.pubDate) || now - Date.parse(i.pubDate) < WEEK));
+  return mixHeadlines(fresh, ALL_NEWS_MAX);
+}
+
+module.exports = { allHeadlines, gameDaySpotlight, upsetOf, buildHome, parseTeams, gameScore, liveDrama, mixHeadlines };

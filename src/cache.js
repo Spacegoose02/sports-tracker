@@ -28,12 +28,28 @@ function set(key, value, ttlOverrideMs) {
   });
 }
 
+// Requests for a key that's already being fetched share that one fetch
+// (the game page asks for the same ESPN summary from two routes at once).
+const inFlight = new Map();
+
+// ttlOverrideMs may be a number, or a function of the fetched value that
+// returns one, so finished games can be kept far longer than live ones.
 async function getOrFetch(key, fetcher, ttlOverrideMs) {
   const cached = get(key);
   if (cached !== undefined) return cached;
-  const value = await fetcher();
-  set(key, value, ttlOverrideMs);
-  return value;
+  if (inFlight.has(key)) return inFlight.get(key);
+  const pending = (async () => {
+    try {
+      const value = await fetcher();
+      const ttl = typeof ttlOverrideMs === 'function' ? ttlOverrideMs(value) : ttlOverrideMs;
+      set(key, value, ttl);
+      return value;
+    } finally {
+      inFlight.delete(key);
+    }
+  })();
+  inFlight.set(key, pending);
+  return pending;
 }
 
 module.exports = { get, set, getOrFetch };

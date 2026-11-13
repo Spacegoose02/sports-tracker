@@ -1558,6 +1558,7 @@ nav.top-nav .nav-more-menu a.nav-menu-link.phone-only { display: none; }
 .game-card .team-row .team-name { font-size: 0.98rem; font-weight: 600; }
 .game-card .team-row .team-name.winner { font-weight: 800; }
 .game-card .team-row .score { font-size: 1.35rem; font-weight: 800; min-width: 34px; }
+.game-card .team-row .score.score-pre, .team-row .score.score-pre { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
 .game-card .team-row.loser .team-name,
 .game-card .team-row.loser .score,
 .game-card .team-row.loser img { opacity: 0.55; }
@@ -1839,3 +1840,96 @@ body.search-open { overflow: hidden; }
 /* Golf leaderboard scores on event cards. */
 .golf-score { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
 .golf-score.under { color: var(--win); }
+
+/* Pregame preview (Matchup tab) */
+.preview .pv-teams { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.preview .pv-team { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.preview .pv-team:last-child { flex-direction: row-reverse; text-align: right; }
+.preview .pv-team img { width: 40px; height: 40px; object-fit: contain; }
+.preview .pv-at { color: var(--text-dim); font-weight: 700; }
+.preview .pv-sub { display: block; color: var(--text-dim); font-size: 0.8rem; font-weight: 500; }
+.preview .pv-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.preview .pv-card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.preview .pv-wide { margin-bottom: 12px; }
+.preview .pv-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 8px; font-weight: 700; }
+.preview .pv-odds-main { font-size: 1.15rem; font-weight: 800; }
+.preview .pv-pred-names { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; }
+.preview .pv-pred-bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: var(--bg-elev-2); }
+.preview .pv-pred-bar span { display: block; height: 100%; }
+.preview .pv-stat { display: grid; grid-template-columns: 70px 1fr 70px; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.preview .pv-stat-head { border-top: 0; font-weight: 700; font-size: 0.8rem; color: var(--text-dim); }
+.preview .pv-stat > span:first-child { text-align: left; }
+.preview .pv-stat > span:last-child { text-align: right; }
+.preview .pv-v.better { font-weight: 800; color: var(--accent); }
+.preview .pv-name { text-align: center; font-size: 0.82rem; color: var(--text-dim); }
+.preview .pv-bar { display: block; height: 4px; margin-top: 4px; border-radius: 3px; background: var(--accent); opacity: 0.85; }
+.preview .pv-bar span { display: block; height: 100%; background: var(--text-dim); border-radius: 3px 0 0 3px; }
+.preview .pv-leader { display: grid; grid-template-columns: 1fr 110px 1fr; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); font-size: 0.9rem; }
+.preview .pv-leader > div:last-child { text-align: right; }
+.preview .pv-leader a { color: var(--text); font-weight: 700; text-decoration: none; }
+.preview .pv-leader a:hover { text-decoration: underline; }
+@media (max-width: 520px) {
+  .preview .pv-stat { grid-template-columns: 56px 1fr 56px; }
+  .preview .pv-leader { grid-template-columns: 1fr 80px 1fr; font-size: 0.82rem; }
+}
+
+.card-date { color: var(--text-dim); font-weight: 500; }
+.game-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.box-player { color: inherit; text-decoration: none; }
+.box-player:hover, .box-player:focus-visible { text-decoration: underline; color: var(--accent); }
+
+/* Player finder (player.html with no id) */
+.player-finder input { width: 100%; padding: 12px 14px; font-size: 1rem; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text); }
+.player-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 14px; }
+.player-results .empty-note { grid-column: 1 / -1; }
+.player-result { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg-elev); border: 1px solid var(--border); color: var(--text); text-decoration: none; }
+.player-result:hover, .player-result:focus-visible { border-color: var(--accent); }
+.player-result img, .player-result .pr-blank { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--bg-elev-2); flex: none; }
+.player-result .pr-sub { display: block; color: var(--text-dim); font-size: 0.8rem; }
+
+/* Phones: one compact header row (logo and page name on the left, icon
+   buttons on the right) instead of two, so content starts higher. */
+nav.top-nav .account-link .account-icon { display: none; }
+@media (max-width: 560px) {
+  header.top { flex-wrap: nowrap; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: 10px; position: relative; }
+  header.top .brand { flex: 1 1 auto; min-width: 0; gap: 8px; }
+  header.top .brand > div:last-child { min-width: 0; }
+  header.top .brand .brand-icon { width: 32px; height: 32px; }
+  header.top h1 { font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.top .subtitle { font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  nav.top-nav { flex: 0 0 auto; width: auto; gap: 6px; overflow: visible; align-items: center; }
+  nav.top-nav .nav-links { display: none; }
+  nav.top-nav .kid-mode-btn .kid-mode-label, nav.top-nav .account-link .account-label { display: none; }
+  nav.top-nav .account-link .account-icon { display: inline; }
+  nav.top-nav .kid-mode-btn, nav.top-nav .account-link, nav.top-nav .search-btn { min-width: 36px; min-height: 36px; padding: 0 8px; justify-content: center; }
+  /* themes.css / a11y.css pin these to the corner; in the one-row header
+     they sit in the row instead. */
+  header.top nav.top-nav .theme-toggle, header.top nav.top-nav .theme-toggle.display-toggle,
+  header.top:not(:has(.theme-toggle:not(.display-toggle))) nav.top-nav .theme-toggle.display-toggle {
+    position: static; width: 36px; height: 36px;
+  }
+  /* Swipeable chip rows: no scrollbar track (Windows draws a gray one). */
+  .sport-bar, .league-jump, .tab-bar { scrollbar-width: none; }
+  .sport-bar::-webkit-scrollbar, .league-jump::-webkit-scrollbar { display: none; }
+}
+
+@media (max-width: 560px) {
+  body.scores-has-mine #favoriteSection { display: none; }
+  .week-bar { gap: 8px; margin-bottom: 10px; }
+}
+
+/* 404 page */
+.not-found { text-align: center; padding: 40px 12px; }
+.not-found-big { font-size: 4rem; font-weight: 900; margin: 0; color: var(--accent); font-family: var(--font-score); }
+.not-found-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.not-found-links a { padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--border); color: var(--text); text-decoration: none; }
+.not-found-links a:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Site footer (shared.js initFooter) */
+.foot-inner { max-width: 1100px; margin: 0 auto; display: grid; gap: 10px; text-align: left; }
+.foot-brand { display: flex; gap: 10px; align-items: baseline; }
+.foot-brand span { color: var(--text-dim); font-size: 0.85rem; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.foot-links a { color: var(--text-dim); text-decoration: none; font-size: 0.88rem; }
+.foot-links a:hover { color: var(--accent); text-decoration: underline; }
+.foot-note { margin: 0; color: var(--text-dim); font-size: 0.76rem; line-height: 1.5; }

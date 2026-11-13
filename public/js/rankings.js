@@ -199,11 +199,13 @@
       }
       const previous = state.selectedPollId;
       pollSelect.innerHTML = state.polls.map((p) => `<option value="${CFB.esc(p.id)}">${CFB.esc(p.name)}</option>`).join('');
-      // Keep the same poll when changing weeks; otherwise prefer AP, which
-      // runs all season (the CFP rankings only start in November).
+      // Keep the same poll when changing weeks. Otherwise lead with the
+      // Playoff Committee rankings once they're out (November on), since
+      // they decide the playoff, and fall back to AP before that.
       const keep = state.polls.find((p) => String(p.id) === String(previous));
+      const cfp = state.polls.find((p) => pollOrder(p) === 0 && p.ranks && p.ranks.length);
       const ap = state.polls.find((p) => pollOrder(p) === 1);
-      state.selectedPollId = (keep || ap || state.polls[0]).id;
+      state.selectedPollId = (keep || cfp || ap || state.polls[0]).id;
       pollSelect.value = state.selectedPollId;
       pollSelect.onchange = () => {
         state.selectedPollId = pollSelect.value;

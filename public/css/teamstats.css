@@ -1,0 +1,25 @@
+/* Team Stats (stats.html) and Bowl Watch (bowls.html) */
+.ts-page { max-width: 1000px; }
+.ts-toolbar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin-bottom: 10px; }
+.ts-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.ts-field select, .ts-field input { background: var(--bg-elev); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 0.92rem; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.ts-grow { flex: 1 1 180px; }
+.ts-unit { margin: 0 0 10px; color: var(--text-dim); font-size: 0.85rem; }
+.ts-table td.num, .ts-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.ts-rank { width: 48px; font-weight: 800; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.ts-star { color: var(--favorite); }
+.ts-foot { color: var(--text-dim); font-size: 0.8rem; margin-top: 12px; line-height: 1.5; }
+
+.bw-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.bw-stat { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; }
+.bw-stat strong { font-size: 1.8rem; font-family: var(--font-score); }
+.bw-stat span { color: var(--text-dim); font-size: 0.82rem; }
+.bw-filter { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: var(--radius-pill); overflow: hidden; }
+.bw-filter button { background: none; border: 0; color: var(--text-dim); padding: 8px 14px; font: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+.bw-filter button.active { background: var(--accent); color: var(--on-accent); }
+.bw-status { display: inline-block; padding: 2px 8px; border-radius: var(--radius-pill); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.bw-ok { background: color-mix(in srgb, #22c55e 22%, transparent); color: var(--text); border: 1px solid color-mix(in srgb, #22c55e 55%, transparent); }
+.bw-maybe { background: var(--accent-soft); color: var(--accent); }
+.bw-warn { background: color-mix(in srgb, #f59e0b 22%, transparent); color: var(--text); border: 1px solid color-mix(in srgb, #f59e0b 55%, transparent); }
+.bw-out { background: var(--bg-elev-2); color: var(--text-dim); }
+#bowlScheduleSection { margin-top: 26px; }

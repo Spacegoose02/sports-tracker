@@ -13,6 +13,7 @@ const race = require('../race');
 const awards = require('../awards');
 const search = require('../search');
 const home = require('../home');
+const teamstats = require('../teamstats');
 const overrides = require('../overrides');
 const { buildNotableFeed } = require('../notable');
 const { isSafeId } = require('../security');
@@ -345,6 +346,40 @@ router.get('/news', async (req, res) => {
     }
 
     res.json({ items: await leagueNews() });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load news', detail: err.message });
+  }
+});
+
+// College football team stat rankings, strength of schedule and the bowl
+// eligibility tracker (src/teamstats.js).
+const seasonParam = (req) => (/^\d{4}$/.test(String(req.query.season || '')) ? Number(req.query.season) : undefined);
+router.get('/cfb/team-stats', async (req, res) => {
+  try {
+    res.json(await teamstats.getTeamStatRankings({ season: seasonParam(req) }));
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load team stats', detail: err.message });
+  }
+});
+router.get('/cfb/outlook', async (req, res) => {
+  try {
+    res.json(await teamstats.getSeasonOutlook({ season: seasonParam(req) }));
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load the season outlook', detail: err.message });
+  }
+});
+router.get('/cfb/bowls', async (req, res) => {
+  try {
+    res.json({ games: await teamstats.getBowlSchedule({ season: seasonParam(req) }) });
+  } catch (err) {
+    res.status(502).json({ error: 'Could not load bowl games', detail: err.message });
+  }
+});
+
+// The News page's "All sports" feed (src/home.js allHeadlines).
+router.get('/news/all', async (req, res) => {
+  try {
+    res.json({ items: await home.allHeadlines() });
   } catch (err) {
     res.status(502).json({ error: 'Could not load news', detail: err.message });
   }
