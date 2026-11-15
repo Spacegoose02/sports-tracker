@@ -246,6 +246,60 @@ function createAdminRouter({ env = process.env, fetchImpl } = {}) {
     return res.json({ ok: true });
   });
 
+  // Users and their sign-in logins. Admin can make a one-time link that
+  // adds a provider login to an account, move a login from one account to
+  // another (say, an account an earlier Tinyauth sign-in made by itself),
+  // or remove one.
+  router.get('/users', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      users: db.listUsers(),
+      providers: db.listSsoProviders().map((p) => ({ id: p.id, name: p.name, issuer: p.issuer })),
+    });
+  });
+
+  function userParam(req, res) {
+    const user = db.getUser(Number(req.params.id));
+    if (!user) res.status(404).json({ error: 'No such user' });
+    return user;
+  }
+
+  router.post('/users/:id/link-invite', (req, res) => {
+    const user = userParam(req, res);
+    if (!user) return undefined;
+    const provider = db.getSsoProvider(Number(req.body && req.body.providerId));
+    if (!provider) return res.status(400).json({ error: 'Pick a sign-in provider' });
+    const days = 7;
+    const token = db.createLinkInvite(user.id, provider.id, days);
+    return res.json({
+      url: `${seo.baseUrl(req, env)}/auth/sso/link/${token}`,
+      provider: provider.name,
+      expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+    });
+  });
+
+  router.post('/users/:id/unlink', (req, res) => {
+    const user = userParam(req, res);
+    if (!user) return undefined;
+    const subject = req.body && req.body.subject;
+    if (typeof subject !== 'string' || !db.unlinkOidc(user.id, subject)) return res.status(404).json({ error: 'That login isn\'t on this account' });
+    return res.json({ ok: true });
+  });
+
+  router.post('/users/:id/move-login', (req, res) => {
+    const user = userParam(req, res);
+    if (!user) return undefined;
+    const { subject, toUserId } = req.body || {};
+    const target = db.getUser(Number(toUserId));
+    if (!target) return res.status(400).json({ error: 'Pick the account to move it to' });
+    if (target.id === user.id) return res.status(400).json({ error: 'It\'s already on that account' });
+    if (typeof subject !== 'string' || !db.listUserLogins(user.id).some((l) => l.subject === subject)) {
+      return res.status(404).json({ error: 'That login isn\'t on this account' });
+    }
+    db.moveOidc(subject, target.id);
+    return res.json({ ok: true });
+  });
+
   return router;
 }
 

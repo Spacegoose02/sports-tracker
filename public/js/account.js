@@ -30,6 +30,8 @@
     const ssoError = new URLSearchParams(location.search).get('error');
     if (ssoError === 'sso') {
       showError('authError', 'Single sign-on didn\'t finish. Try again.');
+    } else if (ssoError === 'sso-invite') {
+      showError('authError', 'That link has expired or was already used. Ask the site owner for a new one.');
     } else if (ssoError === 'sso-noaccount') {
       showError('authError', options.signup
         ? 'That sign-in worked, but there\'s no account here with that email yet. Create one below with the same email, then that sign-in button will work too.'
@@ -96,6 +98,7 @@
     el('signedIn').hidden = false;
     el('accountName').textContent = info.user.displayName;
     el('accountEmail').textContent = [info.user.email, info.user.sso ? 'signed in with single sign-on' : null].filter(Boolean).join(' · ');
+    renderLogins();
     renderFollows();
     el('alertStart').checked = info.user.alertStart;
     el('alertEnd').checked = info.user.alertEnd;
@@ -106,6 +109,63 @@
     renderRecapSettings(info.user);
     loadRecap();
     refreshPushState();
+  }
+
+  // ---- Ways to sign in (password and linked SSO logins) -------------------
+
+  function renderLogins() {
+    const logins = me.logins || [];
+    const rows = [];
+    if (me.user.hasPassword) {
+      rows.push(`<div class="login-row"><div class="login-main"><div class="login-name">Email and password</div><div class="login-detail">${esc(me.user.email || '')}</div></div></div>`);
+    }
+    const canUnlink = me.user.hasPassword || logins.length > 1;
+    logins.forEach((l) => {
+      const detail = [l.email, l.name && l.name !== l.email ? l.name : null].filter(Boolean).join(' · ') || 'Linked';
+      rows.push(`<div class="login-row" data-subject="${esc(l.subject)}"><div class="login-main"><div class="login-name">${esc(l.providerName)}</div><div class="login-detail">${esc(detail)}</div></div>${canUnlink ? '<button type="button" class="secondary-btn danger unlink-btn">Unlink</button>' : ''}</div>`);
+    });
+    el('loginList').innerHTML = rows.join('') || '<p class="account-note">No sign-in methods yet.</p>';
+    el('loginList').querySelectorAll('.unlink-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!btn.dataset.armed) {
+          btn.dataset.armed = '1';
+          btn.textContent = 'Click again to unlink';
+          setTimeout(() => { delete btn.dataset.armed; btn.textContent = 'Unlink'; }, 4000);
+          return;
+        }
+        showError('loginsError', '');
+        try {
+          const out = await CFB.account.postJson('/api/account/logins/unlink', { subject: btn.closest('.login-row').dataset.subject });
+          me.logins = out.logins;
+          renderLogins();
+        } catch (err) {
+          showError('loginsError', err.message);
+        }
+      });
+    });
+    // "Link Tinyauth" for each provider on the sign-in page. Linking one you
+    // already have adds another login from it (a second Tinyauth user).
+    const providers = (me.options && me.options.ssoProviders) || [];
+    el('linkButtons').innerHTML = providers.map((p) => {
+      const has = logins.some((l) => l.providerId === p.id);
+      return `<a class="secondary-btn" href="/auth/sso/login?provider=${encodeURIComponent(p.id)}&amp;link=1">${has ? `Link another ${esc(p.label)} login` : `Link ${esc(p.label)}`}</a>`;
+    }).join('');
+    el('linkHint').hidden = !providers.length;
+    el('loginsSection').hidden = !rows.length && !providers.length;
+
+    // Back from linking a login, or from a link that didn't work.
+    const params = new URLSearchParams(location.search);
+    const notice = {
+      1: 'Linked. You can sign in with it from now on.',
+      moved: 'Linked. That login was on another account here before; it now signs in to this one.',
+    }[params.get('linked')];
+    const linkError = {
+      sso: 'Linking didn\'t finish. Try again.',
+      'sso-invite': 'That link has expired or was already used. Ask the site owner for a new one.',
+    }[params.get('error')];
+    el('loginsNotice').hidden = !notice;
+    el('loginsNotice').textContent = notice || '';
+    if (linkError) showError('loginsError', linkError);
   }
 
   // ---- Scrappy's morning recap --------------------------------------------

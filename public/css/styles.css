@@ -2020,3 +2020,43 @@ nav.top-nav .account-link .account-icon { display: none; }
 .sso-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .sso-dialog-actions button { padding: 10px 20px; border-radius: var(--radius-pill); }
 .sso-cancel { background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border); cursor: pointer; font-weight: 600; }
+
+/* Admin: users and their sign-in logins */
+.sso-filter input {
+  width: 100%;
+  max-width: 360px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+.user-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.user-head { font-size: 0.92rem; }
+.user-login, .user-link-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.85rem; }
+.user-login { padding: 6px 8px; border-radius: 6px; background: var(--bg-elev-2); }
+.user-login-name { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; color: var(--text-dim); }
+.user-login-name strong { color: var(--text); }
+.user-card select, .user-card button {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.user-login select { max-width: 180px; }
+.user-card button.remove { border-color: var(--loss); color: var(--loss); }
+.user-invite { font-size: 0.82rem; color: var(--text-dim); }
+.user-invite p { margin: 0 0 6px; }

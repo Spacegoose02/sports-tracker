@@ -325,6 +325,91 @@ test('Admin manages sign-in providers; auto-create off only lets existing accoun
   }
 });
 
+test('Signed-in users and Admin link Tinyauth logins to existing accounts, even with other emails', async () => {
+  const tiny = 'https://tiny.example.test';
+  let nextClaims = {};
+  const fakeFetch = async (url) => {
+    const u = String(url);
+    const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
+    if (u === `${tiny}/.well-known/openid-configuration`) {
+      return json({ issuer: tiny, authorization_endpoint: `${tiny}/authorize`, token_endpoint: `${tiny}/token`, userinfo_endpoint: `${tiny}/userinfo` });
+    }
+    if (u === `${tiny}/token`) return json({ access_token: 't-at' });
+    if (u === `${tiny}/userinfo`) return json(nextClaims);
+    return json({}, 404);
+  };
+  const { createApp } = require('../src/app');
+  const app = createApp({ env: { ...ENV, PUBLIC_URL: 'https://sports.example.com' }, logger: { warn() {} }, sso: { fetch: fakeFetch } });
+  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const providerId = db.createSsoProvider({ name: 'Tiny', issuer: tiny, clientId: 'c', clientSecret: 's', autoCreate: true }).id;
+  // Runs the provider round trip for a browser and returns where it lands.
+  const roundTrip = async (call, startPath, claims) => {
+    nextClaims = claims;
+    let res = await call(startPath);
+    const state = new URL(res.headers.get('location')).searchParams.get('state');
+    res = await call(`/auth/sso/callback?code=x&state=${encodeURIComponent(state)}`);
+    return res.headers.get('location');
+  };
+  try {
+    // An earlier Tinyauth sign-in made its own account.
+    const stray = client(base);
+    assert.strictEqual(await roundTrip(stray, `/auth/sso/login?provider=${providerId}`, { sub: 'kid', email: 'kid@home.lan', name: 'Kid' }), '/account.html');
+    const strayId = db.getUserByOidcSub(`${tiny}|kid`).id;
+
+    // The kid's real account has a different email; they link Tinyauth from the account page.
+    const kid = client(base);
+    await kid('/api/account/signup', { method: 'POST', body: { email: 'kid@gmail.test', password: 'password123' } });
+    assert.strictEqual(await roundTrip(kid, `/auth/sso/login?provider=${providerId}&link=1`, { sub: 'kid', email: 'kid@home.lan', name: 'Kid' }), '/account.html?linked=moved');
+    const kidId = db.getUserByEmail('kid@gmail.test').id;
+    assert.strictEqual(db.getUserByOidcSub(`${tiny}|kid`).id, kidId);
+    let me = await (await kid('/api/account/me')).json();
+    assert.deepStrictEqual(me.logins.map((l) => [l.providerName, l.email]), [['Tiny', 'kid@home.lan']]);
+    assert.strictEqual(me.user.sso, true);
+
+    // Linking needs a signed-in account.
+    const nobody = client(base);
+    assert.strictEqual((await nobody(`/auth/sso/login?provider=${providerId}&link=1`)).headers.get('location'), '/account.html');
+
+    // Unlinking works while a password remains; the last login can't go without one.
+    let res = await kid('/api/account/logins/unlink', { method: 'POST', body: { subject: `${tiny}|kid` } });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(db.getUserByOidcSub(`${tiny}|kid`), null);
+    const ssoOnly = client(base);
+    await roundTrip(ssoOnly, `/auth/sso/login?provider=${providerId}`, { sub: 'solo', name: 'Solo' });
+    res = await ssoOnly('/api/account/logins/unlink', { method: 'POST', body: { subject: `${tiny}|solo` } });
+    assert.strictEqual(res.status, 400);
+
+    // Admin: list users, make a one-time link for the kid's account, move and unlink logins.
+    const admin = client(base);
+    assert.strictEqual((await admin('/api/admin/users')).status, 401);
+    await admin('/api/admin/login', { method: 'POST', body: { password: 'a-real-password' } });
+    const users = await (await admin('/api/admin/users')).json();
+    assert.ok(users.users.some((u) => u.id === kidId && u.hasPassword));
+    assert.ok(users.providers.some((p) => p.id === providerId));
+
+    const invite = await (await admin(`/api/admin/users/${kidId}/link-invite`, { method: 'POST', body: { providerId } })).json();
+    assert.match(invite.url, /^https:\/\/sports\.example\.com\/auth\/sso\/link\//);
+    const invitePath = new URL(invite.url).pathname;
+    const phone = client(base);
+    assert.strictEqual(await roundTrip(phone, invitePath, { sub: 'kid-2', email: 'other@home.lan' }), '/account.html?linked=1');
+    me = await (await phone('/api/account/me')).json();
+    assert.strictEqual(me.user.email, 'kid@gmail.test', 'the link signs them in to the chosen account');
+    assert.strictEqual((await phone(invitePath)).headers.get('location'), '/account.html?error=sso-invite', 'links work once');
+
+    const soloId = db.getUserByOidcSub(`${tiny}|solo`).id;
+    res = await admin(`/api/admin/users/${soloId}/move-login`, { method: 'POST', body: { subject: `${tiny}|solo`, toUserId: kidId } });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(db.getUserByOidcSub(`${tiny}|solo`).id, kidId);
+    res = await admin(`/api/admin/users/${kidId}/unlink`, { method: 'POST', body: { subject: `${tiny}|solo` } });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(db.getUserByOidcSub(`${tiny}|solo`), null);
+    assert.ok(strayId);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('safeNext keeps same-site paths only', () => {
   assert.strictEqual(safeNext('/team.html?id=1'), '/team.html?id=1');
   for (const bad of ['//evil.example', '/\\evil.example', 'https://evil.example', undefined]) {
