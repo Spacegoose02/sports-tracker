@@ -1933,3 +1933,90 @@ nav.top-nav .account-link .account-icon { display: none; }
 .foot-links a { color: var(--text-dim); text-decoration: none; font-size: 0.88rem; }
 .foot-links a:hover { color: var(--accent); text-decoration: underline; }
 .foot-note { margin: 0; color: var(--text-dim); font-size: 0.76rem; line-height: 1.5; }
+
+/* Admin: sign-in providers (single sign-on) */
+.sso-callback {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.sso-callback-label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; }
+.sso-callback-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sso-callback-row code {
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-elev-2);
+  user-select: all;
+}
+.sso-callback-row button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.sso-callback-hint { font-size: 0.8rem; color: var(--text-dim); margin: 8px 0 0; }
+.sso-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  margin-left: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  vertical-align: 1px;
+}
+.sso-badge-warn { background: var(--favorite-soft); color: var(--favorite); }
+#ssoAdd { margin-top: 4px; }
+
+.sso-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-elev);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+}
+.sso-dialog::backdrop { background: var(--scrim); }
+.sso-dialog form { display: flex; flex-direction: column; gap: 14px; padding: 20px; }
+.sso-dialog-head { display: flex; align-items: center; justify-content: space-between; }
+.sso-dialog-head h2 { margin: 0; font-size: 1.05rem; }
+.sso-dialog-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.sso-dialog label { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: var(--text-dim); font-weight: 600; }
+.sso-dialog input:not([type="checkbox"]) {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-size: 0.92rem;
+}
+.sso-dialog input:not([type="checkbox"]):focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+.sso-dialog input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.sso-field-hint { font-weight: 400; font-size: 0.75rem; }
+.sso-dialog label.sso-check { flex-direction: row; align-items: center; gap: 10px; color: var(--text); font-size: 0.9rem; cursor: pointer; }
+.sso-check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; flex: none; }
+.sso-warning { margin: -6px 0 0; font-size: 0.8rem; line-height: 1.45; color: var(--text-dim); }
+.sso-dialog .error-text:empty { display: none; }
+.sso-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.sso-dialog-actions button { padding: 10px 20px; border-radius: var(--radius-pill); }
+.sso-cancel { background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border); cursor: pointer; font-weight: 600; }

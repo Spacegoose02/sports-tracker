@@ -202,6 +202,8 @@ test('SSO signs in through an OpenID provider and links an existing email accoun
   try {
     const me = await (await call('/api/account/me')).json();
     assert.deepStrictEqual(me.options.sso, { label: 'Tinyauth' });
+    assert.strictEqual(me.options.ssoProviders.length, 1, 'SSO_* env vars were imported as a provider');
+    assert.strictEqual(me.options.ssoProviders[0].label, 'Tinyauth');
 
     let res = await call('/auth/sso/login?next=/team.html%3Fid%3D259');
     assert.strictEqual(res.status, 302);
@@ -231,6 +233,93 @@ test('SSO signs in through an OpenID provider and links an existing email accoun
     assert.strictEqual(after.user.email, 'parent@example.com');
     assert.strictEqual(after.user.sso, true);
     assert.strictEqual(after.user.hasPassword, true, 'linked to the existing account');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('Admin manages sign-in providers; auto-create off only lets existing accounts in', async () => {
+  const google = 'https://accounts.google.test';
+  let nextClaims = {};
+  const discovered = [];
+  const fakeFetch = async (url) => {
+    const u = String(url);
+    const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
+    if (u === `${google}/.well-known/openid-configuration`) {
+      discovered.push(u);
+      return json({ issuer: google, authorization_endpoint: `${google}/o/auth`, token_endpoint: `${google}/token`, userinfo_endpoint: `${google}/userinfo` });
+    }
+    if (u === `${google}/token`) return json({ access_token: 'g-at' });
+    if (u === `${google}/userinfo`) return json(nextClaims);
+    return json({}, 404);
+  };
+  const { createApp } = require('../src/app');
+  const app = createApp({ env: { ...ENV, PUBLIC_URL: 'https://sports.example.com' }, logger: { warn() {} }, sso: { fetch: fakeFetch } });
+  const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const admin = client(base);
+  try {
+    assert.strictEqual((await admin('/api/admin/sso')).status, 401);
+    await admin('/api/admin/login', { method: 'POST', body: { password: 'a-real-password' } });
+
+    let list = await (await admin('/api/admin/sso')).json();
+    assert.strictEqual(list.callbackUrl, 'https://sports.example.com/auth/sso/callback');
+    const before = list.providers.length;
+
+    let res = await admin('/api/admin/sso', { method: 'POST', body: { name: 'Google', issuer: `${google}/`, clientId: 'gid' } });
+    assert.strictEqual(res.status, 400, 'a new provider needs a secret');
+    res = await admin('/api/admin/sso', { method: 'POST', body: { name: 'Google', issuer: 'javascript:alert(1)', clientId: 'gid', clientSecret: 'gs' } });
+    assert.strictEqual(res.status, 400, 'issuer must be http(s)');
+
+    res = await admin('/api/admin/sso', { method: 'POST', body: { name: 'Google', issuer: `${google}/`, clientId: 'gid', clientSecret: 'g-secret', scopes: 'openid, groups', autoCreate: false } });
+    assert.strictEqual(res.status, 201);
+    const created = await res.json();
+    assert.strictEqual(created.warning, null, 'discovery answered');
+    assert.strictEqual(created.provider.issuer, google);
+    assert.strictEqual(created.provider.scopes, 'groups');
+    assert.strictEqual(created.provider.hasSecret, true);
+    assert.strictEqual(created.provider.clientSecret, undefined, 'the secret is never sent back');
+    const id = created.provider.id;
+
+    // Editing with a blank secret keeps the saved one.
+    res = await admin(`/api/admin/sso/${id}`, { method: 'PUT', body: { name: 'Google', issuer: google, clientId: 'gid', clientSecret: '', scopes: '', autoCreate: false, showOnLogin: true } });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(db.getSsoProvider(id).clientSecret, 'g-secret');
+    list = await (await admin('/api/admin/sso')).json();
+    assert.strictEqual(list.providers.length, before + 1);
+
+    const me = await (await fetch(`${base}/api/account/me`)).json();
+    assert.ok(me.options.ssoProviders.some((p) => p.id === id && p.label === 'Google'));
+
+    // Someone with no account here is turned away.
+    const stranger = client(base);
+    nextClaims = { sub: 'g-stranger', email: 'stranger@example.com', email_verified: true, name: 'Stranger' };
+    res = await stranger(`/auth/sso/login?provider=${id}`);
+    let authorize = new URL(res.headers.get('location'));
+    assert.strictEqual(authorize.origin + authorize.pathname, `${google}/o/auth`);
+    assert.strictEqual(authorize.searchParams.get('scope'), 'openid profile email');
+    res = await stranger(`/auth/sso/callback?code=c1&state=${encodeURIComponent(authorize.searchParams.get('state'))}`);
+    assert.strictEqual(res.headers.get('location'), '/account.html?error=sso-noaccount');
+    assert.strictEqual(db.getUserByEmail('stranger@example.com'), null);
+
+    // The parent (signed in with Tinyauth before) adds Google to the same account.
+    const parent = client(base);
+    nextClaims = { sub: 'g-parent', email: 'parent@example.com', email_verified: true, name: 'Pat' };
+    res = await parent(`/auth/sso/login?provider=${id}`);
+    authorize = new URL(res.headers.get('location'));
+    res = await parent(`/auth/sso/callback?code=c2&state=${encodeURIComponent(authorize.searchParams.get('state'))}`);
+    assert.strictEqual(res.headers.get('location'), '/account.html');
+    const after = await (await parent('/api/account/me')).json();
+    assert.strictEqual(after.user.email, 'parent@example.com');
+    assert.strictEqual(db.getUserByOidcSub(`${google}|g-parent`).id, db.getUserByEmail('parent@example.com').id);
+
+    // Hidden from the sign-in page, then removed.
+    await admin(`/api/admin/sso/${id}`, { method: 'PUT', body: { name: 'Google', issuer: google, clientId: 'gid', showOnLogin: false } });
+    const hidden = await (await fetch(`${base}/api/account/me`)).json();
+    assert.ok(!hidden.options.ssoProviders.some((p) => p.id === id));
+    await admin(`/api/admin/sso/${id}`, { method: 'DELETE' });
+    assert.strictEqual((await fetch(`${base}/auth/sso/login?provider=${id}`, { redirect: 'manual' })).status, 404);
+    assert.ok(discovered.length >= 1);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

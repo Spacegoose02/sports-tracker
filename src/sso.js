@@ -9,12 +9,104 @@
 //   3. The server swaps the code for an access token (server to server,
 //      client_secret_basic) and reads the user from the userinfo endpoint.
 //
-// Configure with SSO_ISSUER, SSO_CLIENT_ID and SSO_CLIENT_SECRET (see
-// .env.example). The callback URL to register with the provider is
-// <PUBLIC_URL>/auth/sso/callback.
+// Providers are set up in Admin > Sign-in providers and kept in the
+// database (sso_providers), so there can be several: Tinyauth for the
+// family, Google for people who'd rather use that, and so on. Every
+// provider shares one callback URL, <PUBLIC_URL>/auth/sso/callback; which
+// provider a sign-in came from is kept in the session.
+//
+// SSO_ISSUER, SSO_CLIENT_ID and SSO_CLIENT_SECRET (see .env.example) still
+// work: the first time the server starts with them set, they are copied
+// into the database as a provider, which is then edited in Admin.
 
 const crypto = require('crypto');
 const fetch = require('node-fetch');
+const db = require('./db');
+
+// Always asked for; a provider's "extra scopes" are added to these.
+const BASE_SCOPES = ['openid', 'profile', 'email'];
+// RFC 6749 scope-token characters.
+const SCOPE_TOKEN = /^[\x21\x23-\x5b\x5d-\x7e]{1,100}$/;
+
+// "groups, offline_access openid" -> "groups offline_access". Returns null
+// when a scope has characters a scope can't have.
+function cleanScopes(value) {
+  const out = [];
+  for (const scope of String(value || '').split(/[\s,]+/).filter(Boolean)) {
+    if (!SCOPE_TOKEN.test(scope)) return null;
+    if (!BASE_SCOPES.includes(scope) && !out.includes(scope)) out.push(scope);
+  }
+  return out.slice(0, 20).join(' ');
+}
+
+// "https://auth.example.com/" -> "https://auth.example.com". null when it
+// isn't an http(s) URL. Plain http is allowed for providers on a home LAN.
+function cleanIssuer(value) {
+  let url;
+  try {
+    url = new URL(String(value || '').trim());
+  } catch (err) {
+    return null;
+  }
+  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) return null;
+  return url.toString().replace(/\/+$/, '');
+}
+
+// A saved provider in the shape startLogin/finishLogin take.
+function providerConfig(p) {
+  if (!p) return null;
+  return {
+    id: p.id,
+    label: p.name,
+    issuer: p.issuer,
+    clientId: p.clientId,
+    clientSecret: p.clientSecret,
+    scopes: [...BASE_SCOPES, ...(p.scopes ? p.scopes.split(' ') : [])].join(' '),
+    autoCreate: !!p.autoCreate,
+    showOnLogin: !!p.showOnLogin,
+    enabled: !!(p.issuer && p.clientId && p.clientSecret),
+  };
+}
+
+function listProviders() {
+  return db.listSsoProviders().map(providerConfig);
+}
+
+function getProvider(id) {
+  const n = Number(id);
+  return Number.isInteger(n) && n > 0 ? providerConfig(db.getSsoProvider(n)) : null;
+}
+
+// Buttons for the sign-in page, in Admin's order.
+function loginProviders() {
+  return listProviders().filter((p) => p.enabled && p.showOnLogin);
+}
+
+// Copies the SSO_* env vars into the database once, so sites set up before
+// providers moved into Admin keep working. Accounts were always created for
+// new SSO users then, so auto-create stays on for that provider.
+function seedFromEnv(env = process.env, logger = console) {
+  if (db.getSetting('sso_env_imported')) return null;
+  const cfg = ssoConfig(env);
+  if (!cfg.enabled) return null;
+  db.setSetting('sso_env_imported', new Date().toISOString());
+  const issuer = cleanIssuer(cfg.issuer);
+  if (!issuer) {
+    logger.warn(`[sso] SSO_ISSUER "${cfg.issuer}" is not an http(s) address; set the provider up in Admin instead.`);
+    return null;
+  }
+  const exists = db.listSsoProviders().some((p) => p.issuer === issuer && p.clientId === cfg.clientId);
+  if (exists) return null;
+  return db.createSsoProvider({
+    name: cfg.label,
+    issuer,
+    clientId: cfg.clientId,
+    clientSecret: cfg.clientSecret,
+    scopes: cleanScopes(cfg.scopes) || '',
+    autoCreate: true,
+    showOnLogin: true,
+  });
+}
 
 function ssoConfig(env = process.env) {
   const issuer = (env.SSO_ISSUER || '').trim().replace(/\/+$/, '');
@@ -99,4 +191,19 @@ async function finishLogin(cfg, pending, code, fetchImpl = fetch) {
   return claims;
 }
 
-module.exports = { ssoConfig, discover, startLogin, finishLogin, pkceChallenge, discoveryCache };
+module.exports = {
+  ssoConfig,
+  discover,
+  startLogin,
+  finishLogin,
+  pkceChallenge,
+  discoveryCache,
+  BASE_SCOPES,
+  cleanScopes,
+  cleanIssuer,
+  providerConfig,
+  listProviders,
+  getProvider,
+  loginProviders,
+  seedFromEnv,
+};

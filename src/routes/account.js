@@ -137,8 +137,9 @@ function createAccountRouter({ env = process.env, recapper = null } = {}) {
 
   router.get('/me', (req, res) => {
     const user = currentUser(req);
-    const ssoCfg = sso.ssoConfig(env);
-    const options = { signup: allowSignup, sso: ssoCfg.enabled ? { label: ssoCfg.label } : null };
+    const providers = sso.loginProviders().map((p) => ({ id: p.id, label: p.label }));
+    // sso is the first button, for anything still reading the old shape.
+    const options = { signup: allowSignup, ssoProviders: providers, sso: providers[0] ? { label: providers[0].label } : null };
     if (!user) return res.json({ user: null, options });
     return res.json({
       user: publicUser(user),
@@ -403,12 +404,15 @@ function createAccountPublicRouter({ env = process.env, fetchImpl } = {}) {
   const router = express.Router();
   const ssoLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30 });
 
+  // ?provider=<id> picks the provider; without it, the first one on the
+  // sign-in page (so old "/auth/sso/login" links keep working). A provider
+  // hidden from the sign-in page still works from a direct link.
   router.get('/auth/sso/login', ssoLimiter, async (req, res) => {
-    const cfg = sso.ssoConfig(env);
-    if (!cfg.enabled) return res.status(404).send('Single sign-on is not set up on this site.');
+    const cfg = req.query.provider ? sso.getProvider(req.query.provider) : sso.loginProviders()[0];
+    if (!cfg || !cfg.enabled) return res.status(404).send('Single sign-on is not set up on this site.');
     try {
       const { url, pending } = await sso.startLogin(cfg, `${baseUrl(req, env)}/auth/sso/callback`, fetchImpl);
-      req.session.sso = { ...pending, next: safeNext(req.query.next) };
+      req.session.sso = { ...pending, providerId: cfg.id, next: safeNext(req.query.next) };
       return res.redirect(url);
     } catch (err) {
       console.warn('[sso]', err.message);
@@ -417,10 +421,10 @@ function createAccountPublicRouter({ env = process.env, fetchImpl } = {}) {
   });
 
   router.get('/auth/sso/callback', ssoLimiter, async (req, res) => {
-    const cfg = sso.ssoConfig(env);
     const pending = req.session && req.session.sso;
     if (req.session) delete req.session.sso;
-    if (!cfg.enabled || !pending || !req.query.code || req.query.state !== pending.state) {
+    const cfg = pending && sso.getProvider(pending.providerId);
+    if (!cfg || !cfg.enabled || !req.query.code || req.query.state !== pending.state) {
       return res.redirect('/account.html?error=sso');
     }
     try {
@@ -430,12 +434,17 @@ function createAccountPublicRouter({ env = process.env, fetchImpl } = {}) {
       const name = cleanText(claims.name, 60) || cleanText(claims.preferred_username, 60);
       let user = db.getUserByOidcSub(subject);
       if (!user && email && claims.email_verified !== false) {
-        // Same email as an existing email/password account: sign-in links
-        // the two, so a person has one account either way they sign in.
+        // Same email as an existing account: sign-in links the two, so a
+        // person has one account whichever way they sign in.
+        // Not when that account already has a different login from this
+        // same provider: that's someone else claiming the email.
         const existing = db.getUserByEmail(email);
-        if (existing && !existing.oidc_sub) user = db.linkOidc(existing.id, subject);
+        if (existing && !db.hasOidcFromIssuer(existing.id, cfg.issuer)) user = db.linkOidc(existing.id, subject);
       }
       if (!user) {
+        // Providers that let anyone in (Google) leave auto-create off, so
+        // only people who already have an account here can use them.
+        if (!cfg.autoCreate) return res.redirect('/account.html?error=sso-noaccount');
         user = db.createUser({ email: email && !db.getUserByEmail(email) ? email : null, displayName: name, oidcSub: subject });
       }
       signIn(req, user);

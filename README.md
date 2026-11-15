@@ -335,8 +335,27 @@ There are two ways, and they can be used together:
 
 - **Email and password.** On by default. Set `ALLOW_SIGNUP=false` to stop
   new sign-ups (existing accounts and SSO keep working).
-- **Single sign-on with Tinyauth** (or any OpenID Connect provider:
-  Authentik, Authelia, Pocket ID, Keycloak...). Add a client to Tinyauth:
+- **Single sign-on** with Tinyauth, Google, or any other OpenID Connect
+  provider (Authentik, Authelia, Pocket ID, Keycloak...). Set these up in
+  **Admin > Sign-in providers**: add as many as you like, and each gets its
+  own **Sign in with...** button on the account page. Admin shows the
+  callback URL to paste into the provider; it's the same for every
+  provider (`<PUBLIC_URL>/auth/sso/callback`), so set `PUBLIC_URL` when
+  the site is behind a reverse proxy.
+
+  For each provider you fill in the button name, issuer URL, client ID,
+  client secret (kept on the server and never shown again; leave it empty
+  when editing to keep it), any extra scopes, and two switches:
+
+  - **Create an account for anyone who signs in with it.** Turn this on
+    only for a provider that just lets in people you trust, like your own
+    Tinyauth. With Google it would let anyone with a Google account in.
+    When it's off, only people who already have an account here with the
+    same email can use that button.
+  - **Show on the sign-in page.** Turn it off to hide the button while you
+    test (`/auth/sso/login?provider=<id>` still works).
+
+  A Tinyauth client looks like this:
 
   ```
   TINYAUTH_OIDC_CLIENTS_tracker_CLIENTID=cfb-tracker
@@ -346,20 +365,20 @@ There are two ways, and they can be used together:
   TINYAUTH_OIDC_CLIENTS_tracker_TRUSTED=true
   ```
 
-  and give the tracker the matching values:
+  For Google, make an OAuth client of type "Web application" in Google
+  Cloud console, add the callback URL as an authorized redirect URI, and
+  use `https://accounts.google.com` as the issuer.
 
-  ```
-  PUBLIC_URL=https://sports.example.com
-  SSO_ISSUER=https://auth.example.com
-  SSO_CLIENT_ID=cfb-tracker
-  SSO_CLIENT_SECRET=<the same secret>
-  ```
+  If an SSO account's email matches an existing account, the two are
+  joined, so a person has one account whichever way they sign in. Don't
+  put the whole site behind Tinyauth's forward auth: the public pages
+  should stay public, and sign-in happens through these buttons.
 
-  A **Sign in with Tinyauth** button then appears on the account page. If
-  the SSO account's email matches an existing email/password account,
-  the two are joined, so a person has one account whichever way they sign
-  in. Don't put the whole site behind Tinyauth's forward auth: the public
-  pages should stay public, and sign-in happens through this button.
+  The older `SSO_ISSUER`, `SSO_CLIENT_ID`, `SSO_CLIENT_SECRET` and
+  `SSO_LABEL` variables still work: the first time the server starts with
+  them set, they're copied into Admin as a provider (with account creation
+  on, as before). After that, edit it in Admin; changing the variables
+  does nothing more.
 
 `SESSION_SECRET` must be set to a real value for accounts: with a random
 one, everyone is signed out on every restart. Sign-ins last 30 days.
@@ -807,9 +826,9 @@ BingeBandit's Sports data settings instead.
 | `TRUST_PROXY` | *(unset)* | Set to `1` when the app sits behind a reverse proxy so the admin login rate limit sees each visitor's real IP |
 | `PUBLIC_URL` | *(from the request)* | The site's public address, e.g. `https://sports.example.com`. Used for the SSO callback and calendar links; set it when behind a reverse proxy |
 | `ALLOW_SIGNUP` | `true` | Set to `false` to stop new email/password sign-ups |
-| `SSO_ISSUER` | *(unset: SSO off)* | Your Tinyauth (or other OpenID provider) address, e.g. `https://auth.example.com` |
+| `SSO_ISSUER` | *(unset)* | Optional. Imported once into Admin > Sign-in providers on first start; set providers up there instead. Your Tinyauth (or other OpenID provider) address, e.g. `https://auth.example.com` |
 | `SSO_CLIENT_ID` / `SSO_CLIENT_SECRET` | *(unset)* | The OIDC client configured in Tinyauth |
-| `SSO_LABEL` | `Tinyauth` | Button text: "Sign in with ..." |
+| `SSO_LABEL` | `Tinyauth` | Button text for the imported provider: "Sign in with ..." |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | *(generated)* | Web push keys. Left unset, a pair is generated once and saved as `vapid.json` in the data folder |
 | `VAPID_SUBJECT` | `mailto:admin@localhost` | Contact address push services see; use your email |
 | `GAME_ALERTS` | *(on)* | Set to `false` to stop checking scores for game alerts |

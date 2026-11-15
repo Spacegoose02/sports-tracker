@@ -3,6 +3,8 @@ const { checkPassword, requireAdmin } = require('../auth');
 const db = require('../db');
 const { rateLimit, isSafeId, safeHttpUrl } = require('../security');
 const { getSport } = require('../sports');
+const sso = require('../sso');
+const seo = require('../seo');
 
 // "ESPN, ESPN2" or ['ESPN', 'ESPN2'] -> ['ESPN', 'ESPN2'], trimmed and capped.
 function nameList(value) {
@@ -51,8 +53,51 @@ function readOverride(body) {
   };
 }
 
+// Validates the sign-in provider form. Returns { error } or { provider }.
+// The client secret is required for a new provider; when editing, a blank
+// secret keeps the saved one.
+function readSsoProvider(body, { isNew }) {
+  const b = body || {};
+  const name = shortText(b.name, 40);
+  if (!name) return { error: 'Give the button a name, like Tinyauth or Google.' };
+  const issuer = sso.cleanIssuer(b.issuer);
+  if (!issuer) return { error: 'Issuer URL must be an address starting with https:// (or http:// on your home network).' };
+  const clientId = shortText(b.clientId, 300);
+  if (!clientId) return { error: 'Enter the client ID from your provider.' };
+  const clientSecret = typeof b.clientSecret === 'string' ? b.clientSecret.trim().slice(0, 500) : '';
+  if (isNew && !clientSecret) return { error: 'Enter the client secret from your provider.' };
+  const scopes = sso.cleanScopes(b.scopes);
+  if (scopes === null) return { error: 'Extra scopes can only hold scope names, separated by spaces or commas.' };
+  return {
+    provider: {
+      name,
+      issuer,
+      clientId,
+      clientSecret,
+      scopes,
+      autoCreate: b.autoCreate === true,
+      showOnLogin: b.showOnLogin !== false,
+    },
+  };
+}
+
+// What Admin sees of a provider: everything but the secret.
+function adminSsoProvider(p) {
+  return {
+    id: p.id,
+    name: p.name,
+    issuer: p.issuer,
+    clientId: p.clientId,
+    hasSecret: !!p.clientSecret,
+    scopes: p.scopes,
+    autoCreate: p.autoCreate,
+    showOnLogin: p.showOnLogin,
+    updatedAt: p.updatedAt,
+  };
+}
+
 // Built per app instance so each app gets its own login rate limiter.
-function createAdminRouter() {
+function createAdminRouter({ env = process.env, fetchImpl } = {}) {
   const router = express.Router();
 
   // Admin is locked when the server is running with a placeholder password
@@ -152,6 +197,52 @@ function createAdminRouter() {
       return res.status(400).json({ error: 'Invalid override' });
     }
     db.removeBroadcastOverride(sport.key, req.params.scope, req.params.targetId);
+    return res.json({ ok: true });
+  });
+
+  // Sign-in providers (single sign-on). Every provider uses the same
+  // callback URL, shown in Admin so it can be pasted into the provider.
+  router.get('/sso', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      callbackUrl: `${seo.baseUrl(req, env)}/auth/sso/callback`,
+      publicUrlSet: !!(env.PUBLIC_URL && String(env.PUBLIC_URL).trim()),
+      providers: db.listSsoProviders().map(adminSsoProvider),
+    });
+  });
+
+  // Checks that the issuer answers OpenID discovery. A failure is a
+  // warning, not a refusal, so a provider can be saved while it's down.
+  async function discoveryWarning(issuer) {
+    try {
+      await sso.discover(issuer, fetchImpl);
+      return null;
+    } catch (err) {
+      return `Saved, but ${issuer}/.well-known/openid-configuration didn't answer (${err.message}). Check the issuer URL.`;
+    }
+  }
+
+  router.post('/sso', async (req, res) => {
+    const { error, provider } = readSsoProvider(req.body, { isNew: true });
+    if (error) return res.status(400).json({ error });
+    const saved = db.createSsoProvider(provider);
+    return res.status(201).json({ provider: adminSsoProvider(saved), warning: await discoveryWarning(saved.issuer) });
+  });
+
+  router.put('/sso/:id', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || !db.getSsoProvider(id)) return res.status(404).json({ error: 'No such provider' });
+    const { error, provider } = readSsoProvider(req.body, { isNew: false });
+    if (error) return res.status(400).json({ error });
+    const saved = db.updateSsoProvider(id, provider);
+    sso.discoveryCache.delete(saved.issuer);
+    return res.json({ provider: adminSsoProvider(saved), warning: await discoveryWarning(saved.issuer) });
+  });
+
+  router.delete('/sso/:id', (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid id' });
+    db.removeSsoProvider(id);
     return res.json({ ok: true });
   });
 

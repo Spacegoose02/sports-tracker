@@ -28,7 +28,7 @@
     </div>
     <div>
       <h1>Stat Scraps &middot; Admin</h1>
-      <div class="subtitle">Notable games, radio and TV</div>
+      <div class="subtitle">Notable games, radio and TV, sign-in</div>
     </div>
   </div>
   <nav class="top-nav">
@@ -108,8 +108,62 @@
       <h3 class="section-title">Saved radio and TV changes</h3>
       <div id="bcList"></div>
     </section>
+
+    <section id="ssoSection">
+      <h2 class="section-title">Sign-in providers</h2>
+      <p class="admin-note">Let people sign in with Tinyauth, Google, Authentik, Authelia, Pocket ID or any other OpenID Connect provider. Each one gets its own &ldquo;Sign in with&hellip;&rdquo; button on the account page.</p>
+      <div class="sso-callback">
+        <span class="sso-callback-label">Callback URL to paste into your provider</span>
+        <div class="sso-callback-row">
+          <code id="ssoCallback">&hellip;</code>
+          <button type="button" id="ssoCopy">Copy</button>
+        </div>
+        <p class="sso-callback-hint" id="ssoCallbackHint" hidden>This comes from the address you opened Admin with. Set PUBLIC_URL on the server if people reach the site at a different address.</p>
+      </div>
+      <div id="ssoList"></div>
+      <button type="button" class="primary-btn" id="ssoAdd">Add provider</button>
+    </section>
   </div>
 </main>
+
+<dialog class="sso-dialog" id="ssoDialog" aria-labelledby="ssoDialogTitle">
+  <form method="dialog" id="ssoForm" autocomplete="off" novalidate>
+    <div class="sso-dialog-head">
+      <h2 id="ssoDialogTitle">Add provider</h2>
+      <button type="button" class="sso-dialog-close" id="ssoClose" aria-label="Close">&times;</button>
+    </div>
+    <label>Name on the sign-in button
+      <input id="ssoName" maxlength="40" required placeholder="Tinyauth" />
+    </label>
+    <label>Issuer URL
+      <input id="ssoIssuer" class="mono" type="url" required placeholder="https://auth.example.com" />
+      <span class="sso-field-hint">For Google use https://accounts.google.com</span>
+    </label>
+    <label>Client ID
+      <input id="ssoClientId" class="mono" required />
+    </label>
+    <label>Client secret
+      <input id="ssoClientSecret" class="mono" type="password" autocomplete="new-password" />
+    </label>
+    <label>Extra scopes (optional)
+      <input id="ssoScopes" class="mono" placeholder="openid, profile and email are always asked for" />
+    </label>
+    <label class="sso-check">
+      <input type="checkbox" id="ssoAutoCreate" />
+      <span>Create an account for anyone who signs in with it</span>
+    </label>
+    <p class="sso-warning">Only turn this on for a provider that just lets in people you trust (your own Tinyauth or Authelia). With Google it would let anyone with a Google account in. When it's off, only people who already have an account here with the same email can use this button.</p>
+    <label class="sso-check">
+      <input type="checkbox" id="ssoShow" checked />
+      <span>Show on the sign-in page</span>
+    </label>
+    <div class="error-text" id="ssoError" role="alert"></div>
+    <div class="sso-dialog-actions">
+      <button type="button" class="sso-cancel" id="ssoCancel">Cancel</button>
+      <button type="submit" class="primary-btn" id="ssoSave">Save</button>
+    </div>
+  </form>
+</dialog>
 
 <footer class="foot">Stat Scraps &middot; Admin</footer>
 

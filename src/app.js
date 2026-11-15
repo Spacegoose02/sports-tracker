@@ -65,7 +65,14 @@ function createApp({ env = process.env, logger = console, relay = {}, sso = {}, 
     })
   );
 
-  app.use('/api/admin', createAdminRouter());
+  // SSO_* env vars become a provider the first time they're seen; after
+  // that providers are edited in Admin.
+  try {
+    require('./sso').seedFromEnv(env, logger);
+  } catch (err) {
+    logger.warn(`[sso] Could not import SSO settings from the environment: ${err.message}`);
+  }
+  app.use('/api/admin', createAdminRouter({ env, fetchImpl: sso.fetch }));
   // Scrappy's daily recap. server.js starts its schedule; the account
   // routes use it for "Send me one now".
   const recapper = createRecapper({ env, logger, client: scrappy.client, ...recap });
