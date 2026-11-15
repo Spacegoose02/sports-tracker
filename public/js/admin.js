@@ -104,6 +104,7 @@
     }
     populateSelectors(meta);
     el('loadBtn').addEventListener('click', loadWeek);
+    initSso();
     await initBroadcasts();
     loadWeek();
   }
@@ -406,6 +407,134 @@
     bcScopeChanged();
     await bcLoadTeams('cfb');
     try { await bcRefresh(); } catch (err) { el('bcList').innerHTML = `<div class="empty-note">${esc(err.message)}</div>`; }
+  }
+
+  // ---- Sign-in providers (single sign-on) -------------------------------
+
+  const ssoState = { providers: [], editing: null };
+
+  function ssoBadges(p) {
+    const badges = [];
+    if (!p.showOnLogin) badges.push('<span class="sso-badge">Hidden</span>');
+    if (p.autoCreate) badges.push('<span class="sso-badge sso-badge-warn">Creates accounts</span>');
+    return badges.join('');
+  }
+
+  function renderSsoList() {
+    const list = el('ssoList');
+    if (!ssoState.providers.length) {
+      list.innerHTML = '<div class="empty-note">No sign-in providers yet. People sign in with email and password.</div>';
+      return;
+    }
+    list.innerHTML = ssoState.providers.map((p) => `
+      <div class="admin-game-row sso-row" data-id="${esc(p.id)}">
+        <span class="matchup"><strong>${esc(p.name)}</strong> ${ssoBadges(p)}
+          <br /><span class="bc-summary">${esc(p.issuer)}</span></span>
+        <button class="sso-edit">Edit</button>
+        <button class="remove">Remove</button>
+      </div>`).join('');
+    list.querySelectorAll('.sso-row').forEach((row) => {
+      const p = ssoState.providers.find((x) => String(x.id) === row.dataset.id);
+      row.querySelector('.sso-edit').addEventListener('click', () => openSsoDialog(p));
+      const remove = row.querySelector('.remove');
+      remove.addEventListener('click', async () => {
+        // Two clicks instead of confirm(), which some kiosk browsers block.
+        if (!remove.dataset.armed) {
+          remove.dataset.armed = '1';
+          remove.textContent = 'Click again to remove';
+          setTimeout(() => { delete remove.dataset.armed; remove.textContent = 'Remove'; }, 4000);
+          return;
+        }
+        await getJson(`/api/admin/sso/${encodeURIComponent(p.id)}`, { method: 'DELETE' });
+        await ssoRefresh();
+      });
+    });
+  }
+
+  async function ssoRefresh() {
+    try {
+      const data = await getJson('/api/admin/sso');
+      ssoState.providers = data.providers || [];
+      el('ssoCallback').textContent = data.callbackUrl;
+      el('ssoCallbackHint').hidden = !!data.publicUrlSet;
+      renderSsoList();
+    } catch (err) {
+      el('ssoList').innerHTML = `<div class="empty-note">${esc(err.message)}</div>`;
+    }
+  }
+
+  function openSsoDialog(p) {
+    ssoState.editing = p || null;
+    el('ssoDialogTitle').textContent = p ? `Edit ${p.name}` : 'Add provider';
+    el('ssoName').value = p ? p.name : '';
+    el('ssoIssuer').value = p ? p.issuer : '';
+    el('ssoClientId').value = p ? p.clientId : '';
+    el('ssoClientSecret').value = '';
+    el('ssoClientSecret').placeholder = p && p.hasSecret ? 'Saved; leave empty to keep it' : '';
+    el('ssoScopes').value = p ? p.scopes : '';
+    el('ssoAutoCreate').checked = p ? p.autoCreate : false;
+    el('ssoShow').checked = p ? p.showOnLogin : true;
+    el('ssoError').textContent = '';
+    el('ssoSave').disabled = false;
+    el('ssoDialog').showModal();
+    el('ssoName').focus();
+  }
+
+  function initSso() {
+    el('ssoAdd').addEventListener('click', () => openSsoDialog(null));
+    el('ssoClose').addEventListener('click', () => el('ssoDialog').close());
+    el('ssoCancel').addEventListener('click', () => el('ssoDialog').close());
+    el('ssoCopy').addEventListener('click', async () => {
+      const text = el('ssoCallback').textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        el('ssoCopy').textContent = 'Copied';
+      } catch (err) {
+        const range = document.createRange();
+        range.selectNodeContents(el('ssoCallback'));
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        el('ssoCopy').textContent = 'Press Ctrl+C';
+      }
+      setTimeout(() => { el('ssoCopy').textContent = 'Copy'; }, 2000);
+    });
+    el('ssoForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editing = ssoState.editing;
+      el('ssoError').textContent = '';
+      el('ssoSave').disabled = true;
+      try {
+        const result = await getJson(editing ? `/api/admin/sso/${encodeURIComponent(editing.id)}` : '/api/admin/sso', {
+          method: editing ? 'PUT' : 'POST',
+          body: JSON.stringify({
+            name: el('ssoName').value,
+            issuer: el('ssoIssuer').value,
+            clientId: el('ssoClientId').value,
+            clientSecret: el('ssoClientSecret').value,
+            scopes: el('ssoScopes').value,
+            autoCreate: el('ssoAutoCreate').checked,
+            showOnLogin: el('ssoShow').checked,
+          }),
+        });
+        await ssoRefresh();
+        if (result.warning) {
+          // Saved, but discovery failed: keep the dialog open to fix it.
+          ssoState.editing = ssoState.providers.find((x) => x.id === result.provider.id) || null;
+          el('ssoDialogTitle').textContent = `Edit ${result.provider.name}`;
+          el('ssoClientSecret').value = '';
+          el('ssoClientSecret').placeholder = 'Saved; leave empty to keep it';
+          el('ssoError').textContent = result.warning;
+        } else {
+          el('ssoDialog').close();
+        }
+      } catch (err) {
+        el('ssoError').textContent = err.message;
+      } finally {
+        el('ssoSave').disabled = false;
+      }
+    });
+    ssoRefresh();
   }
 
   checkLogin();

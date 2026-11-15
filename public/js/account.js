@@ -14,16 +14,26 @@
     el('signedIn').hidden = true;
     el('signedOut').hidden = false;
     const options = info.options || {};
-    if (options.sso) {
-      const btn = el('ssoBtn');
-      btn.hidden = false;
-      btn.textContent = `Sign in with ${options.sso.label}`;
+    // One button per sign-in provider set up in Admin.
+    const providers = options.ssoProviders || [];
+    if (providers.length) {
       const next = new URLSearchParams(location.search).get('next');
-      btn.href = `/auth/sso/login${next ? `?next=${encodeURIComponent(next)}` : ''}`;
+      const box = el('ssoButtons');
+      box.innerHTML = providers.map((p) => {
+        const params = new URLSearchParams({ provider: String(p.id) });
+        if (next) params.set('next', next);
+        return `<a class="primary-btn sso-btn" href="/auth/sso/login?${esc(params.toString())}">Sign in with ${esc(p.label)}</a>`;
+      }).join('');
+      box.hidden = false;
       el('orLine').hidden = false;
     }
-    if (new URLSearchParams(location.search).get('error') === 'sso') {
+    const ssoError = new URLSearchParams(location.search).get('error');
+    if (ssoError === 'sso') {
       showError('authError', 'Single sign-on didn\'t finish. Try again.');
+    } else if (ssoError === 'sso-noaccount') {
+      showError('authError', options.signup
+        ? 'That sign-in worked, but there\'s no account here with that email yet. Create one below with the same email, then that sign-in button will work too.'
+        : 'That sign-in worked, but there\'s no account here with that email. Ask the site owner to add you.');
     }
     setMode('signin', options);
 

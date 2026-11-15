@@ -31,7 +31,7 @@ services:
       # --- Accounts, sign-in, alerts ---
       # PUBLIC_URL: "https://sports.example.com"   # needed for SSO + calendar links
       # ALLOW_SIGNUP: "true"
-      # SSO_ISSUER: "https://auth.example.com"     # Tinyauth or any OIDC provider
+      # SSO_ISSUER: "https://auth.example.com"     # optional: SSO is set up in Admin; these seed it once
       # SSO_CLIENT_ID: "cfb-tracker"
       # SSO_CLIENT_SECRET: ""
       # SSO_LABEL: "Tinyauth"

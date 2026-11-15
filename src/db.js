@@ -120,6 +120,38 @@ db.exec(`
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (sport, scope, target_id)
   );
+
+  -- Single sign-on providers (Tinyauth, Google, Authentik, ...) set up in
+  -- Admin. scopes holds the extra scopes only; openid, profile and email
+  -- are always asked for. The secret never leaves the server.
+  CREATE TABLE IF NOT EXISTS sso_providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    issuer TEXT NOT NULL,
+    client_id TEXT NOT NULL,
+    client_secret TEXT NOT NULL,
+    scopes TEXT NOT NULL DEFAULT '',
+    auto_create INTEGER NOT NULL DEFAULT 0,
+    show_on_login INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  -- More SSO identities for an account, past the first one in
+  -- users.oidc_sub, so one person can sign in with Tinyauth and Google.
+  -- subject is "<issuer>|<sub>", the same shape as users.oidc_sub.
+  CREATE TABLE IF NOT EXISTS user_sso_links (
+    subject TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  -- Small one-off flags, such as "SSO env vars were already imported".
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
 `);
 db.pragma('foreign_keys = ON');
 
@@ -269,7 +301,9 @@ function getUserByEmail(email) {
 }
 
 function getUserByOidcSub(sub) {
-  return db.prepare('SELECT * FROM users WHERE oidc_sub = ?').get(sub) || null;
+  return db.prepare('SELECT * FROM users WHERE oidc_sub = ?').get(sub)
+    || db.prepare('SELECT u.* FROM user_sso_links l JOIN users u ON u.id = l.user_id WHERE l.subject = ?').get(sub)
+    || null;
 }
 
 function getUserByFeedToken(token) {
@@ -285,9 +319,21 @@ function createUser({ email, passwordHash, displayName, oidcSub }) {
   return getUser(info.lastInsertRowid);
 }
 
+// Adds an SSO identity to an account. The first one goes in users.oidc_sub
+// (as before), any more in user_sso_links.
 function linkOidc(userId, oidcSub) {
-  db.prepare('UPDATE users SET oidc_sub = ? WHERE id = ?').run(oidcSub, userId);
+  const user = getUser(userId);
+  if (user && !user.oidc_sub) db.prepare('UPDATE users SET oidc_sub = ? WHERE id = ?').run(oidcSub, userId);
+  else db.prepare('INSERT OR IGNORE INTO user_sso_links (subject, user_id) VALUES (?, ?)').run(oidcSub, userId);
   return getUser(userId);
+}
+
+// Whether the account already has an SSO identity from this issuer.
+function hasOidcFromIssuer(userId, issuer) {
+  const prefix = `${issuer}|`;
+  const user = getUser(userId);
+  if (user && user.oidc_sub && user.oidc_sub.startsWith(prefix)) return true;
+  return db.prepare('SELECT subject FROM user_sso_links WHERE user_id = ?').all(userId).some((r) => r.subject.startsWith(prefix));
 }
 
 function updateUser(userId, fields) {
@@ -533,8 +579,76 @@ function removeBroadcastOverride(sport, scope, targetId) {
     .run(sport, scope, String(targetId));
 }
 
+// ---- Single sign-on providers --------------------------------------------
+
+function ssoProviderFromRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    issuer: row.issuer,
+    clientId: row.client_id,
+    clientSecret: row.client_secret,
+    scopes: row.scopes || '',
+    autoCreate: !!row.auto_create,
+    showOnLogin: !!row.show_on_login,
+    sortOrder: row.sort_order,
+    updatedAt: row.updated_at,
+  };
+}
+
+function listSsoProviders() {
+  return db.prepare('SELECT * FROM sso_providers ORDER BY sort_order, id').all().map(ssoProviderFromRow);
+}
+
+function getSsoProvider(id) {
+  return ssoProviderFromRow(db.prepare('SELECT * FROM sso_providers WHERE id = ?').get(id));
+}
+
+function createSsoProvider(p) {
+  const next = db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM sso_providers').get().n;
+  const info = db.prepare(`
+    INSERT INTO sso_providers (name, issuer, client_id, client_secret, scopes, auto_create, show_on_login, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(p.name, p.issuer, p.clientId, p.clientSecret, p.scopes || '', p.autoCreate ? 1 : 0, p.showOnLogin === false ? 0 : 1, next);
+  return getSsoProvider(info.lastInsertRowid);
+}
+
+// A blank or missing clientSecret keeps the saved one.
+function updateSsoProvider(id, p) {
+  const current = getSsoProvider(id);
+  if (!current) return null;
+  db.prepare(`
+    UPDATE sso_providers SET name = ?, issuer = ?, client_id = ?, client_secret = ?, scopes = ?,
+      auto_create = ?, show_on_login = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(p.name, p.issuer, p.clientId, p.clientSecret || current.clientSecret, p.scopes || '',
+    p.autoCreate ? 1 : 0, p.showOnLogin === false ? 0 : 1, id);
+  return getSsoProvider(id);
+}
+
+function removeSsoProvider(id) {
+  db.prepare('DELETE FROM sso_providers WHERE id = ?').run(id);
+}
+
+function getSetting(key) {
+  const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key);
+  return row ? row.value : null;
+}
+
+function setSetting(key, value) {
+  db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+}
+
 module.exports = {
   db,
+  listSsoProviders,
+  getSsoProvider,
+  createSsoProvider,
+  updateSsoProvider,
+  removeSsoProvider,
+  getSetting,
+  setSetting,
   recapUsers,
   getRecap,
   saveRecap,
@@ -549,6 +663,7 @@ module.exports = {
   getUserByFeedToken,
   createUser,
   linkOidc,
+  hasOidcFromIssuer,
   updateUser,
   resetFeedToken,
   listFollows,
