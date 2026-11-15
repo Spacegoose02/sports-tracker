@@ -37,7 +37,7 @@ function publicUser(user) {
     email: user.email,
     displayName: user.display_name || (user.email ? user.email.split('@')[0] : 'Fan'),
     hasPassword: !!user.password_hash,
-    sso: !!user.oidc_sub,
+    sso: db.countUserLogins(user.id) > 0,
     alertStart: !!user.alert_start,
     alertEnd: !!user.alert_end,
     alertScore: !!user.alert_score,
@@ -145,6 +145,7 @@ function createAccountRouter({ env = process.env, recapper = null } = {}) {
       user: publicUser(user),
       follows: db.listFollows(user.id),
       pushDevices: db.countPushSubscriptions(user.id),
+      logins: db.listUserLogins(user.id),
       feed: feedLinks(req, env, user),
       options,
     });
@@ -390,6 +391,20 @@ function createAccountRouter({ env = process.env, recapper = null } = {}) {
     }
   });
 
+  // Removes a Tinyauth/Google/... login from this account. The last way to
+  // sign in can't be removed: set a password first.
+  router.post('/logins/unlink', (req, res) => {
+    const subject = req.body && req.body.subject;
+    if (typeof subject !== 'string' || !db.listUserLogins(req.user.id).some((l) => l.subject === subject)) {
+      return res.status(404).json({ error: 'That login isn\'t linked to your account.' });
+    }
+    if (!req.user.password_hash && db.countUserLogins(req.user.id) <= 1) {
+      return res.status(400).json({ error: 'This is the only way you can sign in. Link another login first, or ask the site owner to set you up with a password.' });
+    }
+    db.unlinkOidc(req.user.id, subject);
+    return res.json({ logins: db.listUserLogins(req.user.id) });
+  });
+
   // New private key: old calendar links and Den Duty keys stop working.
   router.post('/feed/reset', (req, res) => {
     const user = db.resetFeedToken(req.user.id);
@@ -404,20 +419,40 @@ function createAccountPublicRouter({ env = process.env, fetchImpl } = {}) {
   const router = express.Router();
   const ssoLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30 });
 
-  // ?provider=<id> picks the provider; without it, the first one on the
-  // sign-in page (so old "/auth/sso/login" links keep working). A provider
-  // hidden from the sign-in page still works from a direct link.
-  router.get('/auth/sso/login', ssoLimiter, async (req, res) => {
-    const cfg = req.query.provider ? sso.getProvider(req.query.provider) : sso.loginProviders()[0];
-    if (!cfg || !cfg.enabled) return res.status(404).send('Single sign-on is not set up on this site.');
+  async function redirectToProvider(req, res, cfg, extra = {}) {
     try {
       const { url, pending } = await sso.startLogin(cfg, `${baseUrl(req, env)}/auth/sso/callback`, fetchImpl);
-      req.session.sso = { ...pending, providerId: cfg.id, next: safeNext(req.query.next) };
+      req.session.sso = { ...pending, providerId: cfg.id, next: safeNext(req.query.next), ...extra };
       return res.redirect(url);
     } catch (err) {
       console.warn('[sso]', err.message);
       return res.redirect('/account.html?error=sso');
     }
+  }
+
+  // ?provider=<id> picks the provider; without it, the first one on the
+  // sign-in page (so old "/auth/sso/login" links keep working). A provider
+  // hidden from the sign-in page still works from a direct link.
+  // ?link=1 adds the login to the signed-in account instead of signing in.
+  router.get('/auth/sso/login', ssoLimiter, async (req, res) => {
+    const cfg = req.query.provider ? sso.getProvider(req.query.provider) : sso.loginProviders()[0];
+    if (!cfg || !cfg.enabled) return res.status(404).send('Single sign-on is not set up on this site.');
+    if (req.query.link) {
+      const user = currentUser(req);
+      if (!user) return res.redirect('/account.html');
+      return redirectToProvider(req, res, cfg, { linkUserId: user.id, next: '/account.html' });
+    }
+    return redirectToProvider(req, res, cfg);
+  });
+
+  // A one-time link from Admin > Users: whoever opens it and signs in with
+  // the provider gets that login added to the account the admin picked.
+  router.get('/auth/sso/link/:token', ssoLimiter, async (req, res) => {
+    const invite = db.getLinkInvite(req.params.token);
+    if (!invite) return res.redirect('/account.html?error=sso-invite');
+    const cfg = sso.getProvider(invite.providerId);
+    if (!cfg || !cfg.enabled) return res.redirect('/account.html?error=sso-invite');
+    return redirectToProvider(req, res, cfg, { linkUserId: invite.userId, inviteToken: req.params.token, next: '/account.html' });
   });
 
   router.get('/auth/sso/callback', ssoLimiter, async (req, res) => {
@@ -432,20 +467,53 @@ function createAccountPublicRouter({ env = process.env, fetchImpl } = {}) {
       const subject = `${cfg.issuer}|${claims.sub}`;
       const email = typeof claims.email === 'string' && EMAIL_RE.test(claims.email.trim()) ? claims.email.trim().toLowerCase() : null;
       const name = cleanText(claims.name, 60) || cleanText(claims.preferred_username, 60);
+      const info = { issuer: cfg.issuer, email, name };
+
+      // Linking a login to an account (from the account page, or an
+      // Admin link), whatever the emails say.
+      if (pending.linkUserId) {
+        if (pending.inviteToken) {
+          const invite = db.getLinkInvite(pending.inviteToken);
+          if (!invite || invite.userId !== pending.linkUserId) return res.redirect('/account.html?error=sso-invite');
+        } else {
+          const me = currentUser(req);
+          if (!me || me.id !== pending.linkUserId) return res.redirect('/account.html?error=sso');
+        }
+        const target = db.getUser(pending.linkUserId);
+        if (!target) return res.redirect('/account.html?error=sso');
+        // Signing in with it proves the login is theirs, so a login that
+        // sat on another account here (often one made by an earlier SSO
+        // sign-in) moves to this one.
+        const previous = db.getUserByOidcSub(subject);
+        let moved = false;
+        if (previous && previous.id !== target.id) {
+          db.unlinkOidc(previous.id, subject);
+          moved = true;
+        }
+        db.linkOidc(target.id, subject, info);
+        if (pending.inviteToken) db.useLinkInvite(pending.inviteToken);
+        signIn(req, target);
+        return res.redirect(`/account.html?linked=${moved ? 'moved' : '1'}`);
+      }
+
       let user = db.getUserByOidcSub(subject);
+      if (user) db.touchOidc(subject, info);
       if (!user && email && claims.email_verified !== false) {
         // Same email as an existing account: sign-in links the two, so a
-        // person has one account whichever way they sign in.
-        // Not when that account already has a different login from this
-        // same provider: that's someone else claiming the email.
+        // person has one account whichever way they sign in. Not when that
+        // account already has a different login from this same provider:
+        // that's someone else claiming the email.
         const existing = db.getUserByEmail(email);
-        if (existing && !db.hasOidcFromIssuer(existing.id, cfg.issuer)) user = db.linkOidc(existing.id, subject);
+        if (existing && !db.hasOidcFromIssuer(existing.id, cfg.issuer)) {
+          db.linkOidc(existing.id, subject, info);
+          user = existing;
+        }
       }
       if (!user) {
         // Providers that let anyone in (Google) leave auto-create off, so
         // only people who already have an account here can use them.
         if (!cfg.autoCreate) return res.redirect('/account.html?error=sso-noaccount');
-        user = db.createUser({ email: email && !db.getUserByEmail(email) ? email : null, displayName: name, oidcSub: subject });
+        user = db.createUser({ email: email && !db.getUserByEmail(email) ? email : null, displayName: name, oidcSub: subject, oidcInfo: info });
       }
       signIn(req, user);
       return res.redirect(pending.next || '/account.html');

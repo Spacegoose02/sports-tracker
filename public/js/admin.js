@@ -105,6 +105,7 @@
     populateSelectors(meta);
     el('loadBtn').addEventListener('click', loadWeek);
     initSso();
+    initUsers();
     await initBroadcasts();
     loadWeek();
   }
@@ -455,6 +456,7 @@
     try {
       const data = await getJson('/api/admin/sso');
       ssoState.providers = data.providers || [];
+      if (usersState.users.length) usersRefresh();
       el('ssoCallback').textContent = data.callbackUrl;
       el('ssoCallbackHint').hidden = !!data.publicUrlSet;
       renderSsoList();
@@ -535,6 +537,132 @@
       }
     });
     ssoRefresh();
+  }
+
+  // ---- Users and their sign-in logins --------------------------------------
+
+  const usersState = { users: [], providers: [] };
+
+  function userLabel(u) {
+    return u.displayName || u.email || `User ${u.id}`;
+  }
+
+  function armButton(btn, armedText, action) {
+    btn.addEventListener('click', async () => {
+      if (!btn.dataset.armed) {
+        const text = btn.textContent;
+        btn.dataset.armed = '1';
+        btn.textContent = armedText;
+        setTimeout(() => { delete btn.dataset.armed; btn.textContent = text; }, 4000);
+        return;
+      }
+      await action();
+    });
+  }
+
+  function renderUsers() {
+    const list = el('usersList');
+    const q = el('usersFilter').value.trim().toLowerCase();
+    const users = usersState.users.filter((u) => !q || [u.displayName, u.email, ...u.logins.map((l) => l.email)].some((v) => v && v.toLowerCase().includes(q)));
+    if (!usersState.users.length) {
+      list.innerHTML = '<div class="empty-note">No accounts yet.</div>';
+      return;
+    }
+    if (!users.length) {
+      list.innerHTML = '<div class="empty-note">No one matches.</div>';
+      return;
+    }
+    const providerOptions = usersState.providers.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+    list.innerHTML = users.map((u) => {
+      const others = usersState.users.filter((o) => o.id !== u.id)
+        .map((o) => `<option value="${esc(o.id)}">${esc(userLabel(o))}${o.email ? ` (${esc(o.email)})` : ''}</option>`).join('');
+      const logins = u.logins.map((l) => `
+        <div class="user-login" data-subject="${esc(l.subject)}">
+          <span class="user-login-name"><strong>${esc(l.providerName)}</strong> ${esc([l.email, l.name && l.name !== l.email ? l.name : null].filter(Boolean).join(' · '))}</span>
+          ${others ? `<select class="move-to" aria-label="Move to account"><option value="">Move to&hellip;</option>${others}</select>` : ''}
+          <button type="button" class="remove unlink">Unlink</button>
+        </div>`).join('');
+      return `
+        <div class="user-card" data-id="${esc(u.id)}">
+          <div class="user-head">
+            <span><strong>${esc(userLabel(u))}</strong> ${u.email ? `<span class="bc-summary">${esc(u.email)}</span>` : ''}
+              ${u.hasPassword ? '<span class="sso-badge">Password</span>' : ''}
+              ${!u.hasPassword && !u.logins.length ? '<span class="sso-badge sso-badge-warn">No way to sign in</span>' : ''}</span>
+          </div>
+          ${logins}
+          ${providerOptions ? `<div class="user-link-row">
+            <select class="invite-provider" aria-label="Provider">${providerOptions}</select>
+            <button type="button" class="make-invite">Make a link</button>
+          </div>
+          <div class="user-invite" hidden></div>` : ''}
+        </div>`;
+    }).join('');
+
+    list.querySelectorAll('.user-card').forEach((card) => {
+      const id = card.dataset.id;
+      card.querySelectorAll('.user-login').forEach((row) => {
+        const subject = row.dataset.subject;
+        armButton(row.querySelector('.unlink'), 'Click again to unlink', async () => {
+          await getJson(`/api/admin/users/${encodeURIComponent(id)}/unlink`, { method: 'POST', body: JSON.stringify({ subject }) });
+          await usersRefresh();
+        });
+        const move = row.querySelector('.move-to');
+        if (move) {
+          move.addEventListener('change', async () => {
+            if (!move.value) return;
+            try {
+              await getJson(`/api/admin/users/${encodeURIComponent(id)}/move-login`, { method: 'POST', body: JSON.stringify({ subject, toUserId: Number(move.value) }) });
+              await usersRefresh();
+            } catch (err) {
+              move.value = '';
+              alertInCard(card, err.message);
+            }
+          });
+        }
+      });
+      const make = card.querySelector('.make-invite');
+      if (make) {
+        make.addEventListener('click', async () => {
+          const box = card.querySelector('.user-invite');
+          try {
+            const out = await getJson(`/api/admin/users/${encodeURIComponent(id)}/link-invite`, {
+              method: 'POST', body: JSON.stringify({ providerId: Number(card.querySelector('.invite-provider').value) }),
+            });
+            const expires = new Date(out.expiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            box.innerHTML = `<p>Send this to ${esc(userLabel(usersState.users.find((u) => String(u.id) === id)))} only. When they open it and sign in with ${esc(out.provider)}, that login is linked to this account. It works once, until ${esc(expires)}.</p>
+              <div class="sso-callback-row"><code>${esc(out.url)}</code><button type="button" class="copy-invite">Copy</button></div>`;
+            box.hidden = false;
+            box.querySelector('.copy-invite').addEventListener('click', async (e) => {
+              try { await navigator.clipboard.writeText(out.url); e.target.textContent = 'Copied'; } catch (err) { e.target.textContent = 'Select and copy'; }
+            });
+          } catch (err) {
+            alertInCard(card, err.message);
+          }
+        });
+      }
+    });
+  }
+
+  function alertInCard(card, message) {
+    const box = card.querySelector('.user-invite') || card;
+    box.hidden = false;
+    box.insertAdjacentHTML('beforeend', `<div class="error-text">${esc(message)}</div>`);
+  }
+
+  async function usersRefresh() {
+    try {
+      const data = await getJson('/api/admin/users');
+      usersState.users = data.users || [];
+      usersState.providers = data.providers || [];
+      renderUsers();
+    } catch (err) {
+      el('usersList').innerHTML = `<div class="empty-note">${esc(err.message)}</div>`;
+    }
+  }
+
+  function initUsers() {
+    el('usersFilter').addEventListener('input', renderUsers);
+    usersRefresh();
   }
 
   checkLogin();

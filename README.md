@@ -370,7 +370,19 @@ There are two ways, and they can be used together:
   use `https://accounts.google.com` as the issuer.
 
   If an SSO account's email matches an existing account, the two are
-  joined, so a person has one account whichever way they sign in. Don't
+  joined, so a person has one account whichever way they sign in. When
+  the emails differ, link them by hand:
+
+  - **From the account page.** Under **Ways to sign in**, a signed-in
+    person presses **Link Tinyauth** (or Google...) and signs in there once.
+    If that login was on another account here (say one an earlier
+    Tinyauth sign-in made by itself), it moves to this one. Logins can be
+    unlinked there too, except the last way to sign in.
+  - **From Admin > Users.** Every account with its logins. **Make a link**
+    gives a one-time URL (good for 7 days) to send to that person: when
+    they open it and sign in with the provider, that login is linked to the
+    account you picked. Admin can also move a login to another account or
+    unlink it. Don't
   put the whole site behind Tinyauth's forward auth: the public pages
   should stay public, and sign-in happens through these buttons.
 

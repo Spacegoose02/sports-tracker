@@ -138,9 +138,9 @@ db.exec(`
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
-  -- More SSO identities for an account, past the first one in
-  -- users.oidc_sub, so one person can sign in with Tinyauth and Google.
-  -- subject is "<issuer>|<sub>", the same shape as users.oidc_sub.
+  -- SSO logins linked to an account; one person can have several
+  -- (Tinyauth and Google). subject is "<issuer>|<sub>". users.oidc_sub is
+  -- no longer used; older rows are moved here at startup.
   CREATE TABLE IF NOT EXISTS user_sso_links (
     subject TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -169,6 +169,32 @@ addColumn('users', 'recap_tz', "TEXT NOT NULL DEFAULT 'America/New_York'");
 addColumn('users', 'alert_score', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('users', 'alert_close', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('users', 'alert_upset', 'INTEGER NOT NULL DEFAULT 0');
+
+// SSO logins: user_sso_links holds every one, with what the provider said
+// about the person when it was linked, so the account page and Admin can
+// show "Tinyauth (pat@example.com)". Older databases kept the first login
+// in users.oidc_sub; move those over once.
+addColumn('user_sso_links', 'issuer', 'TEXT');
+addColumn('user_sso_links', 'email', 'TEXT');
+addColumn('user_sso_links', 'name', 'TEXT');
+addColumn('user_sso_links', 'last_used_at', 'TEXT');
+db.exec(`
+  INSERT OR IGNORE INTO user_sso_links (subject, user_id)
+    SELECT oidc_sub, id FROM users WHERE oidc_sub IS NOT NULL;
+  UPDATE users SET oidc_sub = NULL WHERE oidc_sub IS NOT NULL;
+  UPDATE user_sso_links SET issuer = substr(subject, 1, instr(subject, '|') - 1)
+    WHERE issuer IS NULL AND instr(subject, '|') > 0;
+
+  -- One-time links from Admin: whoever opens it and signs in with the
+  -- provider gets that login linked to user_id. Only a hash is stored.
+  CREATE TABLE IF NOT EXISTS sso_link_invites (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
 
 function listNotableGames(season, week) {
   return db
@@ -301,9 +327,7 @@ function getUserByEmail(email) {
 }
 
 function getUserByOidcSub(sub) {
-  return db.prepare('SELECT * FROM users WHERE oidc_sub = ?').get(sub)
-    || db.prepare('SELECT u.* FROM user_sso_links l JOIN users u ON u.id = l.user_id WHERE l.subject = ?').get(sub)
-    || null;
+  return db.prepare('SELECT u.* FROM user_sso_links l JOIN users u ON u.id = l.user_id WHERE l.subject = ?').get(sub) || null;
 }
 
 function getUserByFeedToken(token) {
@@ -311,29 +335,107 @@ function getUserByFeedToken(token) {
   return db.prepare('SELECT * FROM users WHERE feed_token = ?').get(token) || null;
 }
 
-function createUser({ email, passwordHash, displayName, oidcSub }) {
+function createUser({ email, passwordHash, displayName, oidcSub, oidcInfo }) {
   const info = db.prepare(`
-    INSERT INTO users (email, password_hash, display_name, oidc_sub, feed_token)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(email || null, passwordHash || null, displayName || null, oidcSub || null, newToken());
+    INSERT INTO users (email, password_hash, display_name, feed_token)
+    VALUES (?, ?, ?, ?)
+  `).run(email || null, passwordHash || null, displayName || null, newToken());
+  if (oidcSub) linkOidc(info.lastInsertRowid, oidcSub, oidcInfo);
   return getUser(info.lastInsertRowid);
 }
 
-// Adds an SSO identity to an account. The first one goes in users.oidc_sub
-// (as before), any more in user_sso_links.
-function linkOidc(userId, oidcSub) {
-  const user = getUser(userId);
-  if (user && !user.oidc_sub) db.prepare('UPDATE users SET oidc_sub = ? WHERE id = ?').run(oidcSub, userId);
-  else db.prepare('INSERT OR IGNORE INTO user_sso_links (subject, user_id) VALUES (?, ?)').run(oidcSub, userId);
-  return getUser(userId);
+// Adds an SSO login to an account. info is what the provider said about
+// the person ({ issuer, email, name }), shown on the account page. Returns
+// false when that login already belongs to a different account.
+function linkOidc(userId, oidcSub, info = {}) {
+  const owner = db.prepare('SELECT user_id FROM user_sso_links WHERE subject = ?').get(oidcSub);
+  if (owner && owner.user_id !== Number(userId)) return false;
+  const issuer = info.issuer || (oidcSub.includes('|') ? oidcSub.slice(0, oidcSub.indexOf('|')) : null);
+  db.prepare(`
+    INSERT INTO user_sso_links (subject, user_id, issuer, email, name, last_used_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(subject) DO UPDATE SET email = COALESCE(excluded.email, email),
+      name = COALESCE(excluded.name, name), last_used_at = excluded.last_used_at
+  `).run(oidcSub, userId, issuer, info.email || null, info.name || null);
+  return true;
 }
 
-// Whether the account already has an SSO identity from this issuer.
+// Notes a sign-in, refreshing the email and name the provider sent.
+function touchOidc(oidcSub, info = {}) {
+  db.prepare(`UPDATE user_sso_links SET email = COALESCE(?, email), name = COALESCE(?, name), last_used_at = datetime('now') WHERE subject = ?`)
+    .run(info.email || null, info.name || null, oidcSub);
+}
+
+function moveOidc(oidcSub, toUserId) {
+  db.prepare('UPDATE user_sso_links SET user_id = ? WHERE subject = ?').run(toUserId, oidcSub);
+}
+
+function unlinkOidc(userId, oidcSub) {
+  return db.prepare('DELETE FROM user_sso_links WHERE user_id = ? AND subject = ?').run(userId, oidcSub).changes > 0;
+}
+
+// An account's SSO logins, with the provider's current name when it is
+// still set up in Admin.
+function listUserLogins(userId) {
+  const providers = db.prepare('SELECT id, name, issuer FROM sso_providers ORDER BY sort_order, id').all();
+  return db.prepare('SELECT * FROM user_sso_links WHERE user_id = ? ORDER BY created_at, subject').all(userId).map((r) => {
+    const provider = providers.find((p) => p.issuer === r.issuer);
+    return {
+      subject: r.subject,
+      issuer: r.issuer,
+      providerId: provider ? provider.id : null,
+      providerName: provider ? provider.name : r.issuer,
+      email: r.email,
+      name: r.name,
+      linkedAt: r.created_at,
+      lastUsedAt: r.last_used_at,
+    };
+  });
+}
+
+function countUserLogins(userId) {
+  return db.prepare('SELECT COUNT(*) AS n FROM user_sso_links WHERE user_id = ?').get(userId).n;
+}
+
+// Whether the account already has an SSO login from this issuer.
 function hasOidcFromIssuer(userId, issuer) {
-  const prefix = `${issuer}|`;
-  const user = getUser(userId);
-  if (user && user.oidc_sub && user.oidc_sub.startsWith(prefix)) return true;
-  return db.prepare('SELECT subject FROM user_sso_links WHERE user_id = ?').all(userId).some((r) => r.subject.startsWith(prefix));
+  return !!db.prepare('SELECT 1 FROM user_sso_links WHERE user_id = ? AND issuer = ?').get(userId, issuer);
+}
+
+// Every account, for Admin > Users.
+function listUsers() {
+  return db.prepare('SELECT * FROM users ORDER BY id').all().map((u) => ({
+    id: u.id,
+    email: u.email,
+    displayName: u.display_name || (u.email ? u.email.split('@')[0] : null),
+    hasPassword: !!u.password_hash,
+    createdAt: u.created_at,
+    logins: listUserLogins(u.id),
+  }));
+}
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+function createLinkInvite(userId, providerId, days = 7) {
+  const token = crypto.randomBytes(24).toString('base64url');
+  db.prepare('DELETE FROM sso_link_invites WHERE expires_at < ?').run(Date.now());
+  db.prepare('INSERT INTO sso_link_invites (token_hash, user_id, provider_id, expires_at) VALUES (?, ?, ?, ?)')
+    .run(hashToken(token), userId, providerId, Date.now() + days * 24 * 60 * 60 * 1000);
+  return token;
+}
+
+// { userId, providerId } for a live invite, or null.
+function getLinkInvite(token) {
+  if (typeof token !== 'string' || token.length < 20 || token.length > 100) return null;
+  const row = db.prepare('SELECT * FROM sso_link_invites WHERE token_hash = ?').get(hashToken(token));
+  if (!row || row.expires_at < Date.now()) return null;
+  return { userId: row.user_id, providerId: row.provider_id };
+}
+
+function useLinkInvite(token) {
+  db.prepare('DELETE FROM sso_link_invites WHERE token_hash = ?').run(hashToken(token));
 }
 
 function updateUser(userId, fields) {
@@ -663,7 +765,16 @@ module.exports = {
   getUserByFeedToken,
   createUser,
   linkOidc,
+  touchOidc,
+  unlinkOidc,
+  moveOidc,
+  listUserLogins,
+  countUserLogins,
   hasOidcFromIssuer,
+  listUsers,
+  createLinkInvite,
+  getLinkInvite,
+  useLinkInvite,
   updateUser,
   resetFeedToken,
   listFollows,
