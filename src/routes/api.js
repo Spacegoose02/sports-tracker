@@ -10,6 +10,7 @@ const matchup = require('../matchup');
 const lines = require('../lines');
 const recruiting = require('../recruiting');
 const race = require('../race');
+const f1 = require('../f1');
 const awards = require('../awards');
 const search = require('../search');
 const home = require('../home');
@@ -206,6 +207,21 @@ router.get('/race', async (req, res) => {
     res.json(await race.getRaces({ year, group }));
   } catch (err) {
     res.status(502).json({ error: 'Could not load the conference races', detail: err.message });
+  }
+});
+
+// Formula 1 at a glance for dashboards: next race, last race results,
+// drivers' and constructors' standings (see src/f1.js). No key needed.
+router.get('/f1', async (req, res) => {
+  try {
+    const data = await f1.getF1();
+    if (data.errors && data.errors.schedule && data.errors.standings) {
+      return res.status(502).json({ error: 'Could not load F1 data', detail: data.errors });
+    }
+    res.set('Cache-Control', 'public, max-age=300');
+    return res.json(data);
+  } catch (err) {
+    return res.status(502).json({ error: 'Could not load F1 data', detail: err.message });
   }
 });
 
