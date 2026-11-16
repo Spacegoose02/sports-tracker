@@ -48,6 +48,7 @@ session). Live data is cached for about 30 seconds, so a widget
 | `/api/account/teams` | Followed teams with live, next and last game |
 | `/api/account/recap` | Scrappy's latest daily recap and recap settings |
 | `/api/notable/feed` | The admin's site-wide picks (no key needed) |
+| `/api/f1` | Formula 1: next race, last race results, drivers' and constructors' standings (no key needed) |
 
 ### `/api/account/notable/feed`
 
@@ -130,3 +131,32 @@ for the week and you haven't, that tab offers to copy them in.
 
 The admin's picks in `/admin` are now the site default: what signed-out
 visitors see, and what `/api/notable/feed` returns.
+
+### `/api/f1`
+
+Formula 1 for dashboards, from ESPN. No key needed; refreshed every 10
+minutes. Ready-made widgets are in `dynacat-f1-widgets.yaml`.
+
+```json
+{
+  "season": 2026,
+  "rounds": 24,
+  "nextRace": {
+    "name": "Las Vegas Grand Prix",
+    "round": 22,
+    "date": "2026-11-22T04:00:00.000Z",
+    "circuit": "Las Vegas Strip Circuit", "city": "Las Vegas", "country": "United States",
+    "sessions": [{ "name": "FP1", "date": "2026-11-20T00:30:00.000Z", "state": "pre" }],
+    "results": []
+  },
+  "lastRace": {
+    "name": "Brazilian Grand Prix",
+    "results": [{ "position": 1, "name": "…", "shortName": "…", "team": "…", "time": "1:32:10.111", "winner": true }]
+  },
+  "drivers": [{ "position": 1, "name": "…", "shortName": "…", "team": "…", "points": 350, "wins": 7 }],
+  "constructors": [{ "position": 1, "name": "…", "points": 650, "color": "#ff8000" }]
+}
+```
+
+`nextRace` is null between seasons. If ESPN fails for one part, the rest
+still comes back and `errors` says which part is missing.

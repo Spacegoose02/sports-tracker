@@ -1,0 +1,101 @@
+# Formula 1 widgets for Dynacat / Glance: Next Race, Last Race Results,
+# Drivers Standings and Constructors Standings.
+#
+# All four read one Stat Scraps URL, GET /api/f1, which is built from ESPN
+# (the same source as the rest of the site). No key needed. Fix the host
+# below, then paste these under a column's `widgets:` list (or save this
+# file and `$include` it). Use only one Next Race widget: older F1 configs
+# often carry two (f1nextrace.yml and f1nextraces.yml).
+# See docs/dashboards.md for the JSON shape.
+
+- type: custom-api
+  title: Next Race
+  cache: 10m
+  url: "http://YOUR-STAT-SCRAPS-HOST:PORT/api/f1"
+  template: |
+    {{ if .JSON.Exists "nextRace.name" }}
+      <div class="flex flex-column gap-10">
+        {{ if .JSON.Exists "nextRace.round" }}{{ if gt (.JSON.Int "nextRace.round") 0 }}
+          <p class="size-h5">Round {{ .JSON.Int "nextRace.round" }} of {{ .JSON.Int "rounds" }}</p>
+        {{ end }}{{ end }}
+        <div class="margin-block-4">
+          <p class="color-highlight">{{ .JSON.String "nextRace.name" }}</p>
+          <p class="color-primary">
+            <span>Race</span>
+            <span class="color-highlight" title="{{ .JSON.String "nextRace.date" }}" {{ parseRelativeTime "rfc3339" (.JSON.String "nextRace.date") }}></span>
+          </p>
+        </div>
+        <ul class="list list-gap-4 size-h6">
+          {{ range .JSON.Array "nextRace.sessions" }}
+            <li class="flex items-center">
+              <span class="grow">{{ .String "name" }}</span>
+              <span class="color-subdue" {{ parseRelativeTime "rfc3339" (.String "date") }}></span>
+            </li>
+          {{ end }}
+        </ul>
+        <ul class="size-h5 attachments">
+          {{ if ne (.JSON.String "nextRace.country") "" }}<li>{{ .JSON.String "nextRace.country" }}</li>{{ end }}
+          {{ if ne (.JSON.String "nextRace.city") "" }}<li>{{ .JSON.String "nextRace.city" }}</li>{{ end }}
+          {{ if ne (.JSON.String "nextRace.circuit") "" }}<li>{{ .JSON.String "nextRace.circuit" }}</li>{{ end }}
+        </ul>
+      </div>
+    {{ else }}
+      <p class="color-subdue">No race scheduled. See you next season.</p>
+    {{ end }}
+
+- type: custom-api
+  title: Last Race Results
+  cache: 10m
+  url: "http://YOUR-STAT-SCRAPS-HOST:PORT/api/f1"
+  template: |
+    {{ $results := .JSON.Array "lastRace.results" }}
+    {{ if eq (len $results) 0 }}
+      <p class="color-subdue">No results yet.</p>
+    {{ else }}
+      <div class="flex flex-column gap-10">
+        <p class="size-h5">{{ .JSON.String "lastRace.name" }}</p>
+        <ul class="list collapsible-container" data-collapse-after="5">
+          {{ range $i, $r := $results }}
+            <li class="flex items-center {{ if eq $i 0 }}color-primary{{ else if eq $i 1 }}color-highlight{{ end }}">
+              <span class="grow min-width-0">{{ $r.Int "position" }}. {{ $r.String "shortName" }}</span>
+              <span class="shrink-0 text-right">{{ $r.String "time" }}</span>
+            </li>
+          {{ end }}
+        </ul>
+      </div>
+    {{ end }}
+
+- type: custom-api
+  title: Drivers Standings
+  cache: 10m
+  url: "http://YOUR-STAT-SCRAPS-HOST:PORT/api/f1"
+  template: |
+    <ul class="list collapsible-container" data-collapse-after="5">
+      {{ range $i, $d := .JSON.Array "drivers" }}
+        <li class="flex items-center {{ if eq $i 0 }}color-primary{{ else if eq $i 1 }}color-highlight{{ end }}">
+          <div class="grow min-width-0">
+            <span>{{ $d.Int "position" }}. {{ $d.String "shortName" }}</span>
+            {{ if ne ($d.String "team") "" }}<span class="size-h6">({{ $d.String "team" }})</span>{{ end }}
+          </div>
+          <span class="shrink-0 text-right">{{ $d.Int "points" }}</span>
+        </li>
+      {{ else }}
+        <li class="color-subdue">Standings aren't available right now.</li>
+      {{ end }}
+    </ul>
+
+- type: custom-api
+  title: Constructors Standings
+  cache: 10m
+  url: "http://YOUR-STAT-SCRAPS-HOST:PORT/api/f1"
+  template: |
+    <ul class="list collapsible-container" data-collapse-after="5">
+      {{ range $i, $c := .JSON.Array "constructors" }}
+        <li class="flex items-center {{ if eq $i 0 }}color-primary{{ else if eq $i 1 }}color-highlight{{ end }}">
+          <span class="grow min-width-0">{{ $c.Int "position" }}. {{ $c.String "name" }}</span>
+          <span class="shrink-0 text-right">{{ $c.Int "points" }}</span>
+        </li>
+      {{ else }}
+        <li class="color-subdue">Standings aren't available right now.</li>
+      {{ end }}
+    </ul>
