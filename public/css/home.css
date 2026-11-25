@@ -12,7 +12,19 @@
 .home-date { margin: 0; font-size: 1.6rem; line-height: 1.15; letter-spacing: -0.01em; }
 .home-summary { margin: 4px 0 0; color: var(--text-dim); font-size: 0.92rem; }
 
-.league-jump { display: flex; flex-wrap: wrap; gap: 6px; }
+.league-jump { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+/* College / Pro / Racing / Fighting / Golf sections, each a labelled run of
+   chips with a hairline between sections. */
+.jump-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.jump-group + .jump-group { padding-left: 14px; border-left: 1px solid var(--border); }
+.jump-group-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-right: 2px;
+}
 .league-jump a {
   position: relative;
   display: inline-flex;
@@ -186,6 +198,7 @@
   .home-date { font-size: 1.3rem; }
   .league-jump { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 4px; }
   .league-jump a { flex: 0 0 auto; }
+  .jump-group { flex: 0 0 auto; flex-wrap: nowrap; }
   .lc-games { grid-template-columns: 1fr 1fr; }
 }
 

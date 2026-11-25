@@ -32,6 +32,7 @@ const COMPARE_STATS = {
   nba: [['field goal %', 'Field Goal %'], ['fg%', 'Field Goal %']],
   mcbb: [['field goal %', 'Field Goal %'], ['fg%', 'Field Goal %']],
   mlb: [['hits', 'Hits']],
+  cbase: [['hits', 'Hits']],
   nhl: [['shots', 'Shots on Goal'], ['shotstotal', 'Shots on Goal'], ['sog', 'Shots on Goal']],
 };
 
@@ -73,7 +74,7 @@ function side(c, sportKey) {
     logo: safeHttpUrl(c.logo) || null,
     color: /^#[0-9a-fA-F]{6}$/.test(c.color || '') ? c.color : null,
     record: c.record || (c.records && c.records[0] && c.records[0].summary) || null,
-    rank: sportKey === 'cfb' || sportKey === 'mcbb' ? rank : null,
+    rank: ['cfb', 'mcbb', 'cbase', 'msoc', 'wsoc'].includes(sportKey) ? rank : null,
     score: c.score === undefined ? null : c.score,
     homeAway: c.homeAway || null,
     winner: !!c.winner,
@@ -152,7 +153,7 @@ function compareStat(sportKey, boxscore, team, opponent) {
 function periodLabel(sport, status) {
   if (!status || !status.period || status.state !== 'in') return null;
   const n = status.period;
-  if (sport.key === 'mlb') return null; // shortDetail already says "Top 5th"
+  if (sport.kind === 'baseball') return null; // shortDetail already says "Top 5th"
   return `${sport.periodPrefix || ''}${n}`;
 }
 

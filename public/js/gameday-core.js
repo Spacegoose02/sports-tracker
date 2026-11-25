@@ -12,8 +12,8 @@
   const FAMILY = {
     cfb: 'football', nfl: 'football',
     nba: 'basketball', mcbb: 'basketball', wnba: 'basketball',
-    mlb: 'baseball', nhl: 'hockey',
-    epl: 'soccer', mls: 'soccer', ucl: 'soccer',
+    mlb: 'baseball', cbase: 'baseball', nhl: 'hockey',
+    epl: 'soccer', mls: 'soccer', ucl: 'soccer', msoc: 'soccer', wsoc: 'soccer',
   };
   const family = (sportKey) => FAMILY[sportKey] || null;
 

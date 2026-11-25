@@ -19,6 +19,8 @@
 //   fantasy:  weekly fantasy football scores built from box scores.
 //   kind:     the game family (football, soccer, golf...), for words, kid
 //             explanations and drawings that are the same across leagues.
+//   group:    which section of the sport picker it sits in (college, pro,
+//             racing, fighting, golf). See SPORT_GROUPS below.
 
 const { hasVideos } = require('./videos');
 
@@ -36,6 +38,70 @@ const SPORTS = {
     field: true,
     notable: true,
     periodPrefix: 'Q',
+  },
+  mcbb: {
+    key: 'mcbb',
+    label: "Men's College Basketball",
+    shortLabel: 'CBB',
+    path: 'basketball/mens-college-basketball',
+    schedule: 'day',
+    // 50 = all Division I. Without it ESPN only returns featured games.
+    groups: [{ key: 'd1', label: 'Division I', value: 50 }],
+    rankings: true,
+    field: false,
+    notable: false,
+    periodPrefix: 'H',
+  },
+  // College baseball: ESPN returns every Division I game with no groups
+  // filter (groups=50 cuts it to a handful). Polls ride along on the
+  // scoreboard (curatedRank) but there's no rankings or leaders endpoint;
+  // standings come back as one Division I table.
+  cbase: {
+    key: 'cbase',
+    label: 'College Baseball',
+    shortLabel: 'CBASE',
+    path: 'baseball/college-baseball',
+    schedule: 'day',
+    groups: null,
+    rankings: false,
+    field: false,
+    notable: false,
+    leaders: false,
+    kind: 'baseball',
+    periodPrefix: 'Inn ',
+  },
+  // College soccer (NCAA Division I). Scores, schedules, team pages and
+  // game pages work like the pro leagues; ESPN has no standings, rankings
+  // or leaders for it, so those tabs are hidden.
+  msoc: {
+    key: 'msoc',
+    label: "Men's College Soccer",
+    shortLabel: 'MSOC',
+    path: 'soccer/usa.ncaa.m.1',
+    schedule: 'day',
+    groups: null,
+    rankings: false,
+    standings: false,
+    field: false,
+    notable: false,
+    leaders: false,
+    kind: 'soccer',
+    periodPrefix: 'H',
+  },
+  wsoc: {
+    key: 'wsoc',
+    label: "Women's College Soccer",
+    shortLabel: 'WSOC',
+    path: 'soccer/usa.ncaa.w.1',
+    schedule: 'day',
+    groups: null,
+    rankings: false,
+    standings: false,
+    field: false,
+    notable: false,
+    leaders: false,
+    kind: 'soccer',
+    periodPrefix: 'H',
   },
   nfl: {
     key: 'nfl',
@@ -63,19 +129,6 @@ const SPORTS = {
     field: false,
     notable: false,
     periodPrefix: 'Q',
-  },
-  mcbb: {
-    key: 'mcbb',
-    label: "Men's College Basketball",
-    shortLabel: 'CBB',
-    path: 'basketball/mens-college-basketball',
-    schedule: 'day',
-    // 50 = all Division I. Without it ESPN only returns featured games.
-    groups: [{ key: 'd1', label: 'Division I', value: 50 }],
-    rankings: true,
-    field: false,
-    notable: false,
-    periodPrefix: 'H',
   },
   mlb: {
     key: 'mlb',
@@ -222,6 +275,22 @@ const SPORTS = {
   },
 };
 
+// Sections of the sport picker, in order. Every sport names one.
+const SPORT_GROUPS = [
+  { key: 'college', label: 'College' },
+  { key: 'pro', label: 'Pro' },
+  { key: 'racing', label: 'Racing' },
+  { key: 'fighting', label: 'Fighting' },
+  { key: 'golf', label: 'Golf' },
+];
+
+const GROUP_OF = {
+  cfb: 'college', mcbb: 'college', cbase: 'college', msoc: 'college', wsoc: 'college',
+  nascar: 'racing', f1: 'racing',
+  ufc: 'fighting',
+  golf: 'golf',
+};
+
 const KINDS = {
   cfb: 'football', nfl: 'football',
   nba: 'basketball', mcbb: 'basketball', wnba: 'basketball',
@@ -237,6 +306,7 @@ for (const sport of Object.values(SPORTS)) {
   if (sport.leaders === undefined) sport.leaders = sport.format === 'game';
   if (sport.fantasy === undefined) sport.fantasy = false;
   if (sport.kind === undefined) sport.kind = KINDS[sport.key] || 'other';
+  if (sport.group === undefined) sport.group = GROUP_OF[sport.key] || 'pro';
 }
 
 const DEFAULT_SPORT = 'cfb';
@@ -256,4 +326,4 @@ function publicSportList() {
   return Object.values(SPORTS).map(({ path, ...rest }) => ({ ...rest, videos: hasVideos(rest.key) }));
 }
 
-module.exports = { SPORTS, DEFAULT_SPORT, getSport, resolveSport, publicSportList };
+module.exports = { SPORTS, SPORT_GROUPS, DEFAULT_SPORT, getSport, resolveSport, publicSportList };

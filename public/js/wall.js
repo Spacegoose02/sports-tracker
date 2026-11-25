@@ -204,8 +204,8 @@ const Wall = (function () {
     const n = Math.max(a.length, h.length);
     if (!n) return '';
     const prefix = (sport && sport.periodPrefix) || 'Q';
-    const regulation = sport && sport.key === 'mlb' ? 9 : (prefix === 'H' ? 2 : (prefix === 'P' ? 3 : 4));
-    const isMlb = sport && sport.key === 'mlb';
+    const regulation = sport && sport.kind === 'baseball' ? 9 : (prefix === 'H' ? 2 : (prefix === 'P' ? 3 : 4));
+    const isMlb = sport && sport.kind === 'baseball';
     const extra = n - regulation;
     const label = (i) => {
       if (isMlb) return i + 1;
@@ -258,7 +258,7 @@ const Wall = (function () {
     const score = (t) => (pre || t.score === null || t.score === undefined ? '' : esc(t.score));
     let visual = '';
     if (live && sport && sport.field) visual = fieldSvg(game);
-    else if (live && sport && sport.key === 'mlb') visual = diamondSvg(game);
+    else if (live && sport && sport.kind === 'baseball') visual = diamondSvg(game);
     else if (!pre) visual = linescoreHtml(game, sport);
     const situation = live ? [sit.down, sit.possessionText ? `at ${sit.possessionText}` : null].filter(Boolean).join(' ') : '';
     const lastPlay = live && sit.lastPlay ? sit.lastPlay : '';

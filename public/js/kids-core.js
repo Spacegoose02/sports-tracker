@@ -12,9 +12,9 @@
   const FAMILY = {
     cfb: 'football', nfl: 'football',
     nba: 'basketball', mcbb: 'basketball', wnba: 'basketball',
-    mlb: 'baseball',
+    mlb: 'baseball', cbase: 'baseball',
     nhl: 'hockey',
-    epl: 'soccer', mls: 'soccer', ucl: 'soccer',
+    epl: 'soccer', mls: 'soccer', ucl: 'soccer', msoc: 'soccer', wsoc: 'soccer',
     ufc: 'fighting', nascar: 'racing', f1: 'racing', golf: 'golf',
   };
   function family(sportKey) {

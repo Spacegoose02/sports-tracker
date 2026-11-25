@@ -2,8 +2,8 @@
 // and the game alerts (close-game and upset alerts). Mirrors gameDrama in
 // public/js/shared.js, which tags cards on the Scores page.
 
-const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, wnba: 4, mcbb: 2, nhl: 3, mlb: 9, epl: 2, mls: 2, ucl: 2 };
-const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, wnba: 6, mcbb: 6, nhl: 1, mlb: 2, epl: 1, mls: 1, ucl: 1 };
+const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, wnba: 4, mcbb: 2, nhl: 3, mlb: 9, cbase: 9, epl: 2, mls: 2, ucl: 2, msoc: 2, wsoc: 2 };
+const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, wnba: 6, mcbb: 6, nhl: 1, mlb: 2, cbase: 2, epl: 1, mls: 1, ucl: 1, msoc: 1, wsoc: 1 };
 
 function rankOf(team) {
   const r = team && Number(team.curatedRank);
@@ -34,7 +34,7 @@ function liveFacts(game, sport) {
     lateness: overtime ? 1.1 : Math.min(1, period / regulation),
     // The last period of regulation (4th quarter, 2nd half, 3rd period,
     // 9th inning... baseball counts from the 7th) or overtime.
-    final: overtime || period >= (sport === 'mlb' ? 7 : regulation),
+    final: overtime || period >= (sport === 'mlb' || sport === 'cbase' ? 7 : regulation),
   };
 }
 

@@ -188,6 +188,7 @@ async function leagueSummary(sportCfg, { ds, now }) {
     key,
     label: sportCfg.label,
     shortLabel: sportCfg.shortLabel,
+    group: sportCfg.group,
     format: sportCfg.format,
     url: scoresUrl(key),
   };

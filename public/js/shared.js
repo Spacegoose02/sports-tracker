@@ -49,12 +49,22 @@ const CFB = (function () {
   let sportKey = readSportKey();
   let sportList = null;
   let sportInfo = null;
+  // Sections of the sport picker (College, Pro, Racing...), from /api/sports.
+  const FALLBACK_GROUPS = [
+    { key: 'college', label: 'College' },
+    { key: 'pro', label: 'Pro' },
+    { key: 'racing', label: 'Racing' },
+    { key: 'fighting', label: 'Fighting' },
+    { key: 'golf', label: 'Golf' },
+  ];
+  let sportGroups = FALLBACK_GROUPS;
 
   async function loadSports() {
     if (sportInfo) return sportInfo;
     try {
       const data = await getJson('/api/sports');
       sportList = data.sports || [];
+      if (Array.isArray(data.groups) && data.groups.length) sportGroups = data.groups;
     } catch (err) {
       sportList = [];
     }
@@ -86,6 +96,20 @@ const CFB = (function () {
     return `${url}${sep}sport=${encodeURIComponent(sportKey)}`;
   }
 
+  // Splits a list into the picker's sections, in section order, dropping
+  // empty ones. groupOf(item) names an item's section; unknown sections
+  // land in "Pro" so nothing ever disappears.
+  function groupSports(items, groupOf) {
+    const known = new Set(sportGroups.map((g) => g.key));
+    const of = (item) => {
+      const g = groupOf ? groupOf(item) : item && item.group;
+      return known.has(g) ? g : 'pro';
+    };
+    return sportGroups
+      .map((g) => ({ key: g.key, label: g.label, items: (items || []).filter((item) => of(item) === g.key) }))
+      .filter((g) => g.items.length);
+  }
+
   // Sport picker row at the top of <main>, plus sport-aware nav links.
   // Changing sport reloads the current list page for the new sport; on a
   // team or game page (which belong to one sport) it goes to that sport's
@@ -96,7 +120,28 @@ const CFB = (function () {
     const bar = document.createElement('nav');
     bar.className = 'sport-bar';
     bar.setAttribute('aria-label', 'Sport');
-    sportList.forEach((s) => {
+    groupSports(sportList).forEach((group) => {
+      const section = document.createElement('div');
+      section.className = 'sport-group';
+      section.setAttribute('role', 'group');
+      section.setAttribute('aria-label', group.label);
+      const label = document.createElement('span');
+      label.className = 'sport-group-label';
+      label.textContent = group.label;
+      label.setAttribute('aria-hidden', 'true');
+      section.appendChild(label);
+      group.items.forEach((s) => addSportButton(section, s));
+      bar.appendChild(section);
+    });
+    main.insertBefore(bar, main.firstChild);
+    // On a phone the row scrolls sideways: bring the current sport into view
+    // (Women's soccer would otherwise start off-screen).
+    const current = bar.querySelector('button.active');
+    if (current && bar.scrollWidth > bar.clientWidth) {
+      bar.scrollLeft = Math.max(0, current.offsetLeft - bar.offsetLeft - 16);
+    }
+
+    function addSportButton(parent, s) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = s.shortLabel;
@@ -114,9 +159,8 @@ const CFB = (function () {
         if (page === '/compare.html' && s.teams === false) page = '/scores';
         location.href = `${page}?sport=${encodeURIComponent(s.key)}`;
       });
-      bar.appendChild(btn);
-    });
-    main.insertBefore(bar, main.firstChild);
+      parent.appendChild(btn);
+    }
 
     document.querySelectorAll('nav.top-nav a').forEach((a) => {
       if (a.closest('.nav-links')) return; // built by initSiteNav, already sport-aware
@@ -974,8 +1018,8 @@ const CFB = (function () {
   // How gripping a live game is right now, 0 to ~130: close score, late in
   // the game, a ranked team in trouble. Drives the "Live now" sort order on
   // the home page and the Upset alert / Nail-biter tags on game cards.
-  const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, wnba: 4, mcbb: 2, cbb: 2, wcbb: 4, nhl: 3, mlb: 9, epl: 2, mls: 2, ucl: 2 };
-  const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, wnba: 6, mcbb: 6, cbb: 6, wcbb: 6, nhl: 1, mlb: 2, epl: 1, mls: 1, ucl: 1 };
+  const REG_PERIODS = { cfb: 4, nfl: 4, nba: 4, wnba: 4, mcbb: 2, cbb: 2, wcbb: 4, nhl: 3, mlb: 9, cbase: 9, epl: 2, mls: 2, ucl: 2, msoc: 2, wsoc: 2 };
+  const CLOSE_MARGIN = { cfb: 8, nfl: 8, nba: 6, wnba: 6, mcbb: 6, cbb: 6, wcbb: 6, nhl: 1, mlb: 2, cbase: 2, epl: 1, mls: 1, ucl: 1, msoc: 1, wsoc: 1 };
 
   function gameDrama(game, sportKeyArg) {
     const key = sportKeyArg || sportKey;
@@ -1051,6 +1095,9 @@ const CFB = (function () {
     epl: { regulation: 2, label: (i) => (i === 0 ? '1st' : '2nd'), extra: (i) => (i === 2 ? 'ET1' : i === 3 ? 'ET2' : 'PK') },
     mls: { regulation: 2, label: (i) => (i === 0 ? '1st' : '2nd'), extra: (i) => (i === 2 ? 'ET1' : i === 3 ? 'ET2' : 'PK') },
     ucl: { regulation: 2, label: (i) => (i === 0 ? '1st' : '2nd'), extra: (i) => (i === 2 ? 'ET1' : i === 3 ? 'ET2' : 'PK') },
+    cbase: { regulation: 9, label: (i) => String(i + 1), extra: (i) => String(i + 1) },
+    msoc: { regulation: 2, label: (i) => (i === 0 ? '1st' : '2nd'), extra: (i) => (i === 2 ? 'OT1' : i === 3 ? 'OT2' : 'PK') },
+    wsoc: { regulation: 2, label: (i) => (i === 0 ? '1st' : '2nd'), extra: (i) => (i === 2 ? 'OT1' : i === 3 ? 'OT2' : 'PK') },
     wcbb: { regulation: 4, label: (i) => `Q${i + 1}`, extra: (i) => (i === 4 ? 'OT' : `${i - 3}OT`) },
   };
 
@@ -1066,7 +1113,7 @@ const CFB = (function () {
     const cell = (v) => (v === undefined || v === null || v === '' ? '&ndash;' : esc(v));
     const abbr = (t) => esc(t.abbreviation || t.shortName || '');
     return `
-      <table class="mini-linescore" aria-label="Score by ${key === 'mlb' ? 'inning' : 'period'}">
+      <table class="mini-linescore" aria-label="Score by ${key === 'mlb' || key === 'cbase' ? 'inning' : 'period'}">
         <thead><tr><th></th>${head.map((x) => `<th>${esc(x)}</th>`).join('')}<th>T</th></tr></thead>
         <tbody>
           <tr><th>${abbr(game.away)}</th>${head.map((_, i) => `<td>${cell(a[i])}</td>`).join('')}<td class="t">${cell(game.away.score)}</td></tr>
@@ -1138,6 +1185,6 @@ const CFB = (function () {
     el, esc, safeUrl, getJson, fmtTime, fmtDay, statusLabel, teamLink, playerLink, gameLink, teamRowHtml, teamRecord, gameCardHtml,
     wireGameCardClicks, gameDetailSectionsHtml, eventCardHtml,
     applyTeamColor, initDivisionToggle, ymd,
-    loadSports, sport, withSport, initSportBar, follows, account, kidMode, setKidMode,
+    loadSports, sport, withSport, initSportBar, groupSports, follows, account, kidMode, setKidMode,
   };
 })();

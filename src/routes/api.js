@@ -18,7 +18,7 @@ const teamstats = require('../teamstats');
 const overrides = require('../overrides');
 const { buildNotableFeed } = require('../notable');
 const { isSafeId } = require('../security');
-const { getSport, DEFAULT_SPORT, publicSportList } = require('../sports');
+const { getSport, DEFAULT_SPORT, SPORT_GROUPS, publicSportList } = require('../sports');
 const { freshenGames } = require('../livescores');
 
 const router = express.Router();
@@ -50,7 +50,7 @@ function isCfb(req) {
 const DATES_RE = /^\d{8}(-\d{8})?$/;
 
 router.get('/sports', (req, res) => {
-  res.json({ defaultSport: DEFAULT_SPORT, sports: publicSportList() });
+  res.json({ defaultSport: DEFAULT_SPORT, groups: SPORT_GROUPS, sports: publicSportList() });
 });
 
 // Everything the all-sports home page shows, in one call (src/home.js).
