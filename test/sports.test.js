@@ -88,6 +88,17 @@ test("men's college basketball asks for all of Division I", async () => {
   assert.match(calls[0], /mens-college-basketball\/scoreboard\?.*groups=50/);
 });
 
+test('college baseball and soccer scoreboards use their ESPN leagues with no division filter', async () => {
+  responses = () => ({ events: [] });
+  for (const [sport, slug] of [['cbase', 'baseball/college-baseball'], ['msoc', 'soccer/usa.ncaa.m.1'], ['wsoc', 'soccer/usa.ncaa.w.1']]) {
+    calls.length = 0;
+    await espn.getScoreboard({ sport, dates: '20260314' });
+    assert.ok(calls[0].includes(`/${slug}/scoreboard?`), calls[0]);
+    // groups=50 cuts college baseball to a handful of featured games.
+    assert.doesNotMatch(calls[0], /groups=/);
+  }
+});
+
 test('pro standings flatten nested groups and build records from wins/losses', () => {
   const conferences = espn.parseStandings({
     children: [{
@@ -150,7 +161,8 @@ test('API lists sports and rejects unknown sports and bad dates', async () => {
   await withApi(async (url) => {
     const list = await (await fetch(`${url}/api/sports`)).json();
     assert.strictEqual(list.defaultSport, 'cfb');
-    assert.deepStrictEqual(list.sports.map((s) => s.key), ['cfb', 'nfl', 'nba', 'mcbb', 'mlb', 'nhl', 'wnba', 'epl', 'mls', 'ucl', 'ufc', 'nascar', 'f1', 'golf']);
+    assert.deepStrictEqual(list.sports.map((s) => s.key), ['cfb', 'mcbb', 'cbase', 'msoc', 'wsoc', 'nfl', 'nba', 'mlb', 'nhl', 'wnba', 'epl', 'mls', 'ucl', 'ufc', 'nascar', 'f1', 'golf']);
+    assert.deepStrictEqual(list.groups.map((g) => g.key), ['college', 'pro', 'racing', 'fighting', 'golf']);
     assert.strictEqual((await fetch(`${url}/api/scoreboard?sport=curling`)).status, 400);
     assert.strictEqual((await fetch(`${url}/api/scoreboard?sport=nba&dates=tomorrow`)).status, 400);
   });

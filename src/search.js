@@ -34,8 +34,11 @@ const LEAGUE_SLUGS = {
   'eng.1': 'epl',
   'usa.1': 'mls',
   'uefa.champions': 'ucl',
+  'college-baseball': 'cbase',
+  'usa.ncaa.m.1': 'msoc',
+  'usa.ncaa.w.1': 'wsoc',
 };
-const LEAGUE_IDS = { 23: 'cfb', 28: 'nfl', 46: 'nba', 41: 'mcbb', 10: 'mlb', 90: 'nhl', 59: 'wnba', 700: 'epl', 770: 'mls', 775: 'ucl' };
+const LEAGUE_IDS = { 23: 'cfb', 28: 'nfl', 46: 'nba', 41: 'mcbb', 10: 'mlb', 90: 'nhl', 59: 'wnba', 700: 'epl', 770: 'mls', 775: 'ucl', 14: 'cbase', 5487: 'msoc', 5499: 'wsoc' };
 
 function normalize(s) {
   return String(s || '')

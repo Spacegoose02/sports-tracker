@@ -40,7 +40,7 @@ function distinct(a, b) {
 
 const START_WORD = {
   cfb: 'Kickoff', nfl: 'Kickoff', nba: 'Tip-off', mcbb: 'Tip-off',
-  mlb: 'First pitch', nhl: 'Puck drop', ufc: 'First fight', nascar: 'Green flag',
+  mlb: 'First pitch', cbase: 'First pitch', nhl: 'Puck drop', ufc: 'First fight', nascar: 'Green flag',
 };
 
 function relative(dateStr, lang) {
@@ -314,7 +314,7 @@ function ufcSvg(card) {
 const VISUALS = {
   cfb: footballSvg, nfl: footballSvg,
   nba: basketballSvg, mcbb: basketballSvg,
-  mlb: baseballSvg, nhl: hockeySvg,
+  mlb: baseballSvg, cbase: baseballSvg, nhl: hockeySvg,
   nascar: nascarSvg, ufc: ufcSvg,
 };
 
@@ -414,6 +414,7 @@ const CELEBRATE = {
   nfl: (p) => (p >= 6 ? 'TOUCHDOWN!' : p === 3 ? 'FIELD GOAL!' : p === 2 ? 'SAFETY!' : null),
   nhl: () => 'GOAL!',
   mlb: (p) => (p > 1 ? `${p} RUNS SCORE!` : 'RUN SCORES!'),
+  cbase: (p) => (p > 1 ? `${p} RUNS SCORE!` : 'RUN SCORES!'),
   nba: (p) => (p === 3 ? 'FROM DOWNTOWN!' : null),
   mcbb: (p) => (p === 3 ? 'FROM DOWNTOWN!' : null),
 };
@@ -514,7 +515,7 @@ class SportsTrackerCard extends HTMLElement {
       const ts = team && team.score != null ? team.score : '-';
       const os = opponent && opponent.score != null ? opponent.score : '-';
       const status = live
-        ? `<div class="status">${esc(event.clock && card.sport !== 'mlb' ? `${event.clock} - ` : '')}${esc(card.sport === 'mlb' ? (event.shortDetail || '') : (event.periodLabel || event.shortDetail || ''))}</div><em class="live">LIVE</em>`
+        ? `<div class="status">${esc(event.clock && !['mlb', 'cbase'].includes(card.sport) ? `${event.clock} - ` : '')}${esc(['mlb', 'cbase'].includes(card.sport) ? (event.shortDetail || '') : (event.periodLabel || event.shortDetail || ''))}</div><em class="live">LIVE</em>`
         : `<div class="status">${esc(event.shortDetail || 'Final')}</div>`;
       mid = `<div class="score">${team && team.winner ? `<b>${esc(ts)}</b>` : esc(ts)}&nbsp;&nbsp;${opponent && opponent.winner ? `<b>${esc(os)}</b>` : esc(os)}</div>${status}`;
     }
@@ -549,7 +550,7 @@ class SportsTrackerCard extends HTMLElement {
     const ls = (t) => (t && Array.isArray(t.linescores) ? t.linescores : []);
     const periods = Math.max(ls(team).length, ls(opponent).length);
     if (this._config.linescore && (live || post) && periods > 0 && periods <= 15) {
-      const label = (i) => (card.sport === 'mlb' ? i + 1 : i < (card.sport === 'mcbb' ? 2 : card.sport === 'nhl' ? 3 : 4) ? i + 1 : 'OT');
+      const label = (i) => (['mlb', 'cbase'].includes(card.sport) ? i + 1 : i < (['mcbb', 'msoc', 'wsoc'].includes(card.sport) ? 2 : card.sport === 'nhl' ? 3 : 4) ? i + 1 : 'OT');
       const row = (t) => `<tr><td>${esc((t && (t.abbreviation || t.shortName)) || '')}</td>${Array.from({ length: periods }, (_, i) => `<td>${esc(ls(t)[i] != null ? ls(t)[i] : '')}</td>`).join('')}<td>${esc(t && t.score != null ? t.score : '')}</td></tr>`;
       lines = `<table class="lines"><tr><th></th>${Array.from({ length: periods }, (_, i) => `<th>${label(i)}</th>`).join('')}<th>T</th></tr>${row(team)}${row(opponent)}</table>`;
     }

@@ -19,7 +19,7 @@ const espn = require('./espn');
 const HISTORY_SEASONS = 12;
 const HOUR = 60 * 60 * 1000;
 const FORECAST_DAYS = 15;
-const OUTDOOR_SPORTS = new Set(['cfb', 'nfl', 'mlb']);
+const OUTDOOR_SPORTS = new Set(['cfb', 'nfl', 'mlb', 'cbase']);
 const FOOTBALL = new Set(['cfb', 'nfl']);
 
 // Stadiums with a fixed or retractable roof. Retractable roofs are often

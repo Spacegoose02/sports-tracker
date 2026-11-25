@@ -248,12 +248,19 @@ Videos) is now at `/scores?sport=...`; `/index.html` still works too.
 
 ## Other sports
 
-A sport picker at the top of every page switches between **College
-Football** (the default), **NFL**, **NBA**, **men's college basketball**,
-**MLB**, **NHL**, **WNBA**, the **Premier League**, **MLS** and the
-**Champions League**, plus **UFC**, **NASCAR**, **Formula 1** and the **PGA
-Tour**. Every page and API route takes `?sport=` (`cfb`, `nfl`, `nba`,
-`mcbb`, `mlb`, `nhl`, `wnba`, `epl`, `mls`, `ucl`, `ufc`, `nascar`, `f1`,
+A sport picker at the top of every page is split into sections:
+
+- **College**: College Football (the default), men's college basketball,
+  **college baseball** and **men's and women's college soccer**
+- **Pro**: NFL, NBA, MLB, NHL, WNBA, the Premier League, MLS and the
+  Champions League
+- **Racing**: NASCAR and Formula 1
+- **Fighting**: UFC
+- **Golf**: the PGA Tour
+
+The home page's league chips use the same sections. Every page and API
+route takes `?sport=` (`cfb`, `mcbb`, `cbase`, `msoc`, `wsoc`, `nfl`,
+`nba`, `mlb`, `nhl`, `wnba`, `epl`, `mls`, `ucl`, `ufc`, `nascar`, `f1`,
 `golf`), so links are shareable, and the last sport you
 picked is remembered in your browser. Leaving `sport` off means college
 football, so existing bookmarks and the Dynacat widget keep working.
@@ -273,6 +280,14 @@ football, so existing bookmarks and the Dynacat widget keep working.
   are normal, league tables are sorted by points with games played and
   goals for, against and difference, and kids get soccer explanations,
   trivia and a goal horn.
+- **College baseball** (`cbase`) covers every Division I game, with the
+  live count, outs and runners like MLB, Top 25 ranks on game cards and one
+  Division I standings table. ESPN has no poll or stat leaders feed for it,
+  so those tabs are hidden.
+- **College soccer** (`msoc`, `wsoc`) has scores, schedules, team and game
+  pages and news for NCAA Division I. Overtime periods read OT1/OT2 and
+  ranks show on game cards; ESPN publishes no standings, polls or leaders
+  for it, so those tabs are hidden.
 - **Formula 1** (`f1`) lists race weekends like NASCAR, and the **PGA
   Tour** (`golf`) lists tournaments with the top of the leaderboard and
   each player's score to par.

@@ -197,11 +197,17 @@
       : '';
   }
 
+  // Leagues come busiest first; within each section (College, Pro, ...)
+  // that order is kept, so live leagues still lead their row.
   function renderJump(leagues) {
-    el('leagueJump').innerHTML = leagues.map((l) => `
-      <a href="${esc(scoresUrl(l.key))}" class="${l.inSeason ? '' : 'off'}" title="${esc(l.label)}">
-        ${esc(l.shortLabel)}${l.counts.live ? `<span class="jump-live">${l.counts.live}</span>` : ''}
-      </a>`).join('');
+    el('leagueJump').innerHTML = CFB.groupSports(leagues, (l) => l.group).map((g) => `
+      <div class="jump-group" role="group" aria-label="${esc(g.label)}">
+        <span class="jump-group-label" aria-hidden="true">${esc(g.label)}</span>
+        ${g.items.map((l) => `
+        <a href="${esc(scoresUrl(l.key))}" class="${l.inSeason ? '' : 'off'}" title="${esc(l.label)}">
+          ${esc(l.shortLabel)}${l.counts.live ? `<span class="jump-live">${l.counts.live}</span>` : ''}
+        </a>`).join('')}
+      </div>`).join('');
   }
 
   // ---- Headlines ----------------------------------------------------------

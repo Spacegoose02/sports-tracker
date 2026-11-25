@@ -926,6 +926,7 @@ footer.foot {
 /* Sport picker (CFB / NFL / NBA / ...) at the top of every page */
 .sport-bar {
   display: flex;
+  align-items: center;
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 4px;
@@ -943,6 +944,20 @@ footer.foot {
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
+}
+.sport-group { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.sport-group + .sport-group { margin-left: 6px; padding-left: 14px; border-left: 1px solid var(--border); }
+.sport-group-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+/* Wide screens have room for every section: wrap instead of scrolling.
+   Phones keep one swipeable row. */
+@media (min-width: 900px) {
+  .sport-bar { flex-wrap: wrap; row-gap: 10px; overflow: visible; }
 }
 .sport-bar button:hover { border-color: var(--accent); color: var(--text); }
 .sport-bar button.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
